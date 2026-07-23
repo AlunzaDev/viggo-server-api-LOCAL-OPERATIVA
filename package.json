@@ -1,0 +1,30 @@
+{
+  "name": "viggo-server-api-localope",
+  "version": "1.1.0",
+  "description": "API local operativa de Viggo para estacionamientos",
+  "private": true,
+  "main": "dist/app.js",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "tsc",
+    "start": "node dist/app.js",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.2.1",
+    "env-var": "^7.5.0",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.16.1",
+    "socket.io": "^4.8.3"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^24.0.10",
+    "typescript": "^6.0.3"
+  }
+}
