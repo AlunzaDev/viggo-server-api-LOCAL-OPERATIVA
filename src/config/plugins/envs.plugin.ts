@@ -84,6 +84,7 @@ export const envs = {
   APP_ENV: appEnv,
   PROD: isProd,
   JWT_SEED: env.get("JWT_SEED").default("").asString(),
+  INSTALLATION_SECRET_KEY: env.get("INSTALLATION_SECRET_KEY").default("").asString(),
   MONGO_URL: mongoUrl,
   MONGO_DB_NAME: getConfigValue("MONGO_DB_NAME") ?? "cobro-cajas-wm",
   MONGO_DISCONNECT_EXIT_DELAY_MS: parseBoundedInteger(
@@ -99,6 +100,12 @@ export const envs = {
   WEB_SERVICE_URL: webServiceUrl,
   WEB_CLIENT_URL: webClientUrl,
   CORS_ALLOWED_ORIGINS: [...new Set(corsAllowedOrigins)],
+  PROJECT_ID: env.get("PROJECT_ID").default("").asString(),
+  INSTALLATION_ID: env.get("INSTALLATION_ID").default("").asString(),
+  NUBEADMIN_API_URL: env
+    .get("NUBEADMIN_API_URL")
+    .default("http://localhost:3000")
+    .asString(),
   AUTH_COOKIE_NAME: env.get("AUTH_COOKIE_NAME").default("sikk_auth").asString(),
   AUTH_COOKIE_SECURE: authCookieSecure,
   AUTH_COOKIE_SAME_SITE: authCookieSameSite,
@@ -106,7 +113,12 @@ export const envs = {
     .get("AUTH_COOKIE_MAX_AGE_MS")
     .default(String(1000 * 60 * 60 * 24 * 2))
     .asIntPositive(),
+  OFFLINE_LOGIN_MAX_AGE_DAYS: env
+    .get("OFFLINE_LOGIN_MAX_AGE_DAYS")
+    .default("7")
+    .asIntPositive(),
   PAYMENT_CURRENCY: env.get("PAYMENT_CURRENCY").default("mxn").asString(),
+  SYNC_SERVICE_TOKEN: env.get("SYNC_SERVICE_TOKEN").default("").asString(),
   BARRIER_SOCKET_REQUIRED: env
     .get("BARRIER_SOCKET_REQUIRED")
     .default(isProd ? "true" : "false")

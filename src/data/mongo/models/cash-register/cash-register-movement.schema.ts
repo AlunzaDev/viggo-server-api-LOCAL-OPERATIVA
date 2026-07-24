@@ -78,7 +78,6 @@ const cashRegisterMovementSchema = new Schema(
       type: String,
       default: undefined,
       trim: true,
-      index: true,
     },
     notes: {
       type: String,

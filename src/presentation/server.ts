@@ -14,6 +14,7 @@ interface ServerOptions {
 }
 
 export class Server {
+  private static readonly fallbackPort = 3002;
   private readonly app = express();
   private readonly httpServer: HttpServer;
   private readonly host: string;
@@ -71,8 +72,34 @@ export class Server {
     });
 
     SocketServerPlugin.init(this.httpServer);
-    this.httpServer.listen(this.port, this.host, () => {
-      console.log(`[LOCALOPE] Server running on ${this.host}:${this.port}`);
+    await this.listenWithFallback(this.port);
+  }
+
+  private listenWithFallback(port: number): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const onError = (error: NodeJS.ErrnoException) => {
+        this.httpServer.off("listening", onListening);
+
+        if (error.code === "EADDRINUSE" && port === this.port) {
+          console.warn(
+            `[LOCALOPE] Port ${port} is busy. Trying ${Server.fallbackPort}.`,
+          );
+          this.listenWithFallback(Server.fallbackPort).then(resolve).catch(reject);
+          return;
+        }
+
+        reject(error);
+      };
+
+      const onListening = () => {
+        this.httpServer.off("error", onError);
+        console.log(`[LOCALOPE] Server running on ${this.host}:${port}`);
+        resolve();
+      };
+
+      this.httpServer.once("error", onError);
+      this.httpServer.once("listening", onListening);
+      this.httpServer.listen(port, this.host);
     });
   }
 }

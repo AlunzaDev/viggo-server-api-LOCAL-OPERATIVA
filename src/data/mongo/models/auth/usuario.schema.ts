@@ -93,6 +93,19 @@ const usuarioSchema = new Schema(
       type: Boolean,
       default: false,
     },
+    syncSource: {
+      type: String,
+      enum: ["nubeadmin", "local"],
+      default: "nubeadmin",
+    },
+    lastSyncedAt: {
+      type: Number,
+      default: undefined,
+    },
+    lastCloudCheckAt: {
+      type: Number,
+      default: undefined,
+    },
   },
   {
     versionKey: false,

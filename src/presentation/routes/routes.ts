@@ -6,10 +6,13 @@ import { ModuloRoutes } from "./parking/modulo.routes";
 import { ProyectoRoutes } from "./parking/proyecto.routes";
 import { TicketRoutes } from "./parking/ticket.routes";
 import { CashTicketPaymentRoutes } from "./payments/cash-ticket-payment.routes";
+import { InstallationRoutes } from "./installation/installation.routes";
 import { TicketPaymentRoutes } from "./payments/ticket-payment.routes";
 import { PensionMoveRoutes } from "./pension/pension-move.routes";
 import { PensionPassRoutes } from "./pension/pension-pass.routes";
 import { PensionRoutes } from "./pension/pension.routes";
+import { SyncRoutes } from "./sync/sync.routes";
+import { LocalReportsRoutes } from "./local-reports/local-reports.routes";
 
 export class AppRoutes {
   static get routes(): Router {
@@ -33,6 +36,7 @@ export class AppRoutes {
 
     // Identidad local de usuarios previamente sincronizados desde NUBEADMIN.
     router.use("/api/auth", AuthRoutes.routes);
+    router.use("/api/installation", InstallationRoutes.routes);
 
     // Proyecciones administrativas de solo lectura + runtime local de dispositivos.
     router.use("/api/proyectos", ProyectoRoutes.routes);
@@ -46,6 +50,8 @@ export class AppRoutes {
     router.use("/api/cash-register", CashRegisterRoutes.routes);
     router.use("/api/payments", TicketPaymentRoutes.routes);
     router.use("/api/cash-payments", CashTicketPaymentRoutes.routes);
+    router.use("/api/sync", SyncRoutes.routes);
+    router.use("/api/local-reports", LocalReportsRoutes.routes);
 
     return router;
   }
