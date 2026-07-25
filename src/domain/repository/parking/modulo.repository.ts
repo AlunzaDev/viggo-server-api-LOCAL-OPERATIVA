@@ -1,5 +1,5 @@
 import { ModuloFilters } from "../../datasources/parking/modulo.datasource";
-import { ModuloEntity } from "../../entities/parking/modulo.entity";
+import { ModuloEntity, ModuloSubmodulo } from "../../entities/parking/modulo.entity";
 
 export abstract class ModuloRepository {
     abstract create(modulo: Omit<ModuloEntity, "id">): Promise<ModuloEntity>;
@@ -9,6 +9,7 @@ export abstract class ModuloRepository {
     abstract getWithPendingDeviceBindingRequests(): Promise<ModuloEntity[]>;
     abstract getFiltered(filters: ModuloFilters): Promise<ModuloEntity[]>;
     abstract getByProyecto(proyectoId: string): Promise<ModuloEntity[]>;
+    abstract getSubmodulos(id: string): Promise<ModuloSubmodulo[] | null>;
     abstract update(
         id: string,
         modulo: Partial<Omit<ModuloEntity, "id">>,

@@ -1,4 +1,4 @@
-import { ModuloEntity } from "../../entities/parking/modulo.entity";
+import { ModuloEntity, ModuloSubmodulo } from "../../entities/parking/modulo.entity";
 
 export interface ModuloFilters {
     proyecto?: string;
@@ -14,6 +14,7 @@ export abstract class ModuloDatasource {
     abstract getWithPendingDeviceBindingRequests(): Promise<ModuloEntity[]>;
     abstract getFiltered(filters: ModuloFilters): Promise<ModuloEntity[]>;
     abstract getByProyecto(proyectoId: string): Promise<ModuloEntity[]>;
+    abstract getSubmodulos(id: string): Promise<ModuloSubmodulo[] | null>;
     abstract update(
         id: string,
         modulo: Partial<Omit<ModuloEntity, "id">>,

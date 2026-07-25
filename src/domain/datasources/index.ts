@@ -13,3 +13,8 @@ export * from "./cash-register/cash-register-count.datasource";
 export * from "./cash-register/cash-register-cut.datasource";
 export * from "./payments/payment.datasource";
 export * from "./payments/cash-payment-session.datasource";
+export * from "./payments/cash-ticket-payment.datasource";
+export * from "./installation/local-installation.datasource";
+export * from "./sync/sync.datasource";
+export * from "./local-reports/local-reports.datasource";
+export * from "./cash-register/cash-register-module.datasource";

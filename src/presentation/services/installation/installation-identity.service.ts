@@ -1,8 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { envs } from "../../../config";
-import { LocalInstallationModel } from "../../../data/mongo/models/system/local-installation.schema";
-
-const DEFAULT_INSTALLATION_KEY = "default";
+import { LocalInstallationService } from "./local-installation.service";
 
 const normalizeInstallationId = (value: unknown) =>
   String(value ?? "")
@@ -16,24 +14,26 @@ const createGeneratedInstallationId = () =>
   `viggo-local-${randomUUID().replace(/-/g, "").slice(0, 12)}`;
 
 export class InstallationIdentityService {
+  private static localInstallationService: LocalInstallationService | null = null;
+
+  static configure(localInstallationService: LocalInstallationService) {
+    this.localInstallationService = localInstallationService;
+  }
+
   static async getInstallationId(): Promise<string> {
+    if (!this.localInstallationService) {
+      throw new Error("InstallationIdentityService no ha sido configurado");
+    }
+
     const envInstallationId = normalizeInstallationId(envs.INSTALLATION_ID);
 
-    const existing = await LocalInstallationModel.findOne({
-      key: DEFAULT_INSTALLATION_KEY,
-    }).lean();
+    const existing = await this.localInstallationService.findDefault();
 
     if (envInstallationId) {
       if (existing?.installationId !== envInstallationId) {
-        await LocalInstallationModel.findOneAndUpdate(
-          { key: DEFAULT_INSTALLATION_KEY },
-          {
-            key: DEFAULT_INSTALLATION_KEY,
-            installationId: envInstallationId,
-            updatedAt: Date.now(),
-          },
-          { upsert: true, setDefaultsOnInsert: true },
-        );
+        await this.localInstallationService.upsertRequest({
+          installationId: envInstallationId,
+        });
       }
       return envInstallationId;
     }
@@ -42,15 +42,9 @@ export class InstallationIdentityService {
     if (persistedInstallationId) return persistedInstallationId;
 
     const generatedInstallationId = createGeneratedInstallationId();
-    await LocalInstallationModel.findOneAndUpdate(
-      { key: DEFAULT_INSTALLATION_KEY },
-      {
-        key: DEFAULT_INSTALLATION_KEY,
-        installationId: generatedInstallationId,
-        updatedAt: Date.now(),
-      },
-      { upsert: true, setDefaultsOnInsert: true },
-    );
+    await this.localInstallationService.upsertRequest({
+      installationId: generatedInstallationId,
+    });
 
     return generatedInstallationId;
   }

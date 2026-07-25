@@ -2,6 +2,7 @@ import { Router } from "express";
 import { MongoDatabase } from "../../data/mongo";
 import { AuthRoutes } from "./auth/auth.routes";
 import { CashRegisterRoutes } from "./cash-register/cash-register.routes";
+import { ConfigRoutes } from "./config/config.routes";
 import { ModuloRoutes } from "./parking/modulo.routes";
 import { ProyectoRoutes } from "./parking/proyecto.routes";
 import { TicketRoutes } from "./parking/ticket.routes";
@@ -48,6 +49,7 @@ export class AppRoutes {
     router.use("/api/tickets", TicketRoutes.routes);
     router.use("/api/pension-moves", PensionMoveRoutes.routes);
     router.use("/api/cash-register", CashRegisterRoutes.routes);
+    router.use("/api/config", ConfigRoutes.routes);
     router.use("/api/payments", TicketPaymentRoutes.routes);
     router.use("/api/cash-payments", CashTicketPaymentRoutes.routes);
     router.use("/api/sync", SyncRoutes.routes);

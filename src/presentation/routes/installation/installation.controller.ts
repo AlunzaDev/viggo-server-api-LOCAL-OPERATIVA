@@ -1,13 +1,10 @@
 import { Request, Response } from "express";
 import { envs } from "../../../config";
-import { ProyectoModel } from "../../../data/mongo/models/parking/proyecto.schema";
-import { LocalInstallationModel } from "../../../data/mongo/models/system/local-installation.schema";
 import { getAuthenticatedRequestUser } from "../../middlewares";
 import { ErrorService } from "../../services/error.service";
 import { InstallationIdentityService } from "../../services/installation/installation-identity.service";
 import { InstallationTokenCryptoService } from "../../services/installation/installation-token-crypto.service";
-
-const DEFAULT_INSTALLATION_KEY = "default";
+import type { InstallationServices } from "../../services/installation/installation-service.factory";
 
 type PlainRecord = Record<string, unknown>;
 
@@ -60,6 +57,8 @@ const normalizeProject = (value: PlainRecord) => ({
 });
 
 export class InstallationController {
+  constructor(private readonly services: InstallationServices) {}
+
   getStatus = async (_req: Request, res: Response) => {
     try {
       const installation = await this.ensureInstallation();
@@ -128,10 +127,8 @@ export class InstallationController {
       const encryptedSyncToken = InstallationTokenCryptoService.encrypt(
         installationLinkToken,
       );
-      const installation = await LocalInstallationModel.findOneAndUpdate(
-        { key: DEFAULT_INSTALLATION_KEY },
+      const installation = await this.services.localInstallationService.upsertRequest(
         {
-          key: DEFAULT_INSTALLATION_KEY,
           proyectoId: "",
           proyectoNombre: String(request.proyectoNombre ?? ""),
           proyectoIdentificador: String(request.proyectoIdentificador ?? ""),
@@ -142,10 +139,8 @@ export class InstallationController {
           syncTokenIssuedAt: Date.now(),
           syncTokenRotatedAt: Date.now(),
           requestedAt: request.requestedAt ?? Date.now(),
-          updatedAt: Date.now(),
         },
-        { new: true, upsert: true, setDefaultsOnInsert: true },
-      ).lean();
+      );
 
       return res.status(202).json({ installation: await serializeInstallation(installation) });
     } catch (_error) {
@@ -156,9 +151,7 @@ export class InstallationController {
   };
 
   private async ensureInstallation(): Promise<PlainRecord | null> {
-    const existing = await LocalInstallationModel.findOne({
-      key: DEFAULT_INSTALLATION_KEY,
-    }).lean();
+    const existing = await this.services.localInstallationService.findDefault();
 
     if (existing?.status === "linked") return existing;
 
@@ -175,10 +168,9 @@ export class InstallationController {
 
     if (request.status === "approved" && cloudStatus.proyecto) {
       const project = cloudStatus.proyecto;
-      await ProyectoModel.findByIdAndUpdate(
+      await this.services.localInstallationService.upsertProject(
         String(project._id ?? project.id),
         normalizeProject(project),
-        { new: true, upsert: true, setDefaultsOnInsert: true },
       );
 
       return this.linkLocalProject(
@@ -191,10 +183,8 @@ export class InstallationController {
       );
     }
 
-    return LocalInstallationModel.findOneAndUpdate(
-      { key: DEFAULT_INSTALLATION_KEY },
+    return this.services.localInstallationService.upsertRequest(
       {
-        key: DEFAULT_INSTALLATION_KEY,
         proyectoId: "",
         proyectoNombre: String(request.proyectoNombre ?? ""),
         proyectoIdentificador: String(request.proyectoIdentificador ?? ""),
@@ -204,10 +194,8 @@ export class InstallationController {
         reviewNote: String(request.reviewNote ?? ""),
         requestedAt: request.requestedAt,
         reviewedAt: request.reviewedAt,
-        updatedAt: Date.now(),
       },
-      { new: true, upsert: true, setDefaultsOnInsert: true },
-    ).lean();
+    );
   }
 
   private async linkLocalProject(
@@ -216,32 +204,20 @@ export class InstallationController {
     cloudRequestId: string,
     oneTimeSyncToken = "",
   ): Promise<PlainRecord | null> {
-    const proyecto = await ProyectoModel.findById(proyectoId).lean();
+    const proyecto = await this.services.localInstallationService.findProjectById(proyectoId);
     const encryptedSyncToken = oneTimeSyncToken
       ? InstallationTokenCryptoService.encrypt(oneTimeSyncToken)
       : undefined;
-    return LocalInstallationModel.findOneAndUpdate(
-      { key: DEFAULT_INSTALLATION_KEY },
+    return this.services.localInstallationService.linkProject(
       {
-        key: DEFAULT_INSTALLATION_KEY,
         proyectoId,
         proyectoNombre: String(proyecto?.nombre ?? ""),
         proyectoIdentificador: String(proyecto?.identificador ?? ""),
         source,
-        status: "linked",
         cloudRequestId,
-        ...(encryptedSyncToken
-          ? {
-              encryptedSyncToken,
-              syncTokenIssuedAt: Date.now(),
-              syncTokenRotatedAt: Date.now(),
-            }
-          : {}),
-        assignedAt: Date.now(),
-        updatedAt: Date.now(),
+        encryptedSyncToken,
       },
-      { new: true, upsert: true, setDefaultsOnInsert: true },
-    ).lean();
+    );
   }
 
   private async getCloudRequestStatus(): Promise<{

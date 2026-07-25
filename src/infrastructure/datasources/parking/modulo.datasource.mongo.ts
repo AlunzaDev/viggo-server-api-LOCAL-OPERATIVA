@@ -53,6 +53,13 @@ export class ModuloMongoDatasource extends ModuloDatasource {
         return modulos.map((modulo) => ModuloEntity.fromObject(modulo.toObject()));
     }
 
+    async getSubmodulos(id: string) {
+        const moduloDocument = await ModuloModel.findById(id);
+        if (!moduloDocument) return null;
+
+        return ModuloEntity.fromObject(moduloDocument.toObject()).submodulos;
+    }
+
     async update(
         id: string,
         modulo: Partial<Omit<ModuloEntity, "id">>,

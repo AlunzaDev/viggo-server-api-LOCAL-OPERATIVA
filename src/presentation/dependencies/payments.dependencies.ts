@@ -17,6 +17,10 @@ import { CashRegisterShiftRepositoryImpl } from "../../infrastructure/repositori
 import { CashTicketPaymentController } from "../routes/payments/cash-ticket-payment.controller";
 import { CashRegisterService } from "../services/cash-register/cash-register.service";
 import { CashTicketPaymentService } from "../services/payments/cash-ticket-payment.service";
+import { CashRegisterModuleMongoDatasource } from "../../infrastructure/datasources/cash-register/cash-register-module.datasource.mongo";
+import { CashRegisterModuleRepositoryImpl } from "../../infrastructure/repositories/cash-register/cash-register-module.repository.impl";
+import { CashTicketPaymentMongoDatasource } from "../../infrastructure/datasources/payments/cash-ticket-payment.datasource.mongo";
+import { CashTicketPaymentRepositoryImpl } from "../../infrastructure/repositories/payments/cash-ticket-payment.repository.impl";
 
 export const buildPaymentHistoryController = (): PaymentHistoryController => {
   const paymentRepository = new PaymentRepositoryImpl(
@@ -50,11 +54,18 @@ export const buildCashTicketPaymentController =
     const cashRegisterCutRepository = new CashRegisterCutRepositoryImpl(
       new CashRegisterCutMongoDatasource(),
     );
+    const cashRegisterModuleRepository = new CashRegisterModuleRepositoryImpl(
+      new CashRegisterModuleMongoDatasource(),
+    );
     const cashRegisterService = new CashRegisterService(
       cashRegisterShiftRepository,
       cashRegisterMovementRepository,
       cashRegisterCountRepository,
       cashRegisterCutRepository,
+      cashRegisterModuleRepository,
+    );
+    const cashTicketPaymentRepository = new CashTicketPaymentRepositoryImpl(
+      new CashTicketPaymentMongoDatasource(),
     );
 
     const service = new CashTicketPaymentService(
@@ -63,6 +74,7 @@ export const buildCashTicketPaymentController =
       paymentRepository,
       cashRegisterShiftRepository,
       cashRegisterService,
+      cashTicketPaymentRepository,
     );
 
     return new CashTicketPaymentController(service);

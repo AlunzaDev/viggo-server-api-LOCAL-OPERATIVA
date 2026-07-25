@@ -1,11 +1,11 @@
 import { Router } from "express";
+import { buildInstallationController } from "../../dependencies";
 import { AuthMiddleware } from "../../middlewares";
-import { InstallationController } from "./installation.controller";
 
 export class InstallationRoutes {
   static get routes(): Router {
     const router = Router();
-    const controller = new InstallationController();
+    const controller = buildInstallationController();
 
     router.get("/status", AuthMiddleware.requireAuth, controller.getStatus);
     router.get("/cloud-projects", AuthMiddleware.requireAuth, controller.getCloudProjects);

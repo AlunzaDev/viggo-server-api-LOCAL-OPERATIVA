@@ -31,6 +31,11 @@ export class ModuloRoutes {
       AuthMiddleware.requireAuth,
       controller.getModuloByIdentificador,
     );
+    router.get(
+      "/:id/submodulos",
+      AuthMiddleware.requireAuth,
+      controller.getSubmodulos,
+    );
     router.get("/:id", AuthMiddleware.requireAuth, controller.getModuloById);
 
     router.patch(

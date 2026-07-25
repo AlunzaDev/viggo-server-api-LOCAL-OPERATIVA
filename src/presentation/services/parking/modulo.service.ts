@@ -48,6 +48,10 @@ export class ModuloService {
     return this.queryService.getModuloByIdentificador(identificador);
   }
 
+  getSubmodulos(id: string) {
+    return this.queryService.getSubmodulos(id);
+  }
+
   validateDeviceRegistration(
     id: string,
     device: DeviceRegistrationPayload,

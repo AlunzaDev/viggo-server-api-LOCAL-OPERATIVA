@@ -19,3 +19,8 @@ export * from "./cash-register/cash-register-count.repository";
 export * from "./cash-register/cash-register-cut.repository";
 export * from "./payments/payment.repository";
 export * from "./payments/cash-payment-session.repository";
+export * from "./payments/cash-ticket-payment.repository";
+export * from "./installation/local-installation.repository";
+export * from "./sync/sync.repository";
+export * from "./local-reports/local-reports.repository";
+export * from "./cash-register/cash-register-module.repository";

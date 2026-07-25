@@ -80,6 +80,28 @@ const localInstallationSchema = new Schema(
       type: Number,
       default: undefined,
     },
+    lastConfigurationVersion: {
+      type: Number,
+      default: undefined,
+    },
+    lastAccessVersion: {
+      type: Number,
+      default: undefined,
+    },
+    lastSyncAt: {
+      type: Number,
+      default: undefined,
+    },
+    lastSyncStatus: {
+      type: String,
+      enum: ["success", "success_with_warnings", "failed"],
+      default: undefined,
+    },
+    lastSyncError: {
+      type: String,
+      default: "",
+      trim: true,
+    },
     updatedAt: {
       type: Number,
       required: true,

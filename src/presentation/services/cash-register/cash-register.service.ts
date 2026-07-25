@@ -1,5 +1,5 @@
-import { ModuloModel } from "../../../data/mongo/models/parking/modulo.schema";
 import { CustomError } from "../../../domain/errors/custom.error";
+import type { CashRegisterModuloProjection } from "../../../domain/datasources/cash-register/cash-register-module.datasource";
 import {
   CashRegisterCountEntity,
   CashRegisterCountLine,
@@ -17,6 +17,7 @@ import { CashRegisterShiftEntity } from "../../../domain/entities/cash-register/
 import { CashRegisterCountRepository } from "../../../domain/repository/cash-register/cash-register-count.repository";
 import { CashRegisterCutRepository } from "../../../domain/repository/cash-register/cash-register-cut.repository";
 import { CashRegisterMovementRepository } from "../../../domain/repository/cash-register/cash-register-movement.repository";
+import { CashRegisterModuleRepository } from "../../../domain/repository/cash-register/cash-register-module.repository";
 import { CashRegisterShiftRepository } from "../../../domain/repository/cash-register/cash-register-shift.repository";
 
 export interface CashRegisterActorContext {
@@ -56,14 +57,15 @@ export class CashRegisterService {
     private readonly movementRepository: CashRegisterMovementRepository,
     private readonly countRepository: CashRegisterCountRepository,
     private readonly cutRepository: CashRegisterCutRepository,
+    private readonly moduleRepository: CashRegisterModuleRepository,
   ) {}
 
   async openShift(input: OpenShiftInput, actor: CashRegisterActorContext) {
     const modulo = await this.resolveModulo(input.moduloId);
-    this.ensureProjectAccess(String(modulo.get("proyecto") ?? ""), actor);
+    this.ensureProjectAccess(modulo.proyectoId, actor);
 
     const [openShiftForModulo, openShiftForUser] = await Promise.all([
-      this.shiftRepository.findOpenByModuloId(String(modulo._id)),
+      this.shiftRepository.findOpenByModuloId(modulo.id),
       this.shiftRepository.findOpenByUserId(actor.userId),
     ]);
 
@@ -79,10 +81,10 @@ export class CashRegisterService {
 
     const now = Date.now();
     const shift = await this.shiftRepository.create({
-      proyectoId: String(modulo.get("proyecto") ?? ""),
-      moduloId: String(modulo._id),
-      moduloIdentificador: String(modulo.get("identificador") ?? "").trim() || undefined,
-      moduloNombre: String(modulo.get("nombre") ?? "").trim() || undefined,
+      proyectoId: modulo.proyectoId,
+      moduloId: modulo.id,
+      moduloIdentificador: modulo.identificador,
+      moduloNombre: modulo.nombre,
       openedByUserId: actor.userId,
       openedByUserName: actor.userName,
       status: "open",
@@ -438,19 +440,19 @@ export class CashRegisterService {
     return shift;
   }
 
-  private async resolveModulo(moduloId: string) {
-    const modulo = await ModuloModel.findById(moduloId);
+  private async resolveModulo(moduloId: string): Promise<CashRegisterModuloProjection> {
+    const modulo = await this.moduleRepository.findById(moduloId);
 
     if (!modulo) {
       throw CustomError.notFound("Caja no encontrada");
     }
 
-    const moduloTipo = String(modulo.get("tipo") ?? "").trim().toUpperCase();
+    const moduloTipo = modulo.tipo.trim().toUpperCase();
     if (moduloTipo !== "POS") {
       throw CustomError.badRequest("El modulo seleccionado no es una caja POS");
     }
 
-    if (modulo.get("estado") === false) {
+    if (!modulo.estado) {
       throw CustomError.badRequest("La caja seleccionada esta inactiva");
     }
 

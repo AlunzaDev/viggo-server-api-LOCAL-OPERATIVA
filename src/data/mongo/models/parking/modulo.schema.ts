@@ -220,6 +220,64 @@ const deviceRuntimeSchema = new Schema(
     },
 );
 
+const moduloSubmoduloSchema = new Schema(
+    {
+        submoduloId: {
+            type: String,
+            required: false,
+            trim: true,
+        },
+        nombre: {
+            type: String,
+            required: [true, "El nombre del submodulo es obligatorio"],
+            trim: true,
+        },
+        tipo: {
+            type: String,
+            required: [true, "El tipo del submodulo es obligatorio"],
+            enum: [
+                "QR_SCANNER",
+                "PRINTER",
+                "BARRIER",
+                "CAMERA",
+                "CASH_DRAWER",
+                "CASH_ACCEPTOR",
+                "DISPLAY",
+                "KEYPAD",
+                "OTHER",
+            ],
+            default: "OTHER",
+        },
+        identificador: {
+            type: String,
+            default: "",
+            trim: true,
+        },
+        ip: {
+            type: String,
+            default: "",
+            trim: true,
+        },
+        mac: {
+            type: String,
+            default: "",
+            trim: true,
+        },
+        descripcion: {
+            type: String,
+            default: "",
+            trim: true,
+        },
+        estado: {
+            type: Boolean,
+            default: true,
+        },
+    },
+    {
+        versionKey: false,
+    },
+);
+
 const moduloSchema = new Schema(
     {
         nombre: {
@@ -270,6 +328,11 @@ const moduloSchema = new Schema(
             type: deviceRuntimeSchema,
             required: false,
             default: null,
+        },
+        submodulos: {
+            type: [moduloSubmoduloSchema],
+            required: false,
+            default: [],
         },
     },
     {

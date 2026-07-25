@@ -13,3 +13,8 @@ export * from "./pension/pension-pass.repository.impl";
 export * from "./pension/pension-move.repository.impl";
 export * from "./payments/payment.repository.impl";
 export * from "./payments/cash-payment-session.repository.impl";
+export * from "./payments/cash-ticket-payment.repository.impl";
+export * from "./installation/local-installation.repository.impl";
+export * from "./sync/sync.repository.impl";
+export * from "./local-reports/local-reports.repository.impl";
+export * from "./cash-register/cash-register-module.repository.impl";

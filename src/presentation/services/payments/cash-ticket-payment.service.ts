@@ -1,18 +1,11 @@
 import { envs } from "../../../config";
-import { CashRegisterMovementModel } from "../../../data/mongo/models/cash-register/cash-register-movement.schema";
-import { CashRegisterShiftModel } from "../../../data/mongo/models/cash-register/cash-register-shift.schema";
-import { ModuloModel } from "../../../data/mongo/models/parking/modulo.schema";
-import { ProyectoModel } from "../../../data/mongo/models/parking/proyecto.schema";
-import { TicketModel } from "../../../data/mongo/models/parking/ticket.schema";
-import { CashPaymentSessionModel } from "../../../data/mongo/models/payments/cash-payment-session.schema";
-import { PaymentModel } from "../../../data/mongo/models/payments/payment.schema";
-import { startSession as startMongoSession } from "mongoose";
 import { CashPaymentSessionEntity } from "../../../domain/entities/payments/cash-payment-session.entity";
 import { CustomError } from "../../../domain/errors/custom.error";
 import { CashRegisterShiftRepository } from "../../../domain/repository/cash-register/cash-register-shift.repository";
 import { TicketRepository } from "../../../domain/repository/parking/ticket.repository";
 import { CashPaymentSessionRepository } from "../../../domain/repository/payments/cash-payment-session.repository";
 import { PaymentRepository } from "../../../domain/repository/payments/payment.repository";
+import { CashTicketPaymentRepository } from "../../../domain/repository/payments/cash-ticket-payment.repository";
 import { CashRegisterService } from "../cash-register/cash-register.service";
 
 export interface CashPaymentActorContext {
@@ -29,6 +22,7 @@ export class CashTicketPaymentService {
     private readonly paymentRepository: PaymentRepository,
     private readonly cashRegisterShiftRepository: CashRegisterShiftRepository,
     private readonly cashRegisterService: CashRegisterService,
+    private readonly mongoDatasource: CashTicketPaymentRepository,
   ) {}
 
   async resolveTicketFromQr(qrValue: string, allowedProjectIds: string[] = []) {
@@ -105,7 +99,7 @@ export class CashTicketPaymentService {
       throw CustomError.badRequest("El ticket no tiene monto por cobrar");
     }
 
-    const modulo = await ModuloModel.findById(moduloId);
+    const modulo = await this.mongoDatasource.findModuloById(moduloId);
     if (!modulo) {
       throw CustomError.notFound("Caja no encontrada");
     }
@@ -368,14 +362,15 @@ export class CashTicketPaymentService {
     rawEvent?: Record<string, unknown>;
     actor: CashPaymentActorContext;
   }) {
-    const mongoSession = await startMongoSession();
+    const mongoSession = await this.mongoDatasource.startSession();
     let finalSession: CashPaymentSessionEntity | null = null;
 
     try {
       await mongoSession.withTransaction(async () => {
-        const sessionDocument = await CashPaymentSessionModel.findById(
+        const sessionDocument = await this.mongoDatasource.findSessionById(
           options.session.id,
-        ).session(mongoSession);
+          mongoSession,
+        );
 
         if (!sessionDocument) {
           throw CustomError.notFound("Sesion de cobro no encontrada");
@@ -409,9 +404,10 @@ export class CashTicketPaymentService {
           return;
         }
 
-        const ticketDocument = await TicketModel.findById(
+        const ticketDocument = await this.mongoDatasource.findTicketById(
           currentSession.ticketId,
-        ).session(mongoSession);
+          mongoSession,
+        );
 
         if (!ticketDocument) {
           throw CustomError.notFound("Ticket no encontrado");
@@ -422,9 +418,10 @@ export class CashTicketPaymentService {
         }
 
         const shiftDocument = currentSession.cashRegisterShiftId
-          ? await CashRegisterShiftModel.findById(
+          ? await this.mongoDatasource.findShiftById(
               currentSession.cashRegisterShiftId,
-            ).session(mongoSession)
+              mongoSession,
+            )
           : null;
 
         if (currentSession.cashRegisterShiftId && !shiftDocument) {
@@ -486,7 +483,7 @@ export class CashTicketPaymentService {
         }
 
         const updatedSessionDocument =
-          await CashPaymentSessionModel.findByIdAndUpdate(
+          await this.mongoDatasource.updateSession(
             currentSession.id,
             {
               $set: {
@@ -501,7 +498,7 @@ export class CashTicketPaymentService {
                 },
               },
             },
-            { new: true, session: mongoSession },
+            mongoSession,
           );
 
         if (!updatedSessionDocument) {
@@ -515,28 +512,27 @@ export class CashTicketPaymentService {
           return;
         }
 
-        await TicketModel.findByIdAndUpdate(
+        await this.mongoDatasource.markTicketPaid(
           currentSession.ticketId,
-          {
-            pagado: true,
-            horaCobro: now,
-          },
-          { session: mongoSession },
+          now,
+          mongoSession,
         );
 
         const providerReference = `pos_session_${currentSession.id}`;
-        let paymentDocument = await PaymentModel.findOne({
-          providerReference,
-        }).session(mongoSession);
+        let paymentDocument =
+          await this.mongoDatasource.findPaymentByProviderReference(
+            providerReference,
+            mongoSession,
+          );
 
         if (!paymentDocument) {
-          const projectDocument = await ProyectoModel.findById(
+          const projectDocument = await this.mongoDatasource.findProjectById(
             ticketDocument.get("proyecto"),
-          ).session(mongoSession);
+            mongoSession,
+          );
 
-          [paymentDocument] = await PaymentModel.create(
-            [
-              {
+          paymentDocument = await this.mongoDatasource.createPayment(
+            {
                 user: ticketDocument.get("usuario"),
                 type: "ticket",
                 concept: "Pago de ticket en POS",
@@ -558,21 +554,21 @@ export class CashTicketPaymentService {
                     }
                   : undefined,
                 rawProviderStatus: "pos_succeeded",
-              },
-            ],
-            { session: mongoSession },
+            },
+            mongoSession,
           );
         }
 
         if (currentSession.cashRegisterShiftId && shiftDocument) {
-          const existingMovement = await CashRegisterMovementModel.findOne({
-            relatedCashPaymentSessionId: currentSession.id,
-          }).session(mongoSession);
+          const existingMovement =
+            await this.mongoDatasource.findMovementByCashPaymentSessionId(
+              currentSession.id,
+              mongoSession,
+            );
 
           if (!existingMovement) {
-            await CashRegisterMovementModel.create(
-              [
-                {
+            await this.mongoDatasource.createMovement(
+              {
                   shiftId: currentSession.cashRegisterShiftId,
                   proyectoId: String(ticketDocument.get("proyecto") ?? ""),
                   moduloId: currentSession.moduloId,
@@ -594,9 +590,8 @@ export class CashTicketPaymentService {
                     changeAmount: nextChange,
                     source: "cash_payment_transaction",
                   },
-                },
-              ],
-              { session: mongoSession },
+              },
+              mongoSession,
             );
           }
         }

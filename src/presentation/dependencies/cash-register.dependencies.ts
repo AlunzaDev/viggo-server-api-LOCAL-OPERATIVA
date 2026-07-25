@@ -8,6 +8,8 @@ import { CashRegisterCountRepositoryImpl } from "../../infrastructure/repositori
 import { CashRegisterCutRepositoryImpl } from "../../infrastructure/repositories/cash-register/cash-register-cut.repository.impl";
 import { CashRegisterMovementRepositoryImpl } from "../../infrastructure/repositories/cash-register/cash-register-movement.repository.impl";
 import { CashRegisterShiftRepositoryImpl } from "../../infrastructure/repositories/cash-register/cash-register-shift.repository.impl";
+import { CashRegisterModuleMongoDatasource } from "../../infrastructure/datasources/cash-register/cash-register-module.datasource.mongo";
+import { CashRegisterModuleRepositoryImpl } from "../../infrastructure/repositories/cash-register/cash-register-module.repository.impl";
 
 export const buildCashRegisterController = (): CashRegisterController => {
   const shiftRepository = new CashRegisterShiftRepositoryImpl(
@@ -22,12 +24,16 @@ export const buildCashRegisterController = (): CashRegisterController => {
   const cutRepository = new CashRegisterCutRepositoryImpl(
     new CashRegisterCutMongoDatasource(),
   );
+  const moduleRepository = new CashRegisterModuleRepositoryImpl(
+    new CashRegisterModuleMongoDatasource(),
+  );
 
   const service = new CashRegisterService(
     shiftRepository,
     movementRepository,
     countRepository,
     cutRepository,
+    moduleRepository,
   );
 
   return new CashRegisterController(service);

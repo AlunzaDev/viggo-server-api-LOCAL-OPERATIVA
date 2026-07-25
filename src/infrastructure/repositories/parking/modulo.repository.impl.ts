@@ -36,6 +36,10 @@ export class ModuloRepositoryImpl implements ModuloRepository {
         return this.moduloDatasource.getByProyecto(proyectoId);
     }
 
+    getSubmodulos(id: string) {
+        return this.moduloDatasource.getSubmodulos(id);
+    }
+
     update(
         id: string,
         modulo: Partial<Omit<ModuloEntity, "id">>,

@@ -1,5 +1,5 @@
 import { CustomError } from "../../../domain/errors/custom.error";
-import { ModuloEntity } from "../../../domain/entities/parking/modulo.entity";
+import { ModuloEntity, ModuloSubmodulo } from "../../../domain/entities/parking/modulo.entity";
 import { ModuloRepository } from "../../../domain/repository/parking/modulo.repository";
 import { ProyectoRepository } from "../../../domain/repository/parking/proyecto.repository";
 import { ModuloFilters } from "./modulo-device-binding.types";
@@ -37,5 +37,12 @@ export class ModuloCrudService {
     const modulo = await this.moduloRepository.findByIdentificador(identificador);
     if (!modulo) throw CustomError.notFound("Modulo no encontrado");
     return modulo;
+  }
+
+  async getSubmodulos(id: string): Promise<ModuloSubmodulo[]> {
+    await this.getModuloById(id);
+    const submodulos = await this.moduloRepository.getSubmodulos(id);
+    if (!submodulos) throw CustomError.notFound("Modulo no encontrado");
+    return submodulos;
   }
 }

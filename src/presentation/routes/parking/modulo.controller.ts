@@ -109,6 +109,19 @@ export class ModuloController {
     }
   };
 
+  getSubmodulos = async (req: Request, res: Response) => {
+    try {
+      const modulo = await this.moduloService.getModuloById(String(req.params.id));
+      if (!canAccessProjectFromRequest(req, modulo.proyecto)) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      const submodulos = await this.moduloService.getSubmodulos(modulo.id);
+      return res.status(200).json({ submodulos });
+    } catch (error) {
+      return ErrorService.handleApiError(error, res);
+    }
+  };
+
   getModuloByIdentificador = async (req: Request, res: Response) => {
     try {
       const modulo = await this.moduloService.getModuloByIdentificador(
