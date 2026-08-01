@@ -1,16 +1,20 @@
 import { Server as HttpServer } from "http";
 import { Server as SocketServer, Socket } from "socket.io";
 import { JwtPlugin } from "../../config/plugins/jwt.plugin";
+import { TicketMongoDatasource } from "../../infrastructure/datasources/parking/ticket.datasource.mongo";
 import { ModuloMongoDatasource } from "../../infrastructure/datasources/parking/modulo.datasource.mongo";
 import { ProyectoMongoDatasource } from "../../infrastructure/datasources/parking/proyecto.datasource.mongo";
 import { ModuloRepositoryImpl } from "../../infrastructure/repositories/parking/modulo.repository.impl";
 import { ProyectoRepositoryImpl } from "../../infrastructure/repositories/parking/proyecto.repository.impl";
+import { TicketRepositoryImpl } from "../../infrastructure/repositories/parking/ticket.repository.impl";
 import { ModuloService } from "../services/parking/modulo.service";
 import { DeviceSessionRegistry } from "./device-session-registry";
 import { DeviceSocketService } from "./device-socket.service";
 import {
   DEVICE_HEARTBEAT_INTERVAL_MS,
+  DeviceRuntimeAccessEventPayload,
   DeviceBindingUpdatedPayload,
+  OpenBarrierCommandPayload,
   OpenBarrierResponse,
   STALE_SESSION_SCAN_INTERVAL_MS,
 } from "./device-socket.types";
@@ -22,6 +26,7 @@ export class SocketServerPlugin {
   private static deviceSocketService = new DeviceSocketService(
     this.moduloService,
     this.registry,
+    new TicketRepositoryImpl(new TicketMongoDatasource()),
   );
   private static staleSessionMonitorStarted = false;
 
@@ -94,6 +99,14 @@ export class SocketServerPlugin {
         );
       });
 
+      socket.on("runtimeAccessEvent", async (payload, callback) => {
+        await this.deviceSocketService.handleRuntimeAccessEvent(
+          socket,
+          payload as DeviceRuntimeAccessEventPayload,
+          callback as ((response: OpenBarrierResponse) => void) | undefined,
+        );
+      });
+
       socket.on("disconnect", () => {
         void this.deviceSocketService.handleDisconnect(socket);
       });
@@ -102,8 +115,11 @@ export class SocketServerPlugin {
     return io;
   }
 
-  static async openBarrier(moduloId: string): Promise<void> {
-    await this.deviceSocketService.openBarrier(this.io, moduloId);
+  static async openBarrier(
+    moduloId: string,
+    payload?: OpenBarrierCommandPayload,
+  ): Promise<void> {
+    await this.deviceSocketService.openBarrier(this.io, moduloId, payload);
   }
 
   static emitDeviceBindingUpdated(payload: DeviceBindingUpdatedPayload): void {

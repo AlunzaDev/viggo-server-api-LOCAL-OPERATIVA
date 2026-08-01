@@ -1,5 +1,26 @@
 import { Schema, model } from "mongoose";
 
+const isValidCoordinatePair = (value: unknown): boolean =>
+    Array.isArray(value) &&
+    value.length >= 2 &&
+    Number.isFinite(Number(value[0])) &&
+    Number.isFinite(Number(value[1]));
+
+const isValidCoordinateCollection = (value: unknown): boolean => {
+    if (!Array.isArray(value) || value.length === 0) return false;
+    if (isValidCoordinatePair(value)) return true;
+
+    if (value.every((point) => isValidCoordinatePair(point))) {
+        return true;
+    }
+
+    if (value.length === 1 && Array.isArray(value[0])) {
+        return isValidCoordinateCollection(value[0]);
+    }
+
+    return false;
+};
+
 const proyectoSchema = new Schema(
     {
         nombre: {
@@ -8,12 +29,22 @@ const proyectoSchema = new Schema(
             trim: true,
         },
         coordinates: {
-            type: [Number],
+            type: Schema.Types.Mixed,
             required: [true, "coordinates [lon,lat] are required"],
+            validate: {
+                validator: (value: unknown) => isValidCoordinateCollection(value),
+                message: "coordinates debe contener [lon,lat] o un arreglo de puntos [lon,lat]",
+            },
         },
         ciudad: {
             type: String,
             required: [true, "La ciudad es obligatoria"],
+            trim: true,
+        },
+        direccion: {
+            type: String,
+            required: false,
+            default: "",
             trim: true,
         },
         identificador: {

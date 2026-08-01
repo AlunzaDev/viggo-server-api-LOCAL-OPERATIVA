@@ -1,4 +1,5 @@
 import { envs } from "./config";
+import { buildConfigSyncScheduler } from "./presentation/dependencies/config.dependencies";
 import { AppRoutes } from "./presentation/routes/routes";
 import { Server } from "./presentation/server";
 
@@ -13,6 +14,7 @@ process.on("uncaughtException", (error) => {
 });
 
 const bootstrap = async () => {
+const configSyncScheduler = buildConfigSyncScheduler();
 const server = new Server({
   host: envs.HOST,
   port: envs.PORT,
@@ -21,6 +23,7 @@ const server = new Server({
 });
 
     await server.start();
+    configSyncScheduler.start();
 };
 
 bootstrap().catch((error) => {

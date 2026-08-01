@@ -2,7 +2,7 @@ import { Router } from "express";
 import { buildPensionController } from "../../dependencies";
 import { AuthMiddleware } from "../../middlewares";
 
-/** Read-only plans synchronized from NUBEADMIN. */
+/** Read-only plans synchronized from ADMINISTRATIVO. */
 export class PensionRoutes {
   static get routes(): Router {
     const router = Router();

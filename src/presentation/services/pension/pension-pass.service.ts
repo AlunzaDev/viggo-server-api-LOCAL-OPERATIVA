@@ -19,7 +19,7 @@ import {
 } from "./pension-pass-response.mapper";
 
 /**
- * Operational access to contracts synchronized from NUBEADMIN.
+ * Operational access to contracts synchronized from ADMINISTRATIVO.
  * Contract creation, renewal and commercial status changes do not belong here.
  */
 export class PensionPassService {

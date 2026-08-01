@@ -31,14 +31,14 @@ export class AuthMongoDatasource extends AuthDatasource {
     return UsuarioEntity.fromObject(document.toObject());
   }
 
-  async upsertFromNubeadmin(usuario: UsuarioEntity): Promise<UsuarioEntity> {
+  async upsertFromAdministrativo(usuario: UsuarioEntity): Promise<UsuarioEntity> {
     const { id, ...payload } = usuario;
     const now = Date.now();
     const document = await UsuarioModel.findByIdAndUpdate(
       id,
       {
         ...payload,
-        syncSource: "nubeadmin",
+        syncSource: "administrativo",
         lastSyncedAt: now,
         lastCloudCheckAt: now,
       },
@@ -59,7 +59,8 @@ export class AuthMongoDatasource extends AuthDatasource {
     if (!document) return null;
 
     return {
-      syncSource: document.syncSource === "local" ? "local" : "nubeadmin",
+      syncSource:
+        document.syncSource === "local" ? "local" : "administrativo",
       lastSyncedAt:
         typeof document.lastSyncedAt === "number" ? document.lastSyncedAt : undefined,
       lastCloudCheckAt:

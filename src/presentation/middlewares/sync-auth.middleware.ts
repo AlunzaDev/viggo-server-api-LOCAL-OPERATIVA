@@ -21,7 +21,6 @@ export const requireSyncAuth = (
     return res.status(401).json({ error: "Invalid service token" });
   }
 
-  (req as SyncRequest).syncSource = syncSource || "nubeadmin";
+  (req as SyncRequest).syncSource = syncSource || "administrativo";
   next();
 };
-

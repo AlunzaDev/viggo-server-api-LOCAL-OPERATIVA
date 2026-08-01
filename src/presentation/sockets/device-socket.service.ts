@@ -1,22 +1,28 @@
 import { Server as SocketServer, Socket } from "socket.io";
 import { JwtPlugin } from "../../config/plugins/jwt.plugin";
 import { ModuloService } from "../services/parking/modulo.service";
+import { TicketRepository } from "../../domain/repository/parking/ticket.repository";
+import { DeviceRuntimeAccessEventService } from "./device-runtime-access-event.service";
 import { DeviceSessionRegistry } from "./device-session-registry";
 import { DeviceSocketRegistrationService } from "./device-socket-registration.service";
 import { DeviceSocketRuntimeService } from "./device-socket-runtime.service";
 import {
+  DeviceRuntimeAccessEventPayload,
   DeviceBindingUpdatedPayload,
   DeviceRegistrationEventPayload,
+  OpenBarrierCommandPayload,
   OpenBarrierResponse,
 } from "./device-socket.types";
 
 export class DeviceSocketService {
   private readonly registrationService: DeviceSocketRegistrationService;
   private readonly runtimeService: DeviceSocketRuntimeService;
+  private readonly runtimeAccessEventService: DeviceRuntimeAccessEventService;
 
   constructor(
     private readonly moduloService: ModuloService,
     private readonly registry: DeviceSessionRegistry,
+    ticketRepository: TicketRepository,
   ) {
     this.registrationService = new DeviceSocketRegistrationService(
       this.moduloService,
@@ -28,6 +34,9 @@ export class DeviceSocketService {
     this.runtimeService = new DeviceSocketRuntimeService(
       this.moduloService,
       this.registry,
+    );
+    this.runtimeAccessEventService = new DeviceRuntimeAccessEventService(
+      ticketRepository,
     );
   }
 
@@ -100,8 +109,21 @@ export class DeviceSocketService {
   async openBarrier(
     io: SocketServer | undefined,
     moduloId: string,
+    payload?: OpenBarrierCommandPayload,
   ): Promise<void> {
-    return this.runtimeService.openBarrier(io, moduloId);
+    return this.runtimeService.openBarrier(io, moduloId, payload);
+  }
+
+  async handleRuntimeAccessEvent(
+    socket: Socket,
+    payload: DeviceRuntimeAccessEventPayload,
+    callback?: (response: OpenBarrierResponse) => void,
+  ): Promise<void> {
+    return this.runtimeAccessEventService.handleRuntimeAccessEvent(
+      socket,
+      payload,
+      callback,
+    );
   }
 
   async expireStaleSessions(io: SocketServer | undefined): Promise<void> {

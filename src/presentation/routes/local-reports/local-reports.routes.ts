@@ -9,6 +9,7 @@ export class LocalReportsRoutes {
 
     router.use(requireSyncAuth);
     router.get("/snapshot", controller.getSnapshot);
+    router.get("/heartbeat", controller.getHeartbeat);
 
     return router;
   }

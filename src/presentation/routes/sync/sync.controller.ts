@@ -10,7 +10,7 @@ export class SyncController {
 
   status = async (req: Request, res: Response) => {
     return res.status(200).json({
-      service: "viggo-localope-sync",
+      service: "viggo-operativo-sync",
       source: (req as SyncRequest).syncSource,
       status: "ok",
       serverTime: Date.now(),

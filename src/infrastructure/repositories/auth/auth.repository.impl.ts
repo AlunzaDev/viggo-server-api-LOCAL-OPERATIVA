@@ -24,8 +24,8 @@ export class AuthRepositoryImpl implements AuthRepository {
     return this.authDatasource.upsert(usuario);
   }
 
-  upsertFromNubeadmin(usuario: UsuarioEntity): Promise<UsuarioEntity> {
-    return this.authDatasource.upsertFromNubeadmin(usuario);
+  upsertFromAdministrativo(usuario: UsuarioEntity): Promise<UsuarioEntity> {
+    return this.authDatasource.upsertFromAdministrativo(usuario);
   }
 
   getSyncMetadataById(id: string): Promise<UserSyncMetadata | null> {

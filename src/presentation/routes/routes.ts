@@ -21,7 +21,7 @@ export class AppRoutes {
 
     router.get("/api/ping", (_req, res) => {
       res.status(200).json({
-        service: "viggo-localope",
+        service: "viggo-operativo",
         status: "ok",
         message: "pong",
       });
@@ -30,12 +30,12 @@ export class AppRoutes {
     router.get("/api/health", (_req, res) => {
       const health = MongoDatabase.getHealthSnapshot();
       res.status(health.status === "ok" ? 200 : 503).json({
-        service: "viggo-localope",
+        service: "viggo-operativo",
         ...health,
       });
     });
 
-    // Identidad local de usuarios previamente sincronizados desde NUBEADMIN.
+    // Identidad local de usuarios previamente sincronizados desde ADMINISTRATIVO.
     router.use("/api/auth", AuthRoutes.routes);
     router.use("/api/installation", InstallationRoutes.routes);
 

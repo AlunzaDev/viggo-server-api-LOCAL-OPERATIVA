@@ -95,8 +95,7 @@ const usuarioSchema = new Schema(
     },
     syncSource: {
       type: String,
-      enum: ["nubeadmin", "local"],
-      default: "nubeadmin",
+      default: "administrativo",
     },
     lastSyncedAt: {
       type: Number,

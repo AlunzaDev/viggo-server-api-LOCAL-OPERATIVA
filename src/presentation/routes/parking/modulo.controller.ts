@@ -6,12 +6,25 @@ import {
 } from "../../middlewares";
 import { ErrorService } from "../../services/error.service";
 import { ModuloService } from "../../services/parking/modulo.service";
+import {
+  buildPaginatedResponse,
+  paginateArray,
+  parsePaginationDateQuery,
+} from "../../services/shared/pagination-query";
 import { SocketServerPlugin } from "../../sockets/socket-server";
 
 export class ModuloController {
   constructor(private readonly moduloService: ModuloService) {}
 
   private readonly moduloTipos = ["ENTRADA", "SALIDA", "POS"] as const;
+
+  private normalizeText(value: string) {
+    return value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+      .toLowerCase();
+  }
 
   private parseResolveBody(body: Record<string, unknown>): {
     fingerprint?: string;
@@ -55,6 +68,11 @@ export class ModuloController {
         : "";
       const tipos = this.parseTipos(req.query.tipos ?? req.query.tipo);
       const estado = this.parseEstado(req.query.estado);
+      const search =
+        typeof req.query.search === "string" ? req.query.search.trim() : "";
+      const shouldPaginate =
+        req.query.page !== undefined || req.query.limit !== undefined;
+      const { page, limit } = parsePaginationDateQuery(req.query);
 
       if (tipos === null) return res.status(400).json({ error: "'tipo' no es valido" });
       if (estado === null) return res.status(400).json({ error: "'estado' debe ser boolean" });
@@ -78,7 +96,31 @@ export class ModuloController {
       if (tipos.length > 1) {
         modulos = modulos.filter((modulo) => tipos.includes(modulo.tipo));
       }
-      return res.status(200).json({ modulos });
+      if (search) {
+        const normalizedSearch = this.normalizeText(search);
+        modulos = modulos.filter((modulo) =>
+          [
+            modulo.nombre,
+            modulo.identificador,
+            modulo.descripcion ?? "",
+            modulo.tipo,
+          ].some((value) => this.normalizeText(String(value ?? "")).includes(normalizedSearch)),
+        );
+      }
+
+      if (!shouldPaginate) {
+        return res.status(200).json({ modulos });
+      }
+
+      return res.status(200).json(
+        buildPaginatedResponse(
+          "modulos",
+          paginateArray(modulos, page, limit),
+          modulos.length,
+          page,
+          limit,
+        ),
+      );
     } catch (error) {
       return ErrorService.handleApiError(error, res);
     }

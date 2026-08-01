@@ -43,8 +43,38 @@ export class LocalReportsController {
         ...data,
         futureEventBridge: {
           enabled: false,
-          note: "Outbox/inbox queda reservado para reintentos offline; este snapshot usa consulta directa NUBEADMIN -> LOCALOPE.",
+          note: "Outbox/inbox queda reservado para reintentos offline; este snapshot usa consulta directa entre servicios central y local.",
         },
+      });
+    } catch (error) {
+      return ErrorService.handleApiError(error, res);
+    }
+  };
+
+  getHeartbeat = async (req: Request, res: Response) => {
+    try {
+      const installationId = await InstallationIdentityService.getInstallationId();
+      const installation = await this.service.getInstallation();
+      const proyectoId = String(req.query.proyectoId ?? installation?.proyectoId ?? "").trim();
+
+      if (!proyectoId) {
+        return res.status(400).json({ error: "proyectoId es requerido" });
+      }
+
+      const heartbeat = await this.service.getHeartbeatSnapshot(proyectoId);
+
+      return res.status(200).json({
+        mode: "direct-local-query",
+        generatedAt: Date.now(),
+        installation: {
+          installationId,
+          status: installation?.status ?? "pending",
+          proyectoId: installation?.proyectoId ?? null,
+          proyectoNombre: installation?.proyectoNombre ?? null,
+          proyectoIdentificador: installation?.proyectoIdentificador ?? null,
+        },
+        project: heartbeat.project,
+        snapshot: heartbeat.snapshot,
       });
     } catch (error) {
       return ErrorService.handleApiError(error, res);

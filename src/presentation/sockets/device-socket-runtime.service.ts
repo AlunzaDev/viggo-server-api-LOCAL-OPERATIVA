@@ -6,6 +6,7 @@ import { DeviceSessionRegistry } from "./device-session-registry";
 import {
   DEVICE_HEARTBEAT_TIMEOUT_MS,
   DeviceBindingUpdatedPayload,
+  OpenBarrierCommandPayload,
   OpenBarrierResponse,
 } from "./device-socket.types";
 
@@ -61,6 +62,7 @@ export class DeviceSocketRuntimeService {
   async openBarrier(
     io: SocketServer | undefined,
     moduloId: string,
+    payload?: OpenBarrierCommandPayload,
   ): Promise<void> {
     if (!io) {
       throw CustomError.internalServer("Socket server no inicializado");
@@ -139,7 +141,7 @@ export class DeviceSocketRuntimeService {
       return;
     }
 
-    const response = await this.emitOpenBarrier(socket);
+    const response = await this.emitOpenBarrier(socket, payload);
 
     if (!response.ok) {
       console.warn("Open barrier rejected by device response:", {
@@ -265,13 +267,16 @@ export class DeviceSocketRuntimeService {
     }
   }
 
-  private emitOpenBarrier(socket: Socket): Promise<OpenBarrierResponse> {
+  private emitOpenBarrier(
+    socket: Socket,
+    payload?: OpenBarrierCommandPayload,
+  ): Promise<OpenBarrierResponse> {
     return new Promise((resolve) => {
       socket
         .timeout(envs.BARRIER_SOCKET_TIMEOUT_MS)
         .emit(
           "openBarrier",
-          { msg: "open" },
+          payload ?? { msg: "open" },
           (error: Error | null, response: unknown) => {
             if (error) {
               resolve({ ok: false, error: "Timeout al abrir barrera" });

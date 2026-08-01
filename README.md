@@ -1,10 +1,10 @@
-# Viggo Server API — LOCALOPE
+# Viggo Server API — OPERATIVO
 
 Backend operativo instalado en cada estacionamiento. Su prioridad es mantener funcionando entradas, salidas, caja, pensiones y dispositivos aunque la conexión con la nube no esté disponible.
 
-## Frontera con NUBEADMIN
+## Frontera con ADMINISTRATIVO
 
-`NUBEADMIN` es la autoridad sobre:
+`ADMINISTRATIVO` es la autoridad sobre:
 
 - Registro, validación y recuperación de cuentas.
 - CRUD de usuarios, roles y perfiles de permisos.
@@ -13,7 +13,7 @@ Backend operativo instalado en cada estacionamiento. Su prioridad es mantener fu
 - Planes de pensión y contratos Pension Pass.
 - Stripe, pagos móviles y proveedores.
 
-`LOCALOPE` conserva proyecciones locales de usuarios, parkings, módulos, planes y contratos porque las necesita para operar sin conexión. Esas proyecciones se consultan localmente, pero ya no se administran mediante esta API.
+`OPERATIVO` conserva proyecciones locales de usuarios, parkings, módulos, planes y contratos porque las necesita para operar sin conexión. Esas proyecciones se consultan localmente, pero ya no se administran mediante esta API.
 
 ## Responsabilidades operativas
 
@@ -40,7 +40,7 @@ Esta versión ya no contiene:
 - Stripe y proveedores.
 - Alias duplicados `/api/pos-register` y `/api/pos-payments`.
 
-La aprobación, rechazo, reapertura y reinicio del **binding físico de dispositivos** sí permanecen en LOCALOPE porque forman parte del runtime del estacionamiento.
+La aprobación, rechazo, reapertura y reinicio del **binding físico de dispositivos** sí permanecen en OPERATIVO porque forman parte del runtime del estacionamiento.
 
 ## Rutas expuestas
 
@@ -116,18 +116,18 @@ MongoDB sólo se publica en `127.0.0.1:27017` para evitar exponerlo a la red del
 - `BARRIER_SOCKET_REQUIRED`
 - `BARRIER_SOCKET_TIMEOUT_MS`
 
-No deben agregarse credenciales de Stripe ni correo a LOCALOPE.
+No deben agregarse credenciales de Stripe ni correo a OPERATIVO.
 
 ## Sincronización
 
-Los modelos locales de usuarios, parkings, módulos, pensiones y Pension Pass se mantienen porque son necesarios para la operación offline. El transporte automático de configuración y eventos hacia/desde NUBEADMIN es la siguiente frontera de integración; no debe reintroducir CRUD administrativo público en esta API.
+Los modelos locales de usuarios, parkings, módulos, pensiones y Pension Pass se mantienen porque son necesarios para la operación offline. El transporte automático de configuración y eventos hacia/desde ADMINISTRATIVO es la siguiente frontera de integración; no debe reintroducir CRUD administrativo público en esta API.
  
 ### Recibir snapshot de accesos
 
 ```http
 PUT /api/sync/snapshots/access
 Authorization: Bearer <SYNC_SERVICE_TOKEN>
-X-Viggo-Sync-Source: nubeadmin
+X-Viggo-Sync-Source: administrativo
 Content-Type: application/json
 ```
 
@@ -139,29 +139,29 @@ Content-Type: application/json
 }
 ```
 
-Este endpoint hace upsert de usuarios y perfiles enviados por `NUBEADMIN`. El POS/dashboard local inicia sesion contra `LOCALOPE` usando esa copia local, lo que permite operar aun sin conexion a internet.
+Este endpoint hace upsert de usuarios y perfiles enviados por `ADMINISTRATIVO`. El POS/dashboard local inicia sesion contra `OPERATIVO` usando esa copia local, lo que permite operar aun sin conexion a internet.
 # Nota: codigo corto de proyecto
 
-`codigoProyecto` es un codigo de 4 digitos generado por `NUBEADMIN` (`0001` a `9999`). `LOCALOPE` no lo genera; solo lo conserva como dato sincronizado para identificar el parking localmente.
+`codigoProyecto` es un codigo de 4 digitos generado por `ADMINISTRATIVO` (`0001` a `9999`). `OPERATIVO` no lo genera; solo lo conserva como dato sincronizado para identificar el parking localmente.
 # Nota: puerto local
 
-`LOCALOPE` intenta iniciar en `PORT=3000`. Si ese puerto ya esta ocupado por NUBEADMIN, automaticamente usa `3002`.
+`OPERATIVO` intenta iniciar en `PORT=3000`. Si ese puerto ya esta ocupado por ADMINISTRATIVO, automaticamente usa `3002`.
 
-# Nota: consulta directa desde NUBEADMIN
+# Nota: consulta directa desde ADMINISTRATIVO
 
-Modo actual para monitoreo: `NUBEADMIN` consulta a `LOCALOPE` cuando el parking esta alcanzable.
+Modo actual para monitoreo: `ADMINISTRATIVO` consulta a `OPERATIVO` cuando el parking esta alcanzable.
 
 ```http
 GET /api/local-reports/snapshot?proyectoId=<id>&from=<epoch>&to=<epoch>
 Authorization: Bearer <SYNC_SERVICE_TOKEN>
-X-Viggo-Sync-Source: nubeadmin-direct-query
+X-Viggo-Sync-Source: administrativo-direct-query
 ```
 
 Este endpoint devuelve salud local, resumen de tickets, cobros, turnos abiertos y movimientos recientes. No copia toda la BD local; entrega un snapshot operativo acotado. El patron outbox/inbox queda reservado para una fase posterior donde se requiera tolerancia total a desconexion.
 
 # Nota: token de instalacion cifrado
 
-NUBEADMIN genera un token de vinculacion al crear el proyecto. Al solicitar vinculacion, LOCALOPE pide ingresar ese token, lo manda a NUBEADMIN para validar el proyecto y lo guarda cifrado en Mongo local dentro de `localinstallations.encryptedSyncToken` usando `INSTALLATION_SECRET_KEY` o, como respaldo de desarrollo, `JWT_SEED`.
+ADMINISTRATIVO genera un token de vinculacion al crear el proyecto. Al solicitar vinculacion, OPERATIVO pide ingresar ese token, lo manda a ADMINISTRATIVO para validar el proyecto y lo guarda cifrado en Mongo local dentro de `localinstallations.encryptedSyncToken` usando `INSTALLATION_SECRET_KEY` o, como respaldo de desarrollo, `JWT_SEED`.
 
 En campo se recomienda configurar una llave dedicada:
 

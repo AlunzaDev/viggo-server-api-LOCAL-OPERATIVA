@@ -1,8 +1,12 @@
 import type { LocalReportsSnapshotPayload } from "../../../domain/datasources/local-reports/local-reports.datasource";
 import { LocalReportsRepository } from "../../../domain/repository/local-reports/local-reports.repository";
+import { ModuloService } from "../parking/modulo.service";
 
 export class LocalReportsService {
-  constructor(private readonly repository: LocalReportsRepository) {}
+  constructor(
+    private readonly repository: LocalReportsRepository,
+    private readonly moduloService: ModuloService,
+  ) {}
 
   getInstallation() {
     return this.repository.getInstallation();
@@ -14,5 +18,9 @@ export class LocalReportsService {
 
   getSnapshotData(payload: LocalReportsSnapshotPayload) {
     return this.repository.getSnapshotData(payload);
+  }
+
+  getHeartbeatSnapshot(proyectoId: string) {
+    return this.moduloService.getHeartbeatSnapshot(proyectoId);
   }
 }

@@ -1,7 +1,29 @@
 export class CreateProyectoDto {
+    private static normalizeCoordinates(value: unknown): number[] | number[][] {
+        if (!Array.isArray(value)) return [];
+
+        if (
+            value.length >= 2 &&
+            !Array.isArray(value[0]) &&
+            Number.isFinite(Number(value[0])) &&
+            Number.isFinite(Number(value[1]))
+        ) {
+            return [Number(value[0]), Number(value[1])];
+        }
+
+        return value
+            .map((point) =>
+                Array.isArray(point) && point.length >= 2
+                    ? [Number(point[0]), Number(point[1])]
+                    : null,
+            )
+            .filter((point): point is number[] => Boolean(point))
+            .filter((point) => Number.isFinite(point[0]) && Number.isFinite(point[1]));
+    }
+
     private constructor(
         public readonly nombre: string,
-        public readonly coordinates: number[],
+        public readonly coordinates: number[] | number[][],
         public readonly ciudad: string,
         public readonly identificador: string,
         public readonly img?: string,
@@ -11,9 +33,7 @@ export class CreateProyectoDto {
 
     static create(body: Record<string, unknown>): [string?, CreateProyectoDto?] {
         const nombre = typeof body.nombre === "string" ? body.nombre.trim() : "";
-        const coordinates = Array.isArray(body.coordinates)
-            ? body.coordinates.map((value) => Number(value))
-            : [];
+        const coordinates = CreateProyectoDto.normalizeCoordinates(body.coordinates);
         const ciudad = typeof body.ciudad === "string" ? body.ciudad.trim() : "";
         const identificador =
             typeof body.identificador === "string" ? body.identificador.trim() : "";

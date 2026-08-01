@@ -7,8 +7,11 @@ import { AuthRepository } from "../../../domain/repository/auth/auth.repository"
 import { InstallationIdentityService } from "../installation/installation-identity.service";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const ADMINISTRATIVO_SYNC_RETRY_DELAYS_MS = [0, 450];
 
-class NubeadminUnavailableError extends Error {}
+class AdministrativoUnavailableError extends Error {}
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export class AuthService {
   constructor(private readonly authRepository: AuthRepository) {}
@@ -57,19 +60,25 @@ export class AuthService {
     },
   ): Promise<{ token: unknown; usuario: Omit<UsuarioEntity, "password"> }> {
     try {
-      const remoteUsuario = await this.loginAgainstNubeadmin(remoteLogin);
+      const remoteUsuario = await this.loginAgainstAdministrativo(remoteLogin);
       this.ensureUserCanOperate(remoteUsuario);
-      const cachedUsuario = await this.authRepository.upsertFromNubeadmin(remoteUsuario);
+      const cachedUsuario = await this.authRepository.upsertFromAdministrativo(remoteUsuario);
       return this.issueSession(cachedUsuario);
     } catch (error) {
-      if (!(error instanceof NubeadminUnavailableError)) {
+      console.warn("[OPERATIVO auth] Remote login against ADMINISTRATIVO failed:", {
+        endpoint: remoteLogin.endpoint,
+        syncEndpoint: remoteLogin.syncEndpoint,
+        reason: error instanceof Error ? error.message : String(error),
+        hasLocalUser: Boolean(usuario),
+      });
+      if (!(error instanceof AdministrativoUnavailableError)) {
         throw error;
       }
     }
 
     if (!usuario || !bcryptPlugin.compare(password, usuario.password)) {
       throw CustomError.unauthorized(
-        "NUBEADMIN no esta disponible y no hay una sesion local valida",
+        "El servidor central no esta disponible y no hay una sesion local valida",
       );
     }
 
@@ -81,7 +90,7 @@ export class AuthService {
   private ensureUserCanOperate(usuario: UsuarioEntity): void {
     if (!usuario.estado) throw CustomError.forbidden("Usuario inactivo");
     if (!usuario.emailValidated) {
-      throw CustomError.forbidden("La cuenta no está validada en NUBEADMIN");
+      throw CustomError.forbidden("La cuenta aun no ha sido validada");
     }
   }
 
@@ -101,7 +110,7 @@ export class AuthService {
 
     if (!lastCloudCheckAt) {
       throw CustomError.forbidden(
-        "Este usuario aun no tiene validacion reciente de NUBEADMIN",
+        "Este usuario aun no tiene una validacion reciente",
       );
     }
 
@@ -109,12 +118,12 @@ export class AuthService {
     const ageMs = Date.now() - lastCloudCheckAt;
     if (ageMs > maxAgeMs) {
       throw CustomError.forbidden(
-        `La validacion offline expiro. Conecta con NUBEADMIN para renovar acceso.`,
+        "La validacion local expiro. Conecta con internet para renovar el acceso.",
       );
     }
   }
 
-  private async loginAgainstNubeadmin({
+  private async loginAgainstAdministrativo({
     endpoint,
     credentials,
     syncEndpoint,
@@ -123,7 +132,13 @@ export class AuthService {
     credentials: Record<string, string>;
     syncEndpoint: string;
   }): Promise<UsuarioEntity> {
-    const baseUrl = envs.NUBEADMIN_API_URL.replace(/\/+$/, "");
+    const baseUrl = envs.ADMINISTRATIVO_API_URL.replace(/\/+$/, "");
+    console.log("[OPERATIVO auth] Attempting remote login:", {
+      baseUrl,
+      endpoint,
+      syncEndpoint,
+    });
+
     let loginResponse: Response;
     try {
       loginResponse = await fetch(`${baseUrl}${endpoint}`, {
@@ -132,32 +147,71 @@ export class AuthService {
         body: JSON.stringify(credentials),
       });
     } catch (_error) {
-      throw new NubeadminUnavailableError("NUBEADMIN no disponible");
+      console.warn("[OPERATIVO auth] ADMINISTRATIVO login request threw before response");
+      throw new AdministrativoUnavailableError("ADMINISTRATIVO no disponible");
     }
 
     if (!loginResponse.ok) {
+      console.warn("[OPERATIVO auth] ADMINISTRATIVO login responded with non-ok status", {
+        status: loginResponse.status,
+        statusText: loginResponse.statusText,
+      });
       throw CustomError.unauthorized("Credenciales incorrectas");
     }
 
-    let syncResponse: Response;
-    try {
-      syncResponse = await fetch(`${baseUrl}${syncEndpoint}`, {
-        headers: {
-          Authorization: `Bearer ${envs.SYNC_SERVICE_TOKEN}`,
-          "X-Viggo-Installation-Id": await InstallationIdentityService.getInstallationId(),
-        },
-      });
-    } catch (_error) {
-      throw new NubeadminUnavailableError("NUBEADMIN no disponible");
+    const installationId = await InstallationIdentityService.getInstallationId();
+    console.log("[OPERATIVO auth] Requesting sync snapshot after remote login:", {
+      syncEndpoint,
+      installationId,
+    });
+
+    let syncResponse: Response | null = null;
+    let lastSyncError: unknown = null;
+
+    for (let attempt = 0; attempt < ADMINISTRATIVO_SYNC_RETRY_DELAYS_MS.length; attempt += 1) {
+      const delayMs = ADMINISTRATIVO_SYNC_RETRY_DELAYS_MS[attempt];
+      if (delayMs > 0) {
+        await wait(delayMs);
+      }
+
+      try {
+        syncResponse = await fetch(`${baseUrl}${syncEndpoint}`, {
+          headers: {
+            Authorization: `Bearer ${envs.SYNC_SERVICE_TOKEN}`,
+            "X-Viggo-Installation-Id": installationId,
+          },
+        });
+        lastSyncError = null;
+        break;
+      } catch (error) {
+        lastSyncError = error;
+        console.warn("[OPERATIVO auth] ADMINISTRATIVO sync request threw before response:", {
+          reason: error instanceof Error ? error.message : String(error),
+          attempt: attempt + 1,
+        });
+      }
     }
+
+    if (!syncResponse) {
+      throw new AdministrativoUnavailableError(
+        lastSyncError instanceof Error ? lastSyncError.message : "ADMINISTRATIVO no disponible",
+      );
+    }
+
     if (!syncResponse.ok) {
-      throw new NubeadminUnavailableError("No se pudo sincronizar el usuario local");
+      console.warn("[OPERATIVO auth] ADMINISTRATIVO sync responded with non-ok status", {
+        status: syncResponse.status,
+        statusText: syncResponse.statusText,
+      });
+      throw new AdministrativoUnavailableError(
+        "No se pudo sincronizar el usuario local",
+      );
     }
 
     const data = (await syncResponse.json()) as { user?: Record<string, unknown> };
     const usuario = data.user;
     if (!usuario) {
-      throw CustomError.unauthorized("NUBEADMIN no regreso usuario valido");
+      throw CustomError.unauthorized("El servidor central no regreso un usuario valido");
     }
 
     return UsuarioEntity.fromObject(usuario);

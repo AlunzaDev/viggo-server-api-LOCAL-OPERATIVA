@@ -55,6 +55,28 @@ const ticketSchema = new Schema(
             type: Boolean,
             default: false,
         },
+        status: {
+            type: String,
+            enum: ["ACTIVE", "COMPLETED", "FRAUD"],
+            default: "ACTIVE",
+        },
+        barrierOpenedAt: {
+            type: Number,
+            default: -1,
+        },
+        barrierConfirmedAt: {
+            type: Number,
+            default: -1,
+        },
+        fraudDetectedAt: {
+            type: Number,
+            default: -1,
+        },
+        fraudReason: {
+            type: String,
+            default: "",
+            trim: true,
+        },
     },
     {
         versionKey: false,

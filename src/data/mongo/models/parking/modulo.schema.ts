@@ -263,6 +263,24 @@ const moduloSubmoduloSchema = new Schema(
             default: "",
             trim: true,
         },
+        ubicacion: {
+            type: String,
+            default: "",
+            trim: true,
+        },
+        coordinates: {
+            type: [Number],
+            default: [],
+            validate: {
+                validator: (value: unknown) =>
+                    !Array.isArray(value) ||
+                    value.length === 0 ||
+                    (value.length === 2 &&
+                        Number.isFinite(Number(value[0])) &&
+                        Number.isFinite(Number(value[1]))),
+                message: "coordinates debe contener [lon,lat]",
+            },
+        },
         descripcion: {
             type: String,
             default: "",
@@ -303,6 +321,34 @@ const moduloSchema = new Schema(
             type: String,
             required: [true, "El identificador es obligatorio"],
             trim: true,
+        },
+        ip: {
+            type: String,
+            default: "",
+            trim: true,
+        },
+        mac: {
+            type: String,
+            default: "",
+            trim: true,
+        },
+        ubicacion: {
+            type: String,
+            default: "",
+            trim: true,
+        },
+        coordinates: {
+            type: [Number],
+            default: [],
+            validate: {
+                validator: (value: unknown) =>
+                    !Array.isArray(value) ||
+                    value.length === 0 ||
+                    (value.length === 2 &&
+                        Number.isFinite(Number(value[0])) &&
+                        Number.isFinite(Number(value[1]))),
+                message: "coordinates debe contener [lon,lat]",
+            },
         },
         descripcion: {
             type: String,

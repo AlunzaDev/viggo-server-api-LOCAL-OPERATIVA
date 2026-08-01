@@ -8,6 +8,18 @@ import {
   isSuperAdminRequest,
 } from "../../middlewares";
 import { PensionMoveService } from "../../services/pension/pension-move.service";
+import {
+  buildPaginatedResponse,
+  paginateArray,
+  parsePaginationDateQuery,
+} from "../../services/shared/pagination-query";
+
+const normalizeText = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
 
 export class PensionMoveController {
   constructor(private readonly pensionMoveService: PensionMoveService) {}
@@ -32,13 +44,65 @@ export class PensionMoveController {
   getPensionMoves = async (req: Request, res: Response) => {
     try {
       const allowedProjectIds = getAllowedProjectIdsFromRequest(req);
+      const proyecto =
+        typeof req.query.proyecto === "string" ? req.query.proyecto.trim() : "";
+      const tipo =
+        typeof req.query.tipo === "string" ? req.query.tipo.trim().toUpperCase() : "";
+      const search =
+        typeof req.query.search === "string" ? req.query.search.trim() : "";
+      const shouldPaginate =
+        req.query.page !== undefined || req.query.limit !== undefined;
+      const { page, limit, from, to } = parsePaginationDateQuery(req.query);
       const pensionMoves =
         !isSuperAdminRequest(req) && allowedProjectIds.length === 1
           ? await this.pensionMoveService.getPensionMovesByProyecto(
               allowedProjectIds[0],
             )
           : await this.pensionMoveService.getPensionMoves();
-      return res.status(200).json({ pensionMoves });
+      let visible = pensionMoves;
+
+      if (proyecto) {
+        visible = visible.filter((move) => move.proyecto === proyecto);
+      }
+
+      if (tipo) {
+        visible = visible.filter(
+          (move) => String(move.tipo ?? "").trim().toUpperCase() === tipo,
+        );
+      }
+
+      if (from !== undefined || to !== undefined) {
+        visible = visible.filter((move) => {
+          if (from !== undefined && move.fecha < from) return false;
+          if (to !== undefined && move.fecha > to) return false;
+          return true;
+        });
+      }
+
+      if (search) {
+        const normalizedSearch = normalizeText(search);
+        visible = visible.filter((move) =>
+          [move.tipo, move.modulo, move.pensionPass, move.proyecto].some((value) =>
+            normalizeText(String(value ?? "")).includes(normalizedSearch),
+          ),
+        );
+      }
+
+      visible = visible.sort((a, b) => b.fecha - a.fecha);
+
+      if (!shouldPaginate) {
+        return res.status(200).json({ pensionMoves: visible });
+      }
+
+      return res.status(200).json(
+        buildPaginatedResponse(
+          "pensionMoves",
+          paginateArray(visible, page, limit),
+          visible.length,
+          page,
+          limit,
+        ),
+      );
     } catch (error) {
       return ErrorService.handleApiError(error, res);
     }

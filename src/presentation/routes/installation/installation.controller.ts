@@ -15,7 +15,7 @@ const cloudHeaders = async () => ({
 });
 
 const cloudUrl = (path: string) =>
-  `${envs.NUBEADMIN_API_URL.replace(/\/+$/, "")}${path}`;
+  `${envs.ADMINISTRATIVO_API_URL.replace(/\/+$/, "")}${path}`;
 
 const serializeInstallation = async (value: PlainRecord | null) => {
   const proyectoId = String(value?.proyectoId ?? "").trim();
@@ -77,14 +77,14 @@ export class InstallationController {
 
       if (!response.ok) {
         return res.status(response.status).json({
-          error: data.error ?? "No se pudieron consultar proyectos en NUBEADMIN",
+          error: data.error ?? "No se pudieron consultar proyectos en la nube",
         });
       }
 
       return res.status(200).json({ proyectos: data.proyectos ?? [] });
     } catch (_error) {
       return res.status(503).json({
-        error: "NUBEADMIN no esta disponible para consultar proyectos",
+        error: "La nube no esta disponible para consultar proyectos",
       });
     }
   };
@@ -93,6 +93,19 @@ export class InstallationController {
     try {
       const proyectoId = String(req.body?.proyectoId ?? "").trim();
       const installationLinkToken = String(req.body?.installationLinkToken ?? "").trim();
+      const browserCoordinatesRaw = Array.isArray(req.body?.browserCoordinates)
+        ? req.body.browserCoordinates
+        : [];
+      const browserLongitude = Number(browserCoordinatesRaw[0]);
+      const browserLatitude = Number(browserCoordinatesRaw[1]);
+      const browserCoordinates =
+        browserCoordinatesRaw.length === 2 &&
+        Number.isFinite(browserLongitude) &&
+        Number.isFinite(browserLatitude)
+          ? [browserLongitude, browserLatitude]
+          : undefined;
+      const browserLocationAccuracy = Number(req.body?.browserLocationAccuracy);
+      const browserLocationCapturedAt = Number(req.body?.browserLocationCapturedAt);
       if (!proyectoId) return res.status(400).json({ error: "proyectoId es requerido" });
       if (!installationLinkToken) {
         return res.status(400).json({ error: "Token de vinculacion requerido" });
@@ -111,6 +124,13 @@ export class InstallationController {
           proyectoId,
           installationLinkToken,
           localApiBaseUrl: envs.WEB_SERVICE_URL,
+          browserCoordinates,
+          browserLocationAccuracy: Number.isFinite(browserLocationAccuracy)
+            ? browserLocationAccuracy
+            : undefined,
+          browserLocationCapturedAt: Number.isFinite(browserLocationCapturedAt)
+            ? browserLocationCapturedAt
+            : undefined,
           requestedByUserId: authUser?.id ?? "",
           requestedByUserName,
         }),
@@ -119,7 +139,7 @@ export class InstallationController {
 
       if (!response.ok) {
         return res.status(response.status).json({
-          error: data.error ?? "No se pudo solicitar la vinculacion en NUBEADMIN",
+          error: data.error ?? "No se pudo solicitar la vinculacion en la nube",
         });
       }
 
@@ -145,7 +165,7 @@ export class InstallationController {
       return res.status(202).json({ installation: await serializeInstallation(installation) });
     } catch (_error) {
       return res.status(503).json({
-        error: "NUBEADMIN no esta disponible para solicitar la vinculacion",
+        error: "La nube no esta disponible para solicitar la vinculacion",
       });
     }
   };

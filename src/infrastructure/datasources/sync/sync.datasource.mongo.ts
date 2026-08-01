@@ -35,6 +35,57 @@ const toObjectIdUpdate = (item: SnapshotItem) => {
   return { _id: getSnapshotId(item), ...rest };
 };
 
+const parseCoordinatePair = (value: unknown): [number, number] | null => {
+  if (!Array.isArray(value) || value.length < 2) return null;
+  const longitude = Number(value[0]);
+  const latitude = Number(value[1]);
+  return Number.isFinite(longitude) && Number.isFinite(latitude)
+    ? [longitude, latitude]
+    : null;
+};
+
+const normalizeProjectCoordinates = (value: unknown): unknown => {
+  const directPair = parseCoordinatePair(value);
+  if (directPair) return directPair;
+
+  if (!Array.isArray(value)) return value;
+
+  const source =
+    Array.isArray(value[0]) && Array.isArray((value[0] as unknown[])[0])
+      ? (value[0] as unknown[])
+      : value;
+
+  const points = source
+    .map((point) => {
+      const pair = parseCoordinatePair(point);
+      if (pair) return pair;
+
+      if (point && typeof point === "object") {
+        const record = point as { longitude?: unknown; latitude?: unknown };
+        const longitude = Number(record.longitude);
+        const latitude = Number(record.latitude);
+        if (Number.isFinite(longitude) && Number.isFinite(latitude)) {
+          return [longitude, latitude] as [number, number];
+        }
+      }
+
+      return null;
+    })
+    .filter((point): point is [number, number] => Boolean(point));
+
+  return points.length >= 3 ? points : value;
+};
+
+const normalizeSnapshotItem = (item: SnapshotItem): SnapshotItem => {
+  const normalized = { ...item };
+
+  if ("coordinates" in normalized) {
+    normalized.coordinates = normalizeProjectCoordinates(normalized.coordinates);
+  }
+
+  return normalized;
+};
+
 const validSnapshotItems = (items: SnapshotItem[]) =>
   items.filter((item) => getSnapshotId(item));
 
@@ -86,9 +137,10 @@ const diffSnapshotUpdate = (
 };
 
 const applyChangedSnapshot = async (model: SyncModel, item: SnapshotItem) => {
-  const id = getSnapshotId(item);
+  const normalizedItem = normalizeSnapshotItem(item);
+  const id = getSnapshotId(normalizedItem);
   const current = await model.findById(id).lean();
-  const diff = diffSnapshotUpdate(current, item);
+  const diff = diffSnapshotUpdate(current, normalizedItem);
 
   if (!diff.changed) {
     return { created: false, updated: false, unchanged: true };

@@ -22,6 +22,8 @@ export interface ModuloSubmodulo {
     identificador?: string;
     ip?: string;
     mac?: string;
+    ubicacion?: string;
+    coordinates?: [number, number];
     descripcion?: string;
     estado: boolean;
 }
@@ -101,6 +103,10 @@ export interface ModuloEntityOptions {
     tipo: ModuloTipo;
     estado: boolean;
     identificador: string;
+    ip?: string;
+    mac?: string;
+    ubicacion?: string;
+    coordinates?: [number, number];
     descripcion?: string;
     deviceBinding?: ModuloDeviceBinding | null;
     deviceBindingRequests?: ModuloDeviceBindingRequest[];
@@ -116,6 +122,10 @@ export class ModuloEntity {
     public tipo: ModuloTipo;
     public estado: boolean;
     public identificador: string;
+    public ip?: string;
+    public mac?: string;
+    public ubicacion?: string;
+    public coordinates?: [number, number];
     public descripcion?: string;
     public deviceBinding?: ModuloDeviceBinding | null;
     public deviceBindingRequests: ModuloDeviceBindingRequest[];
@@ -131,6 +141,10 @@ export class ModuloEntity {
             tipo,
             estado,
             identificador,
+            ip,
+            mac,
+            ubicacion,
+            coordinates,
             descripcion,
             deviceBinding,
             deviceBindingRequests,
@@ -145,6 +159,10 @@ export class ModuloEntity {
         this.tipo = tipo;
         this.estado = estado;
         this.identificador = identificador;
+        this.ip = ip;
+        this.mac = mac;
+        this.ubicacion = ubicacion;
+        this.coordinates = coordinates;
         this.descripcion = descripcion;
         this.deviceBinding = deviceBinding ?? null;
         this.deviceBindingRequests = deviceBindingRequests ?? [];
@@ -162,6 +180,10 @@ export class ModuloEntity {
             tipo,
             estado,
             identificador,
+            ip,
+            mac,
+            ubicacion,
+            coordinates,
             descripcion,
             deviceBinding,
             deviceBindingRequests,
@@ -188,6 +210,11 @@ export class ModuloEntity {
             tipo: String(tipo) as ModuloTipo,
             estado: Boolean(estado),
             identificador: String(identificador).trim(),
+            ip: typeof ip === "string" ? ip.trim() || undefined : undefined,
+            mac: typeof mac === "string" ? mac.trim() || undefined : undefined,
+            ubicacion:
+                typeof ubicacion === "string" ? ubicacion.trim() || undefined : undefined,
+            coordinates: parseCoordinates(coordinates),
             descripcion: typeof descripcion === "string" ? descripcion : undefined,
             deviceBinding: parseDeviceBinding(deviceBinding),
             deviceBindingRequests: parseDeviceBindingRequests(deviceBindingRequests),
@@ -225,9 +252,24 @@ function parseSubmodulo(value: unknown): ModuloSubmodulo | null {
         identificador: String(source.identificador ?? "").trim() || undefined,
         ip: String(source.ip ?? "").trim() || undefined,
         mac: String(source.mac ?? "").trim() || undefined,
+        ubicacion: String(source.ubicacion ?? "").trim() || undefined,
+        coordinates: parseCoordinates(source.coordinates),
         descripcion: String(source.descripcion ?? "").trim() || undefined,
         estado: source.estado === undefined ? true : Boolean(source.estado),
     };
+}
+
+function parseCoordinates(value: unknown): [number, number] | undefined {
+    if (!Array.isArray(value) || value.length !== 2) return undefined;
+
+    const longitude = Number(value[0]);
+    const latitude = Number(value[1]);
+
+    if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) {
+        return undefined;
+    }
+
+    return [longitude, latitude];
 }
 
 function parseDeviceBinding(value: unknown): ModuloDeviceBinding | null {

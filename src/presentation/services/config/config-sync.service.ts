@@ -45,7 +45,7 @@ export type ConfigSyncActor = {
 };
 
 const cloudUrl = (path: string) =>
-  `${envs.NUBEADMIN_API_URL.replace(/\/+$/, "")}${path}`;
+  `${envs.ADMINISTRATIVO_API_URL.replace(/\/+$/, "")}${path}`;
 
 export class ConfigSyncService {
   constructor(
@@ -57,7 +57,7 @@ export class ConfigSyncService {
     const installation = await this.localInstallationService.findDefault();
 
     return {
-      cloudApiUrl: envs.NUBEADMIN_API_URL,
+      cloudApiUrl: envs.ADMINISTRATIVO_API_URL,
       installationId: await InstallationIdentityService.getInstallationId(),
       configured: installation?.status === "linked" && Boolean(installation.proyectoId),
       proyectoId: installation?.proyectoId ?? null,
@@ -234,18 +234,18 @@ export class ConfigSyncService {
       });
     } catch {
       throw CustomError.internalServer(
-        "NUBEADMIN no esta disponible",
-        { cloudApiUrl: envs.NUBEADMIN_API_URL },
-        "NUBEADMIN_UNAVAILABLE",
+        "La nube no esta disponible",
+        { cloudApiUrl: envs.ADMINISTRATIVO_API_URL },
+        "ADMINISTRATIVO_UNAVAILABLE",
       );
     }
 
     const data = (await response.json().catch(() => ({}))) as CloudResponse;
     if (!response.ok) {
       throw CustomError.badRequest(
-        String(data.error ?? data.message ?? "No se pudo sincronizar con NUBEADMIN"),
+        String(data.error ?? data.message ?? "No se pudo sincronizar con la nube"),
         { status: response.status },
-        "NUBEADMIN_SYNC_FAILED",
+        "ADMINISTRATIVO_SYNC_FAILED",
       );
     }
 
@@ -291,7 +291,7 @@ export class ConfigSyncService {
     };
 
     if (!proyecto) {
-      addIssue("error", "proyecto", "PROJECT_NOT_FOUND", "El proyecto vinculado no existe en LOCALOPE", proyectoId);
+      addIssue("error", "proyecto", "PROJECT_NOT_FOUND", "El proyecto vinculado no existe en esta instalacion", proyectoId);
     }
 
     if (modulos.length === 0) {
@@ -353,7 +353,7 @@ export class ConfigSyncService {
           "error",
           "pensionPasses",
           "ORPHAN_PENSION_PASS",
-          "El pension pass apunta a una pension que no existe en este LOCALOPE",
+          "El pension pass apunta a una pension que no existe en esta instalacion",
           String(pensionPass._id),
         );
       }
@@ -437,7 +437,7 @@ export class ConfigSyncService {
       errorMessage: error?.message ?? "",
       errorCode: error?.code ?? "",
       metadata: {
-        cloudApiUrl: envs.NUBEADMIN_API_URL,
+        cloudApiUrl: envs.ADMINISTRATIVO_API_URL,
         integrity: payload.integrity ?? null,
         errorDetails: error?.details ?? null,
       },

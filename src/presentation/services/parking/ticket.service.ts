@@ -93,9 +93,7 @@ export class TicketService {
       throw CustomError.badRequest("El proyecto asociado no existe");
     }
 
-    await SocketServerPlugin.openBarrier(modulo.id);
-
-    return this.createTicket({
+    const ticket = await this.createTicket({
       proyecto: proyecto.id,
       entrada: modulo.id,
       usuario: usuarioId,
@@ -110,7 +108,29 @@ export class TicketService {
       duracion: 0,
       monto: 0,
       pagado: false,
+      status: "ACTIVE",
+      barrierOpenedAt: -1,
+      barrierConfirmedAt: -1,
+      fraudDetectedAt: -1,
+      fraudReason: "",
     });
+
+    try {
+      await SocketServerPlugin.openBarrier(modulo.id, {
+        msg: "open",
+        accessTracking: {
+          kind: "ticket",
+          ticketId: ticket.id,
+          moduleId: modulo.id,
+          mode: "entrada",
+        },
+      });
+    } catch (error) {
+      await this.deleteTicket(ticket.id);
+      throw error;
+    }
+
+    return ticket;
   }
 
   async killTicketFromModuleToken(
@@ -130,11 +150,20 @@ export class TicketService {
       throw CustomError.badRequest("El modulo de salida no existe");
     }
 
-    await SocketServerPlugin.openBarrier(modulo.id);
+    await SocketServerPlugin.openBarrier(modulo.id, {
+      msg: "open",
+      accessTracking: {
+        kind: "ticket",
+        ticketId: ticket.id,
+        moduleId: modulo.id,
+        mode: "salida",
+      },
+    });
 
     return this.updateTicket(ticket.id, {
       salida: modulo.id,
       horaSalida: Date.now(),
+      status: "COMPLETED",
     });
   }
 

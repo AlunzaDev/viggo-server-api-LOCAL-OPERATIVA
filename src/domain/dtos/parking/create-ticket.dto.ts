@@ -12,6 +12,11 @@ export class CreateTicketDto {
         public readonly monto: number,
         public readonly pagado: boolean,
         public readonly salida?: string,
+        public readonly status: "ACTIVE" | "COMPLETED" | "FRAUD" = "ACTIVE",
+        public readonly barrierOpenedAt: number = -1,
+        public readonly barrierConfirmedAt: number = -1,
+        public readonly fraudDetectedAt: number = -1,
+        public readonly fraudReason: string = "",
     ) {}
 
     static create(body: Record<string, unknown>): [string?, CreateTicketDto?] {
@@ -50,6 +55,11 @@ export class CreateTicketDto {
                 monto,
                 pagado,
                 salida,
+                "ACTIVE",
+                -1,
+                -1,
+                -1,
+                "",
             ),
         ];
     }

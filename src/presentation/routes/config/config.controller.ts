@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { getAuthenticatedRequestUser } from "../../middlewares";
+import { getAuthenticatedRequestUser, type SyncRequest } from "../../middlewares";
 import { ConfigSyncService } from "../../services/config/config-sync.service";
 import { ErrorService } from "../../services/error.service";
 
@@ -25,6 +25,20 @@ export class ConfigController {
         triggerSource: "manual",
       });
       return res.status(200).json({ synced: true, ...result });
+    } catch (error) {
+      return ErrorService.handleApiError(error, res);
+    }
+  };
+
+  syncNowFromService = async (req: Request, res: Response) => {
+    try {
+      const syncReq = req as SyncRequest;
+      const result = await this.service.syncNow({
+        userId: "administrativo-service",
+        userName: syncReq.syncSource ?? "administrativo",
+        triggerSource: "system",
+      });
+      return res.status(200).json({ synced: true, source: syncReq.syncSource ?? "administrativo", ...result });
     } catch (error) {
       return ErrorService.handleApiError(error, res);
     }

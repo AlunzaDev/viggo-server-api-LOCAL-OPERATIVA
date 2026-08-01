@@ -4,7 +4,7 @@ import { ModuloRepository } from "../../../domain/repository/parking/modulo.repo
 import { ProyectoRepository } from "../../../domain/repository/parking/proyecto.repository";
 import { ModuloFilters } from "./modulo-device-binding.types";
 
-/** Read-only access to module configuration synchronized from NUBEADMIN. */
+/** Read-only access to module configuration synchronized from ADMINISTRATIVO. */
 export class ModuloCrudService {
   constructor(
     private readonly moduloRepository: ModuloRepository,

@@ -102,8 +102,8 @@ export const envs = {
   CORS_ALLOWED_ORIGINS: [...new Set(corsAllowedOrigins)],
   PROJECT_ID: env.get("PROJECT_ID").default("").asString(),
   INSTALLATION_ID: env.get("INSTALLATION_ID").default("").asString(),
-  NUBEADMIN_API_URL: env
-    .get("NUBEADMIN_API_URL")
+  ADMINISTRATIVO_API_URL: env
+    .get("ADMINISTRATIVO_API_URL")
     .default("http://localhost:3000")
     .asString(),
   AUTH_COOKIE_NAME: env.get("AUTH_COOKIE_NAME").default("sikk_auth").asString(),
@@ -119,6 +119,22 @@ export const envs = {
     .asIntPositive(),
   PAYMENT_CURRENCY: env.get("PAYMENT_CURRENCY").default("mxn").asString(),
   SYNC_SERVICE_TOKEN: env.get("SYNC_SERVICE_TOKEN").default("").asString(),
+  AUTO_CONFIG_SYNC_ENABLED: env
+    .get("AUTO_CONFIG_SYNC_ENABLED")
+    .default("true")
+    .asBool(),
+  AUTO_CONFIG_SYNC_INTERVAL_MS: parseBoundedInteger(
+    env.get("AUTO_CONFIG_SYNC_INTERVAL_MS").asString(),
+    120000,
+    15000,
+    3600000,
+  ),
+  AUTO_CONFIG_SYNC_START_DELAY_MS: parseBoundedInteger(
+    env.get("AUTO_CONFIG_SYNC_START_DELAY_MS").asString(),
+    10000,
+    0,
+    600000,
+  ),
   BARRIER_SOCKET_REQUIRED: env
     .get("BARRIER_SOCKET_REQUIRED")
     .default(isProd ? "true" : "false")

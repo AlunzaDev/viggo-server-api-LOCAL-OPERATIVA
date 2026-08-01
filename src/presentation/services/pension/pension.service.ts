@@ -3,7 +3,7 @@ import { CustomError } from "../../../domain/errors/custom.error";
 import { ProyectoRepository } from "../../../domain/repository/parking/proyecto.repository";
 import { PensionRepository } from "../../../domain/repository/pension/pension.repository";
 
-/** Read-only plan projection. NUBEADMIN owns plan creation and commercial changes. */
+/** Read-only plan projection. ADMINISTRATIVO owns plan creation and commercial changes. */
 export class PensionService {
   constructor(
     private readonly pensionRepository: PensionRepository,

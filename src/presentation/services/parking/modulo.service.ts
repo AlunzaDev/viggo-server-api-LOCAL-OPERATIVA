@@ -8,12 +8,14 @@ import {
   ModuloFilters,
   ResolveDeviceBindingRequestPayload,
 } from "./modulo-device-binding.types";
+import { HeartbeatSnapshotService } from "../heartbeat/heartbeat-snapshot.service";
 import { ModuloCrudService } from "./modulo-crud.service";
 import { ModuloDeviceLifecycleService } from "./modulo-device-lifecycle.service";
 
 export class ModuloService {
   private readonly queryService: ModuloCrudService;
   private readonly deviceLifecycleService: ModuloDeviceLifecycleService;
+  private readonly heartbeatSnapshotService: HeartbeatSnapshotService;
 
   constructor(
     moduloRepository: ModuloRepository,
@@ -25,6 +27,10 @@ export class ModuloService {
     );
     this.deviceLifecycleService = new ModuloDeviceLifecycleService(
       moduloRepository,
+    );
+    this.heartbeatSnapshotService = new HeartbeatSnapshotService(
+      moduloRepository,
+      proyectoRepository,
     );
   }
 
@@ -63,21 +69,27 @@ export class ModuloService {
     id: string,
     payload: ResolveDeviceBindingRequestPayload,
   ): Promise<ModuloEntity> {
-    return this.deviceLifecycleService.approveDeviceBindingRequest(id, payload);
+    return this.withHeartbeatSync(
+      this.deviceLifecycleService.approveDeviceBindingRequest(id, payload),
+    );
   }
 
   rejectDeviceBindingRequest(
     id: string,
     payload: ResolveDeviceBindingRequestPayload,
   ): Promise<ModuloEntity> {
-    return this.deviceLifecycleService.rejectDeviceBindingRequest(id, payload);
+    return this.withHeartbeatSync(
+      this.deviceLifecycleService.rejectDeviceBindingRequest(id, payload),
+    );
   }
 
   reopenDeviceBindingRequest(
     id: string,
     payload: ResolveDeviceBindingRequestPayload,
   ): Promise<ModuloEntity> {
-    return this.deviceLifecycleService.reopenDeviceBindingRequest(id, payload);
+    return this.withHeartbeatSync(
+      this.deviceLifecycleService.reopenDeviceBindingRequest(id, payload),
+    );
   }
 
   recordDeviceConnectionAudit(
@@ -91,17 +103,31 @@ export class ModuloService {
     id: string,
     payload: DeviceRuntimePayload,
   ): Promise<ModuloEntity> {
-    return this.deviceLifecycleService.updateDeviceRuntime(id, payload);
+    return this.withHeartbeatSync(
+      this.deviceLifecycleService.updateDeviceRuntime(id, payload),
+    );
   }
 
   recordAuthorizedHeartbeat(
     id: string,
     payload: DeviceRegistrationPayload & { socketId?: string; message?: string },
   ): Promise<ModuloEntity> {
-    return this.deviceLifecycleService.recordAuthorizedHeartbeat(id, payload);
+    return this.withHeartbeatSync(
+      this.deviceLifecycleService.recordAuthorizedHeartbeat(id, payload),
+    );
   }
 
   resetDeviceBinding(id: string): Promise<ModuloEntity> {
-    return this.deviceLifecycleService.resetDeviceBinding(id);
+    return this.withHeartbeatSync(this.deviceLifecycleService.resetDeviceBinding(id));
+  }
+
+  getHeartbeatSnapshot(proyectoId: string) {
+    return this.heartbeatSnapshotService.buildSnapshot(proyectoId);
+  }
+
+  private async withHeartbeatSync(promise: Promise<ModuloEntity>) {
+    const modulo = await promise;
+    void this.heartbeatSnapshotService.syncSnapshot(modulo.proyecto);
+    return modulo;
   }
 }

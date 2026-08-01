@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { AUTH_ROLES } from "../../../domain/constants";
 import { buildConfigController } from "../../dependencies";
-import { AuthMiddleware } from "../../middlewares";
+import { AuthMiddleware, requireSyncAuth } from "../../middlewares";
 
 export class ConfigRoutes {
   static get routes(): Router {
@@ -12,6 +12,7 @@ export class ConfigRoutes {
     router.get("/status", AuthMiddleware.requireAuth, adminRoles, controller.status);
     router.get("/sync-audits", AuthMiddleware.requireAuth, adminRoles, controller.getSyncAudits);
     router.post("/sync-now", AuthMiddleware.requireAuth, adminRoles, controller.syncNow);
+    router.post("/sync-now/service", requireSyncAuth, controller.syncNowFromService);
 
     return router;
   }

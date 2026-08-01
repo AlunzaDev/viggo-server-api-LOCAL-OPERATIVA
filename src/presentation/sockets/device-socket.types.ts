@@ -5,6 +5,29 @@ export interface OpenBarrierResponse {
   deviceSecret?: string;
 }
 
+export interface RuntimeAccessTrackingPayload {
+  kind: "ticket";
+  ticketId: string;
+  moduleId: string;
+  mode?: "entrada" | "salida";
+}
+
+export interface OpenBarrierCommandPayload {
+  msg?: string;
+  accessTracking?: RuntimeAccessTrackingPayload;
+}
+
+export type DeviceRuntimeAccessEventName =
+  | "barrier_opened"
+  | "vehicle_passed"
+  | "vehicle_timeout";
+
+export interface DeviceRuntimeAccessEventPayload
+  extends RuntimeAccessTrackingPayload {
+  event: DeviceRuntimeAccessEventName;
+  occurredAt: number;
+}
+
 export interface DeviceIdentityPayload {
   cpu_serial?: string;
   machine_id?: string;

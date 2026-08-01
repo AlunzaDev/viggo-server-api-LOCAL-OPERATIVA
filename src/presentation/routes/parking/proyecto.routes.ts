@@ -2,7 +2,7 @@ import { Router } from "express";
 import { buildProyectoController } from "../../dependencies";
 import { AuthMiddleware } from "../../middlewares";
 
-/** Read-only projection synchronized from NUBEADMIN. */
+/** Read-only projection synchronized from ADMINISTRATIVO. */
 export class ProyectoRoutes {
   static get routes(): Router {
     const router = Router();

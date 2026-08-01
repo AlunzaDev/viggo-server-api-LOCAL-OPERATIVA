@@ -82,7 +82,7 @@ export class Server {
 
         if (error.code === "EADDRINUSE" && port === this.port) {
           console.warn(
-            `[LOCALOPE] Port ${port} is busy. Trying ${Server.fallbackPort}.`,
+            `[OPERATIVO] Port ${port} is busy. Trying ${Server.fallbackPort}.`,
           );
           this.listenWithFallback(Server.fallbackPort).then(resolve).catch(reject);
           return;
@@ -93,7 +93,7 @@ export class Server {
 
       const onListening = () => {
         this.httpServer.off("error", onError);
-        console.log(`[LOCALOPE] Server running on ${this.host}:${port}`);
+        console.log(`[OPERATIVO] Server running on ${this.host}:${port}`);
         resolve();
       };
 

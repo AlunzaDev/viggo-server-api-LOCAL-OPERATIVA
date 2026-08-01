@@ -12,9 +12,21 @@ export class UpdateTicketDto {
         public readonly monto?: number,
         public readonly pagado?: boolean,
         public readonly salida?: string,
+        public readonly status?: "ACTIVE" | "COMPLETED" | "FRAUD",
+        public readonly barrierOpenedAt?: number,
+        public readonly barrierConfirmedAt?: number,
+        public readonly fraudDetectedAt?: number,
+        public readonly fraudReason?: string,
     ) {}
 
     static create(body: Record<string, unknown>): [string?, UpdateTicketDto?] {
+        const status =
+            body.status === "ACTIVE" ||
+            body.status === "COMPLETED" ||
+            body.status === "FRAUD"
+                ? body.status
+                : undefined;
+
         return [
             undefined,
             new UpdateTicketDto(
@@ -30,6 +42,19 @@ export class UpdateTicketDto {
                 body.monto !== undefined ? Number(body.monto) : undefined,
                 typeof body.pagado === "boolean" ? body.pagado : undefined,
                 typeof body.salida === "string" ? body.salida.trim() : undefined,
+                status,
+                body.barrierOpenedAt !== undefined
+                    ? Number(body.barrierOpenedAt)
+                    : undefined,
+                body.barrierConfirmedAt !== undefined
+                    ? Number(body.barrierConfirmedAt)
+                    : undefined,
+                body.fraudDetectedAt !== undefined
+                    ? Number(body.fraudDetectedAt)
+                    : undefined,
+                typeof body.fraudReason === "string"
+                    ? body.fraudReason.trim()
+                    : undefined,
             ),
         ];
     }

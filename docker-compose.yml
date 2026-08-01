@@ -1,9 +1,9 @@
-name: viggo-localope
+name: viggo-operativo
 
 services:
   mongo-db:
     image: mongo:7.0
-    container_name: viggo-localope-mongo
+    container_name: viggo-operativo-mongo
     restart: unless-stopped
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
@@ -19,8 +19,8 @@ services:
       retries: 10
 
   backend:
-    container_name: viggo-localope-api
-    image: ${BACKEND_IMAGE:-viggo-server-api-localope:local}
+    container_name: viggo-operativo-api
+    image: ${BACKEND_IMAGE:-viggo-server-api-operativo:local}
     build:
       context: .
       dockerfile: Dockerfile

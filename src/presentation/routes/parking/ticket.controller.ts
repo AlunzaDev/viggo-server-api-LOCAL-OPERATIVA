@@ -8,9 +8,81 @@ import {
   isSuperAdminRequest,
 } from "../../middlewares";
 import { TicketService } from "../../services/parking/ticket.service";
+import {
+  buildPaginatedResponse,
+  paginateArray,
+  parsePaginationDateQuery,
+} from "../../services/shared/pagination-query";
+
+const normalizeText = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+
+const parseBooleanQuery = (value: unknown): boolean | undefined | null => {
+  if (value === undefined) return undefined;
+  if (typeof value === "boolean") return value;
+  if (typeof value !== "string") return null;
+
+  const normalized = value.trim().toLowerCase();
+  if (["true", "1", "yes", "on"].includes(normalized)) return true;
+  if (["false", "0", "no", "off"].includes(normalized)) return false;
+
+  return null;
+};
 
 export class TicketController {
   constructor(private readonly ticketService: TicketService) {}
+
+  private filterTickets(
+    tickets: Awaited<ReturnType<TicketService["getTickets"]>>,
+    query: Request["query"],
+  ) {
+    const proyecto =
+      typeof query.proyecto === "string" ? query.proyecto.trim() : "";
+    const status = typeof query.status === "string" ? query.status.trim().toUpperCase() : "";
+    const search = typeof query.search === "string" ? query.search.trim() : "";
+    const pagado = parseBooleanQuery(query.pagado);
+    if (pagado === null) {
+      throw new Error("__INVALID_PAGADO__");
+    }
+
+    const { from, to } = parsePaginationDateQuery(query);
+    let filtered = tickets;
+
+    if (proyecto) {
+      filtered = filtered.filter((ticket) => ticket.proyecto === proyecto);
+    }
+
+    if (status) {
+      filtered = filtered.filter((ticket) => String(ticket.status ?? "").toUpperCase() === status);
+    }
+
+    if (pagado !== undefined) {
+      filtered = filtered.filter((ticket) => ticket.pagado === pagado);
+    }
+
+    if (from !== undefined || to !== undefined) {
+      filtered = filtered.filter((ticket) => {
+        if (from !== undefined && ticket.horaInicio < from) return false;
+        if (to !== undefined && ticket.horaInicio > to) return false;
+        return true;
+      });
+    }
+
+    if (search) {
+      const normalizedSearch = normalizeText(search);
+      filtered = filtered.filter((ticket) =>
+        [ticket.idBoleto, ticket.usuario, ticket.entrada, ticket.salida ?? ""].some((value) =>
+          normalizeText(String(value ?? "")).includes(normalizedSearch),
+        ),
+      );
+    }
+
+    return filtered.sort((a, b) => b.horaInicio - a.horaInicio);
+  }
 
   createTicket = async (req: Request, res: Response) => {
     try {
@@ -85,11 +157,31 @@ export class TicketController {
     try {
       const allowedProjectIds = getAllowedProjectIdsFromRequest(req);
       const tickets = await this.ticketService.getTickets();
-      const filteredTickets = isSuperAdminRequest(req)
+      const shouldPaginate =
+        req.query.page !== undefined || req.query.limit !== undefined;
+      const { page, limit } = parsePaginationDateQuery(req.query);
+      let filteredTickets = isSuperAdminRequest(req)
         ? tickets
         : tickets.filter((ticket) => allowedProjectIds.includes(ticket.proyecto));
-      return res.status(200).json({ tickets: filteredTickets });
+      filteredTickets = this.filterTickets(filteredTickets, req.query);
+
+      if (!shouldPaginate) {
+        return res.status(200).json({ tickets: filteredTickets });
+      }
+
+      return res.status(200).json(
+        buildPaginatedResponse(
+          "tickets",
+          paginateArray(filteredTickets, page, limit),
+          filteredTickets.length,
+          page,
+          limit,
+        ),
+      );
     } catch (error) {
+      if (error instanceof Error && error.message === "__INVALID_PAGADO__") {
+        return res.status(400).json({ error: "'pagado' debe ser boolean" });
+      }
       return ErrorService.handleApiError(error, res);
     }
   };
@@ -111,13 +203,33 @@ export class TicketController {
     try {
       const usuarioId = String(req.params.usuarioId);
       const tickets = await this.ticketService.getTicketsByUsuario(usuarioId);
-      const filteredTickets = isSuperAdminRequest(req)
+      const shouldPaginate =
+        req.query.page !== undefined || req.query.limit !== undefined;
+      const { page, limit } = parsePaginationDateQuery(req.query);
+      let filteredTickets = isSuperAdminRequest(req)
         ? tickets
         : tickets.filter((ticket) =>
             getAllowedProjectIdsFromRequest(req).includes(ticket.proyecto),
           );
-      return res.status(200).json({ tickets: filteredTickets });
+      filteredTickets = this.filterTickets(filteredTickets, req.query);
+
+      if (!shouldPaginate) {
+        return res.status(200).json({ tickets: filteredTickets });
+      }
+
+      return res.status(200).json(
+        buildPaginatedResponse(
+          "tickets",
+          paginateArray(filteredTickets, page, limit),
+          filteredTickets.length,
+          page,
+          limit,
+        ),
+      );
     } catch (error) {
+      if (error instanceof Error && error.message === "__INVALID_PAGADO__") {
+        return res.status(400).json({ error: "'pagado' debe ser boolean" });
+      }
       return ErrorService.handleApiError(error, res);
     }
   };

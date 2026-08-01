@@ -14,6 +14,11 @@ export interface TicketEntityOptions {
     duracion: number;
     monto: number;
     pagado: boolean;
+    status?: "ACTIVE" | "COMPLETED" | "FRAUD";
+    barrierOpenedAt?: number;
+    barrierConfirmedAt?: number;
+    fraudDetectedAt?: number;
+    fraudReason?: string;
 }
 
 export class TicketEntity {
@@ -30,6 +35,11 @@ export class TicketEntity {
     public duracion: number;
     public monto: number;
     public pagado: boolean;
+    public status: "ACTIVE" | "COMPLETED" | "FRAUD";
+    public barrierOpenedAt: number;
+    public barrierConfirmedAt: number;
+    public fraudDetectedAt: number;
+    public fraudReason: string;
 
     constructor(options: TicketEntityOptions) {
         const {
@@ -46,6 +56,11 @@ export class TicketEntity {
             duracion,
             monto,
             pagado,
+            status,
+            barrierOpenedAt,
+            barrierConfirmedAt,
+            fraudDetectedAt,
+            fraudReason,
         } = options;
 
         this.id = id;
@@ -61,6 +76,11 @@ export class TicketEntity {
         this.duracion = duracion;
         this.monto = monto;
         this.pagado = pagado;
+        this.status = status ?? "ACTIVE";
+        this.barrierOpenedAt = barrierOpenedAt ?? -1;
+        this.barrierConfirmedAt = barrierConfirmedAt ?? -1;
+        this.fraudDetectedAt = fraudDetectedAt ?? -1;
+        this.fraudReason = fraudReason ?? "";
     }
 
     static fromObject(object: { [key: string]: unknown }): TicketEntity {
@@ -79,6 +99,11 @@ export class TicketEntity {
             duracion,
             monto,
             pagado,
+            status,
+            barrierOpenedAt,
+            barrierConfirmedAt,
+            fraudDetectedAt,
+            fraudReason,
         } = object;
 
         const ticketId = id || (_id ? String(_id) : undefined);
@@ -124,6 +149,23 @@ export class TicketEntity {
             duracion: Number(duracion),
             monto: Number(monto),
             pagado: Boolean(pagado),
+            status:
+                status === "COMPLETED" || status === "FRAUD"
+                    ? status
+                    : "ACTIVE",
+            barrierOpenedAt:
+                barrierOpenedAt === undefined || barrierOpenedAt === null
+                    ? -1
+                    : Number(barrierOpenedAt),
+            barrierConfirmedAt:
+                barrierConfirmedAt === undefined || barrierConfirmedAt === null
+                    ? -1
+                    : Number(barrierConfirmedAt),
+            fraudDetectedAt:
+                fraudDetectedAt === undefined || fraudDetectedAt === null
+                    ? -1
+                    : Number(fraudDetectedAt),
+            fraudReason: typeof fraudReason === "string" ? fraudReason : "",
         });
     }
 }
