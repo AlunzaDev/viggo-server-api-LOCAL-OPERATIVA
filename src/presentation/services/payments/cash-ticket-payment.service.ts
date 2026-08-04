@@ -7,6 +7,7 @@ import { CashPaymentSessionRepository } from "../../../domain/repository/payment
 import { PaymentRepository } from "../../../domain/repository/payments/payment.repository";
 import { CashTicketPaymentRepository } from "../../../domain/repository/payments/cash-ticket-payment.repository";
 import { CashRegisterService } from "../cash-register/cash-register.service";
+import { OperationalLogsService } from "../operational-logs/operational-logs.service";
 
 export interface CashPaymentActorContext {
   userId: string;
@@ -23,6 +24,7 @@ export class CashTicketPaymentService {
     private readonly cashRegisterShiftRepository: CashRegisterShiftRepository,
     private readonly cashRegisterService: CashRegisterService,
     private readonly mongoDatasource: CashTicketPaymentRepository,
+    private readonly operationalLogsService: OperationalLogsService,
   ) {}
 
   async resolveTicketFromQr(qrValue: string, allowedProjectIds: string[] = []) {
@@ -37,12 +39,36 @@ export class CashTicketPaymentService {
       (await this.ticketRepository.findById(normalizedQrValue));
 
     if (!ticket) {
+      await this.operationalLogsService.logIncident({
+        scope: "payment",
+        type: "qr_ticket_not_found",
+        severity: "warning",
+        source: "app",
+        message: "Se intento cobrar un QR que no corresponde a un boleto disponible.",
+        metadata: {
+          qrValue: normalizedQrValue,
+        },
+      });
       throw CustomError.notFound("Ticket no encontrado");
     }
 
     this.ensureProjectAccess(ticket.proyecto, allowedProjectIds);
 
     if (ticket.pagado) {
+      await this.operationalLogsService.logIncident({
+        scope: "payment",
+        type: "qr_ticket_already_paid",
+        severity: "warning",
+        source: "app",
+        message: "Se escaneo un boleto que ya estaba marcado como pagado.",
+        projectId: ticket.proyecto,
+        ticketId: ticket.id,
+        flowId: ticket.id,
+        metadata: {
+          qrValue: normalizedQrValue,
+          idBoleto: ticket.idBoleto,
+        },
+      });
       throw CustomError.badRequest("El ticket ya fue pagado");
     }
 
@@ -70,6 +96,25 @@ export class CashTicketPaymentService {
       await this.cashPaymentSessionRepository.findActiveByTicketId(
         currentTicket.id,
       );
+
+    await this.operationalLogsService.logEvent({
+      scope: "payment",
+      type: "qr_ticket_resolved",
+      source: "app",
+      message: activeSession
+        ? "El QR del boleto se resolvio y ya existia una sesion de cobro activa."
+        : "El QR del boleto se resolvio correctamente para iniciar cobro.",
+      projectId: currentTicket.proyecto,
+      ticketId: currentTicket.id,
+      paymentSessionId: activeSession?.id,
+      flowId: currentTicket.id,
+      metadata: {
+        qrValue: normalizedQrValue,
+        idBoleto: currentTicket.idBoleto,
+        amountExpected: currentTicket.monto,
+        hasActiveSession: Boolean(activeSession),
+      },
+    });
 
     return {
       ticket: currentTicket,
@@ -124,6 +169,25 @@ export class CashTicketPaymentService {
       await this.cashPaymentSessionRepository.findActiveByTicketId(ticket.id);
 
     if (existingSession) {
+      await this.operationalLogsService.logEvent({
+        scope: "payment",
+        type: "cash_session_reused",
+        source: "app",
+        message: "Se reutilizo una sesion de cobro en efectivo que ya estaba activa.",
+        projectId: ticket.proyecto,
+        moduloId: String(modulo._id),
+        ticketId: ticket.id,
+        paymentSessionId: existingSession.id,
+        flowId: ticket.id,
+        metadata: {
+          idBoleto: ticket.idBoleto,
+          moduloIdentificador:
+            String(modulo.get("identificador") ?? "").trim() || undefined,
+          moduloNombre: String(modulo.get("nombre") ?? "").trim() || undefined,
+          amountExpected: existingSession.amountExpected,
+          amountReceived: existingSession.amountReceived,
+        },
+      });
       return existingSession;
     }
 
@@ -138,7 +202,7 @@ export class CashTicketPaymentService {
 
     this.ensureShiftOperator(activeShift.openedByUserId, actor);
 
-    return this.cashPaymentSessionRepository.create({
+    const createdSession = await this.cashPaymentSessionRepository.create({
       ticketId: ticket.id,
       idBoleto: ticket.idBoleto,
       status: "pending_cash",
@@ -171,6 +235,29 @@ export class CashTicketPaymentService {
         },
       ],
     });
+
+    await this.operationalLogsService.logEvent({
+      scope: "payment",
+      type: "cash_session_started",
+      source: "app",
+      message: "Se inicio una sesion de cobro en efectivo para el boleto escaneado.",
+      projectId: ticket.proyecto,
+      moduloId: String(modulo._id),
+      ticketId: ticket.id,
+      paymentSessionId: createdSession.id,
+      flowId: ticket.id,
+      metadata: {
+        idBoleto: ticket.idBoleto,
+        moduloIdentificador: createdSession.moduloIdentificador,
+        moduloNombre: createdSession.moduloNombre,
+        amountExpected: createdSession.amountExpected,
+        cashRegisterShiftId: activeShift.id,
+        startedByUserId: actor.userId,
+        startedByUserName: actor.userName,
+      },
+    });
+
+    return createdSession;
   }
 
   async registerCashInsertion(
@@ -307,6 +394,30 @@ export class CashTicketPaymentService {
     if (!finalSession) {
       throw CustomError.notFound("Sesion de cobro no encontrada");
     }
+
+    await this.operationalLogsService.logIncident({
+      scope: "payment",
+      type: "cash_session_cancelled",
+      severity: finalSession.amountReceived > 0 ? "warning" : "info",
+      source: "app",
+      message:
+        finalSession.amountReceived > 0
+          ? "Se cancelo una sesion de cobro despues de registrar efectivo."
+          : "Se cancelo una sesion de cobro antes de completar el pago.",
+      projectId: ticket.proyecto,
+      moduloId: finalSession.moduloId,
+      ticketId: ticket.id,
+      paymentSessionId: finalSession.id,
+      flowId: ticket.id,
+      metadata: {
+        idBoleto: ticket.idBoleto,
+        amountExpected: finalSession.amountExpected,
+        amountReceived: finalSession.amountReceived,
+        reason: reason || undefined,
+        cancelledByUserId: actor.userId,
+        cancelledByUserName: actor.userName,
+      },
+    });
 
     return finalSession;
   }
@@ -618,7 +729,36 @@ export class CashTicketPaymentService {
       throw CustomError.notFound("Sesion de cobro no encontrada");
     }
 
-    return finalSession;
+    const resolvedSession = finalSession as CashPaymentSessionEntity;
+    const finalTicket = await this.ticketRepository.findById(resolvedSession.ticketId);
+
+    await this.operationalLogsService.logEvent({
+      scope: "payment",
+      type: resolvedSession.status === "paid" ? "cash_payment_completed" : "cash_inserted",
+      source: "device",
+      message:
+        resolvedSession.status === "paid"
+          ? "El cobro en efectivo se completo correctamente desde la caja."
+          : "La caja registro una insercion de efectivo en la sesion activa.",
+      projectId: finalTicket?.proyecto,
+      moduloId: resolvedSession.moduloId,
+      ticketId: resolvedSession.ticketId,
+      paymentSessionId: resolvedSession.id,
+      flowId: resolvedSession.ticketId,
+      metadata: {
+        idBoleto: resolvedSession.idBoleto,
+        insertedAmount: options.amount,
+        amountExpected: resolvedSession.amountExpected,
+        amountReceived: resolvedSession.amountReceived,
+        changeAmount: resolvedSession.changeAmount,
+        cashRegisterShiftId: resolvedSession.cashRegisterShiftId,
+        rawEvent: options.rawEvent,
+        processedByUserId: options.actor.userId,
+        processedByUserName: options.actor.userName,
+      },
+    });
+
+    return resolvedSession;
   }
 
   private isMongoTransactionUnsupported(error: unknown) {

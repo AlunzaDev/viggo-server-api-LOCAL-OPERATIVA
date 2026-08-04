@@ -14,6 +14,8 @@ import { PensionPassRoutes } from "./pension/pension-pass.routes";
 import { PensionRoutes } from "./pension/pension.routes";
 import { SyncRoutes } from "./sync/sync.routes";
 import { LocalReportsRoutes } from "./local-reports/local-reports.routes";
+import { OperationalLogsRoutes } from "./operational-logs/operational-logs.routes";
+import { MonthlyFlushRoutes } from "./monthly-flush/monthly-flush.routes";
 
 export class AppRoutes {
   static get routes(): Router {
@@ -54,6 +56,8 @@ export class AppRoutes {
     router.use("/api/cash-payments", CashTicketPaymentRoutes.routes);
     router.use("/api/sync", SyncRoutes.routes);
     router.use("/api/local-reports", LocalReportsRoutes.routes);
+    router.use("/api/operational-logs", OperationalLogsRoutes.routes);
+    router.use("/api/monthly-flush", MonthlyFlushRoutes.routes);
 
     return router;
   }

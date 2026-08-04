@@ -7,3 +7,5 @@ export * from "./pension.dependencies";
 export * from "./installation.dependencies";
 export * from "./sync.dependencies";
 export * from "./local-reports.dependencies";
+export * from "./operational-logs.dependencies";
+export * from "./monthly-flush.dependencies";

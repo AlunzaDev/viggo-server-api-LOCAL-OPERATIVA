@@ -21,3 +21,4 @@ export * from "./cash-register/cash-register-cut.entity";
 export * from "./payments/cash-payment-session.entity";
 export * from "./payments/payment.entity";
 export * from "./installation/local-installation.entity";
+export * from "./system/operational-log.entity";

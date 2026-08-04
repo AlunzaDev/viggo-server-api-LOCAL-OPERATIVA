@@ -1,11 +1,14 @@
 import { Socket } from "socket.io";
 import { CustomError } from "../../domain/errors/custom.error";
+import { buildOperationalLogsService } from "../dependencies/operational-logs.dependencies";
 import { ModuloService } from "../services/parking/modulo.service";
 import { DeviceSessionRegistry } from "./device-session-registry";
 import {
   DeviceRegistrationEventPayload,
   OpenBarrierResponse,
 } from "./device-socket.types";
+
+const operationalLogsService = buildOperationalLogsService();
 
 type SocketResponseCallback = (response: OpenBarrierResponse) => void;
 
@@ -107,6 +110,20 @@ export class DeviceSocketRegistrationService {
       socket.data.moduloId = moduloId;
       socket.data.deviceFingerprint = normalizedFingerprint;
       socket.data.deviceApproved = true;
+      await operationalLogsService.logEvent({
+        scope: "device",
+        type: "device_registration_approved",
+        severity: "info",
+        moduloId,
+        source: "device",
+        message: "Un dispositivo autorizado se conecto correctamente al modulo.",
+        metadata: {
+          socketId: socket.id,
+          fingerprint: normalizedFingerprint,
+          locationLabel: String(payload.deviceIdentity?.location_label ?? "").trim() || undefined,
+          issuedDeviceSecret: Boolean(registrationResult.issuedDeviceSecret),
+        },
+      });
 
       console.log("Device registration approved:", {
         moduloId,
@@ -257,6 +274,21 @@ export class DeviceSocketRegistrationService {
         details: error.details ?? null,
         sessionStatus,
       });
+      await operationalLogsService.logIncident({
+        scope: "device",
+        type: "device_registration_rejected",
+        severity: "warning",
+        moduloId: fallbackModuloId || undefined,
+        source: "device",
+        message: error.message,
+        statusAfter: sessionStatus,
+        metadata: {
+          socketId: socket.id,
+          code: error.code,
+          details: error.details ?? null,
+          fingerprint: normalizedFingerprint || undefined,
+        },
+      });
 
       callback?.({
         ok: false,
@@ -300,6 +332,20 @@ export class DeviceSocketRegistrationService {
           isAuthorized: false,
           lastDisconnectAt: new Date(),
           message,
+        });
+        await operationalLogsService.logIncident({
+          scope: "device",
+          type: "device_heartbeat_rejected",
+          severity: "warning",
+          moduloId,
+          source: "device",
+          message,
+          statusAfter: "MISMATCH",
+          metadata: {
+            socketId: socket.id,
+            code: error.code,
+            fingerprint,
+          },
         });
       }
     }

@@ -11,6 +11,9 @@ import {
   PaginationDateQuery,
 } from "../shared/pagination-query";
 import { SocketServerPlugin } from "../../sockets/socket-server";
+import { buildOperationalLogsService } from "../../dependencies/operational-logs.dependencies";
+
+const operationalLogsService = buildOperationalLogsService();
 
 interface LegacyTicketResponse {
   uid: string;
@@ -114,6 +117,24 @@ export class TicketService {
       fraudDetectedAt: -1,
       fraudReason: "",
     });
+    await operationalLogsService.logEvent({
+      scope: "access_flow",
+      type: "ticket_created",
+      severity: "info",
+      projectId: proyecto.id,
+      projectName: proyecto.nombre,
+      moduloId: modulo.id,
+      moduloNombre: modulo.nombre,
+      ticketId: ticket.id,
+      flowId: ticket.id,
+      source: "app",
+      message: "Se creo un nuevo ticket de entrada desde el modulo local.",
+      metadata: {
+        idBoleto: ticket.idBoleto,
+        usuarioId,
+        moduleTokenUsed: true,
+      },
+    });
 
     try {
       await SocketServerPlugin.openBarrier(modulo.id, {
@@ -126,6 +147,23 @@ export class TicketService {
         },
       });
     } catch (error) {
+      await operationalLogsService.logIncident({
+        scope: "access_flow",
+        type: "entry_open_barrier_failed",
+        severity: "critical",
+        projectId: proyecto.id,
+        projectName: proyecto.nombre,
+        moduloId: modulo.id,
+        moduloNombre: modulo.nombre,
+        ticketId: ticket.id,
+        flowId: ticket.id,
+        source: "backend",
+        message: error instanceof Error ? error.message : "No se pudo abrir la barrera de entrada.",
+        metadata: {
+          idBoleto: ticket.idBoleto,
+          usuarioId,
+        },
+      });
       await this.deleteTicket(ticket.id);
       throw error;
     }
@@ -149,6 +187,23 @@ export class TicketService {
     if (!modulo) {
       throw CustomError.badRequest("El modulo de salida no existe");
     }
+
+    await operationalLogsService.logEvent({
+      scope: "access_flow",
+      type: "ticket_exit_requested",
+      severity: "info",
+      projectId: ticket.proyecto,
+      moduloId: modulo.id,
+      moduloNombre: modulo.nombre,
+      ticketId: ticket.id,
+      flowId: ticket.id,
+      source: "app",
+      message: "Se solicito la salida de un ticket pagado desde el modulo local.",
+      metadata: {
+        idBoleto: ticket.idBoleto,
+        usuarioId,
+      },
+    });
 
     await SocketServerPlugin.openBarrier(modulo.id, {
       msg: "open",

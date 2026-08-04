@@ -1,9 +1,13 @@
 import { Socket } from "socket.io";
 import { TicketRepository } from "../../domain/repository/parking/ticket.repository";
+import { buildOperationalLogsService } from "../dependencies/operational-logs.dependencies";
 import {
   DeviceRuntimeAccessEventPayload,
   OpenBarrierResponse,
 } from "./device-socket.types";
+import { buildRuntimeAccessTicketPatch } from "./device-runtime-access-event.helpers";
+
+const operationalLogsService = buildOperationalLogsService();
 
 export class DeviceRuntimeAccessEventService {
   constructor(private readonly ticketRepository: TicketRepository) {}
@@ -58,8 +62,9 @@ export class DeviceRuntimeAccessEventService {
         return;
       }
 
-      const patch = this.buildTicketPatch(ticket, normalizedPayload);
+      const patch = buildRuntimeAccessTicketPatch(ticket, normalizedPayload);
       await this.ticketRepository.update(ticket.id, patch);
+      await this.logRuntimeEvent(normalizedPayload, ticket.proyecto, moduloId);
 
       callback?.({ ok: true });
     } catch (error) {
@@ -101,30 +106,78 @@ export class DeviceRuntimeAccessEventService {
     };
   }
 
-  private buildTicketPatch(
-    ticket: Awaited<ReturnType<TicketRepository["findById"]>> & { id: string },
+  private async logRuntimeEvent(
     payload: DeviceRuntimeAccessEventPayload,
+    projectId: string,
+    moduloId: string,
   ) {
     if (payload.event === "barrier_opened") {
-      return {
-        barrierOpenedAt: payload.occurredAt,
-      };
+      await operationalLogsService.logEvent({
+        scope: "access_flow",
+        type: "barrier_opened",
+        severity: "info",
+        projectId,
+        moduloId,
+        ticketId: payload.ticketId,
+        flowId: payload.ticketId,
+        source: "device",
+        message: "El dispositivo reporto que la barrera se abrio.",
+        metadata: {
+          mode: payload.mode,
+          occurredAt: payload.occurredAt,
+        },
+      });
+      return;
     }
 
     if (payload.event === "vehicle_passed") {
-      return {
-        barrierConfirmedAt: payload.occurredAt,
-        status: ticket.horaSalida !== -1 ? "COMPLETED" : ticket.status,
-        fraudDetectedAt: -1,
-        fraudReason: "",
-      };
+      await operationalLogsService.logEvent({
+        scope: "access_flow",
+        type: "vehicle_passed",
+        severity: "info",
+        projectId,
+        moduloId,
+        ticketId: payload.ticketId,
+        flowId: payload.ticketId,
+        source: "device",
+        message: "El dispositivo confirmo el paso del vehiculo por el segundo lazo.",
+        metadata: {
+          mode: payload.mode,
+          occurredAt: payload.occurredAt,
+        },
+      });
+      return;
     }
 
-    return {
-      status: "FRAUD" as const,
-      fraudDetectedAt: payload.occurredAt,
-      fraudReason:
-        "Se abrio la barrera, pero no se confirmo el paso por el segundo lazo.",
-    };
+    await operationalLogsService.logIncident({
+      scope: "access_flow",
+      type: "exit_loop_missing",
+      severity: "critical",
+      projectId,
+      moduloId,
+      ticketId: payload.ticketId,
+      flowId: payload.ticketId,
+      source: "device",
+      message: "Se abrio la barrera, pero no se confirmo el paso por el segundo lazo.",
+      metadata: {
+        mode: payload.mode,
+        occurredAt: payload.occurredAt,
+      },
+    });
+    await operationalLogsService.logIncident({
+      scope: "access_flow",
+      type: "ticket_fraud_suspected",
+      severity: "critical",
+      projectId,
+      moduloId,
+      ticketId: payload.ticketId,
+      flowId: payload.ticketId,
+      source: "system",
+      message: "El boleto quedo marcado como posible fraude por falta de confirmacion del segundo lazo.",
+      metadata: {
+        mode: payload.mode,
+        occurredAt: payload.occurredAt,
+      },
+    });
   }
 }

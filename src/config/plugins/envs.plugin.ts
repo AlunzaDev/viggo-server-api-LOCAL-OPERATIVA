@@ -127,13 +127,19 @@ export const envs = {
     env.get("AUTO_CONFIG_SYNC_INTERVAL_MS").asString(),
     120000,
     15000,
-    3600000,
+    86400000,
   ),
   AUTO_CONFIG_SYNC_START_DELAY_MS: parseBoundedInteger(
     env.get("AUTO_CONFIG_SYNC_START_DELAY_MS").asString(),
     10000,
     0,
     600000,
+  ),
+  MONTHLY_FLUSH_SCHEDULER_INTERVAL_MS: parseBoundedInteger(
+    env.get("MONTHLY_FLUSH_SCHEDULER_INTERVAL_MS").asString(),
+    300000,
+    60000,
+    3600000,
   ),
   BARRIER_SOCKET_REQUIRED: env
     .get("BARRIER_SOCKET_REQUIRED")

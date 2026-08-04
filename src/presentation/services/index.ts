@@ -25,4 +25,5 @@ export * from "./installation/installation-service.factory";
 export * from "./installation/installation-token-crypto.service";
 export * from "./sync/sync.service";
 export * from "./local-reports/local-reports.service";
+export * from "./operational-logs/operational-logs.service";
 export * from "./shared/pagination-query";

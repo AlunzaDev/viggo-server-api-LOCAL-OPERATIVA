@@ -18,3 +18,4 @@ export * from "./installation/local-installation.datasource";
 export * from "./sync/sync.datasource";
 export * from "./local-reports/local-reports.datasource";
 export * from "./cash-register/cash-register-module.datasource";
+export * from "./system/operational-log.datasource";

@@ -1,6 +1,7 @@
 import { Server as SocketServer, Socket } from "socket.io";
 import { envs } from "../../config";
 import { CustomError } from "../../domain/errors/custom.error";
+import { buildOperationalLogsService } from "../dependencies/operational-logs.dependencies";
 import { ModuloService } from "../services/parking/modulo.service";
 import { DeviceSessionRegistry } from "./device-session-registry";
 import {
@@ -9,6 +10,9 @@ import {
   OpenBarrierCommandPayload,
   OpenBarrierResponse,
 } from "./device-socket.types";
+import { normalizeOpenBarrierResponse } from "./device-socket-runtime.helpers";
+
+const operationalLogsService = buildOperationalLogsService();
 
 export class DeviceSocketRuntimeService {
   constructor(
@@ -51,6 +55,23 @@ export class DeviceSocketRuntimeService {
           ? "Dispositivo autorizado desconectado"
           : "Socket del dispositivo desconectado",
       });
+      await operationalLogsService.logEvent({
+        scope: "device",
+        type: "device_disconnected",
+        severity: approvedFlag ? "warning" : "info",
+        moduloId,
+        source: "device",
+        message: approvedFlag
+          ? "El dispositivo autorizado se desconecto del modulo."
+          : "El socket del dispositivo se desconecto.",
+        statusBefore: "CONNECTED",
+        statusAfter: runtimeStatus,
+        metadata: {
+          socketId: socket.id,
+          fingerprint: disconnectFingerprint || undefined,
+          authorized: approvedFlag,
+        },
+      });
       console.log(`Modulo ${moduloId} disconnected`);
     } else {
       this.registry.deleteSession(socket.id);
@@ -74,6 +95,20 @@ export class DeviceSocketRuntimeService {
       if (envs.BARRIER_SOCKET_REQUIRED) {
         console.warn("Open barrier rejected: no authorized device connected", {
           moduloId,
+        });
+        await operationalLogsService.logIncident({
+          scope: "access_flow",
+          type: "socket_not_connected",
+          severity: "critical",
+          moduloId,
+          ticketId: payload?.accessTracking?.ticketId,
+          flowId: payload?.accessTracking?.ticketId,
+          source: "backend",
+          message: "No hay un dispositivo autorizado conectado para abrir la barrera.",
+          metadata: {
+            barrierSocketRequired: true,
+            accessTracking: payload?.accessTracking,
+          },
         });
         throw CustomError.badRequest(
           "El modulo no tiene un dispositivo autorizado conectado",
@@ -113,6 +148,20 @@ export class DeviceSocketRuntimeService {
     }
 
     this.registry.touchSession(authorizedConnection.socketId);
+    await operationalLogsService.logEvent({
+      scope: "access_flow",
+      type: "barrier_open_requested",
+      moduloId,
+      ticketId: payload?.accessTracking?.ticketId,
+      flowId: payload?.accessTracking?.ticketId,
+      source: "backend",
+      message: "Se solicito la apertura de barrera al dispositivo autorizado.",
+      metadata: {
+        accessTracking: payload?.accessTracking,
+        socketId: authorizedConnection.socketId,
+        fingerprint: authorizedConnection.fingerprint,
+      },
+    });
 
     console.log("Open barrier authorized connection validated:", {
       moduloId,
@@ -129,6 +178,20 @@ export class DeviceSocketRuntimeService {
         console.warn("Open barrier rejected: authorized socket not available", {
           moduloId,
           socketId: authorizedConnection.socketId,
+        });
+        await operationalLogsService.logIncident({
+          scope: "access_flow",
+          type: "device_socket_missing",
+          severity: "critical",
+          moduloId,
+          ticketId: payload?.accessTracking?.ticketId,
+          flowId: payload?.accessTracking?.ticketId,
+          source: "backend",
+          message: "El socket del dispositivo autorizado ya no estaba disponible para abrir la barrera.",
+          metadata: {
+            socketId: authorizedConnection.socketId,
+            accessTracking: payload?.accessTracking,
+          },
         });
         throw CustomError.badRequest(
           "El dispositivo autorizado ya no esta conectado",
@@ -149,11 +212,42 @@ export class DeviceSocketRuntimeService {
         socketId: authorizedConnection.socketId,
         response,
       });
+      await operationalLogsService.logIncident({
+        scope: "access_flow",
+        type:
+          response.error === "Timeout al abrir barrera"
+            ? "barrier_open_timeout"
+            : "barrier_not_opened",
+        severity: "critical",
+        moduloId,
+        ticketId: payload?.accessTracking?.ticketId,
+        flowId: payload?.accessTracking?.ticketId,
+        source: "device",
+        message: response.error ?? "El dispositivo no confirmo la apertura de barrera.",
+        metadata: {
+          socketId: authorizedConnection.socketId,
+          response,
+          accessTracking: payload?.accessTracking,
+        },
+      });
       throw CustomError.badRequest(
         response.error ?? "No se pudo abrir la barrera",
       );
     }
 
+    await operationalLogsService.logEvent({
+      scope: "access_flow",
+      type: "barrier_open_confirmed",
+      moduloId,
+      ticketId: payload?.accessTracking?.ticketId,
+      flowId: payload?.accessTracking?.ticketId,
+      source: "device",
+      message: "El dispositivo confirmo la apertura de barrera.",
+      metadata: {
+        socketId: authorizedConnection.socketId,
+        accessTracking: payload?.accessTracking,
+      },
+    });
     console.log("Open barrier succeeded:", {
       moduloId,
       socketId: authorizedConnection.socketId,
@@ -186,6 +280,22 @@ export class DeviceSocketRuntimeService {
         isAuthorized: true,
         lastDisconnectAt: new Date(),
         message: "La sesion expiro por falta de heartbeat",
+      });
+      await operationalLogsService.logIncident({
+        scope: "device",
+        type: "heartbeat_lost",
+        severity: "critical",
+        moduloId: session.moduloId,
+        flowId: session.fingerprint,
+        source: "system",
+        message: "La sesion del dispositivo expiro por falta de heartbeat.",
+        statusBefore: "CONNECTED",
+        statusAfter: "DISCONNECTED",
+        metadata: {
+          socketId: session.socketId,
+          fingerprint: session.fingerprint,
+          timeoutMs: DEVICE_HEARTBEAT_TIMEOUT_MS,
+        },
       });
 
       const socket = io?.sockets.sockets.get(session.socketId);
@@ -221,6 +331,18 @@ export class DeviceSocketRuntimeService {
           fingerprint,
         },
       );
+      await operationalLogsService.logIncident({
+        scope: "device",
+        type: "authorized_device_missing",
+        severity: "warning",
+        moduloId,
+        source: "system",
+        message: "El modulo ya no tiene un dispositivo aprobado para esa sesion autorizada.",
+        metadata: {
+          socketId,
+          fingerprint,
+        },
+      });
       throw CustomError.forbidden(
         "El modulo no tiene un dispositivo aprobado",
         { moduloId, socketId },
@@ -235,6 +357,19 @@ export class DeviceSocketRuntimeService {
         socketId,
         connectedFingerprint: fingerprint,
         approvedFingerprint,
+      });
+      await operationalLogsService.logIncident({
+        scope: "device",
+        type: "device_identity_mismatch",
+        severity: "critical",
+        moduloId,
+        source: "system",
+        message: "La huella del dispositivo conectado ya no coincide con la aprobada en el modulo.",
+        metadata: {
+          socketId,
+          connectedFingerprint: fingerprint,
+          approvedFingerprint,
+        },
       });
       throw CustomError.forbidden(
         "El dispositivo conectado ya no coincide con el dispositivo aprobado",
@@ -258,6 +393,19 @@ export class DeviceSocketRuntimeService {
         isAuthorized: true,
         lastDisconnectAt: new Date(),
         message: "La sesion expiro por falta de heartbeat",
+      });
+      await operationalLogsService.logIncident({
+        scope: "device",
+        type: "authorized_session_expired",
+        severity: "critical",
+        moduloId,
+        source: "system",
+        message: "La sesion autorizada expiro por inactividad y heartbeat vencido.",
+        metadata: {
+          socketId,
+          fingerprint,
+          timeoutMs: DEVICE_HEARTBEAT_TIMEOUT_MS,
+        },
       });
       throw CustomError.forbidden(
         "La sesion autorizada expiro por inactividad",
@@ -283,16 +431,7 @@ export class DeviceSocketRuntimeService {
               return;
             }
 
-            const firstResponse = Array.isArray(response)
-              ? response[0]
-              : response;
-
-            if (firstResponse && typeof firstResponse === "object") {
-              resolve(firstResponse as OpenBarrierResponse);
-              return;
-            }
-
-            resolve({ ok: true });
+            resolve(normalizeOpenBarrierResponse(response));
           },
         );
     });

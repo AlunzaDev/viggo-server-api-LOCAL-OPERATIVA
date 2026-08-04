@@ -24,3 +24,4 @@ export * from "./installation/local-installation.repository";
 export * from "./sync/sync.repository";
 export * from "./local-reports/local-reports.repository";
 export * from "./cash-register/cash-register-module.repository";
+export * from "./system/operational-log.repository";

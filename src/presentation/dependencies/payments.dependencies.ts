@@ -21,6 +21,7 @@ import { CashRegisterModuleMongoDatasource } from "../../infrastructure/datasour
 import { CashRegisterModuleRepositoryImpl } from "../../infrastructure/repositories/cash-register/cash-register-module.repository.impl";
 import { CashTicketPaymentMongoDatasource } from "../../infrastructure/datasources/payments/cash-ticket-payment.datasource.mongo";
 import { CashTicketPaymentRepositoryImpl } from "../../infrastructure/repositories/payments/cash-ticket-payment.repository.impl";
+import { buildOperationalLogsService } from "./operational-logs.dependencies";
 
 export const buildPaymentHistoryController = (): PaymentHistoryController => {
   const paymentRepository = new PaymentRepositoryImpl(
@@ -67,6 +68,7 @@ export const buildCashTicketPaymentController =
     const cashTicketPaymentRepository = new CashTicketPaymentRepositoryImpl(
       new CashTicketPaymentMongoDatasource(),
     );
+    const operationalLogsService = buildOperationalLogsService();
 
     const service = new CashTicketPaymentService(
       ticketRepository,
@@ -75,6 +77,7 @@ export const buildCashTicketPaymentController =
       cashRegisterShiftRepository,
       cashRegisterService,
       cashTicketPaymentRepository,
+      operationalLogsService,
     );
 
     return new CashTicketPaymentController(service);

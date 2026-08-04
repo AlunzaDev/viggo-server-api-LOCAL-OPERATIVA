@@ -18,3 +18,4 @@ export * from "./installation/local-installation.repository.impl";
 export * from "./sync/sync.repository.impl";
 export * from "./local-reports/local-reports.repository.impl";
 export * from "./cash-register/cash-register-module.repository.impl";
+export * from "./system/operational-log.repository.impl";

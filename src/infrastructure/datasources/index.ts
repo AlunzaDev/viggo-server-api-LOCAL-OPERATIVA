@@ -18,3 +18,4 @@ export * from "./payments/cash-ticket-payment.datasource.mongo";
 export * from "./installation/local-installation.datasource.mongo";
 export * from "./sync/sync.datasource.mongo";
 export * from "./local-reports/local-reports.datasource.mongo";
+export * from "./system/operational-log.datasource.mongo";
