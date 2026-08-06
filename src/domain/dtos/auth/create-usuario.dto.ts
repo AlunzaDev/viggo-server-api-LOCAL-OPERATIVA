@@ -3,7 +3,9 @@ import {
   isUsuarioRol,
   normalizeUserParkings,
   normalizeUserModules,
+  normalizeUserApps,
   type UserModuleAccess,
+  type UserAppAccess,
   UsuarioRol,
 } from "../../constants";
 
@@ -17,6 +19,7 @@ export class CreateUsuarioDto {
     public readonly rol: UsuarioRol,
     public readonly parkings: string[],
     public readonly permissionProfileId: string | undefined,
+    public readonly allowedApps: UserAppAccess[],
     public readonly modules: UserModuleAccess[],
     public readonly coordinates?: number[],
     public readonly nacimiento?: number,
@@ -51,6 +54,7 @@ export class CreateUsuarioDto {
       body.permissionProfileId.trim().length > 0
         ? body.permissionProfileId.trim()
         : undefined;
+    const allowedApps = normalizeUserApps(body.allowedApps);
     const modules = normalizeUserModules(body.modules);
 
     const nacimiento =
@@ -97,6 +101,7 @@ export class CreateUsuarioDto {
         rol,
         parkings,
         permissionProfileId,
+        allowedApps,
         modules,
         coordinates,
         nacimiento,

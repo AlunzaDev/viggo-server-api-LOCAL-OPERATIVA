@@ -1,8 +1,17 @@
 import { Request, Response } from "express";
+
+import type { WebOperativeApp } from "../../../domain/constants";
+
 import { LoginCorreoDto } from "../../../domain/dtos/auth/login-correo.dto";
 import { LoginTelefonoDto } from "../../../domain/dtos/auth/login-telefono.dto";
-import { ErrorService } from "../../services/error.service";
+
 import { AuthService } from "../../services/auth/auth.service";
+import { ErrorService } from "../../services/error.service";
+
+type AuthenticatedRequest = Request & {
+  uid?: string;
+  authApp?: WebOperativeApp;
+};
 
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -10,9 +19,19 @@ export class AuthController {
   loginCorreo = async (req: Request, res: Response) => {
     try {
       const [error, dto] = LoginCorreoDto.create(req.body);
-      if (error) return res.status(400).json({ error });
 
-      const result = await this.authService.loginCorreo(dto!.correo, dto!.password);
+      if (error || !dto) {
+        return res.status(400).json({
+          error: error ?? "Los datos de inicio de sesión son inválidos",
+        });
+      }
+
+      const result = await this.authService.loginCorreo(
+        dto.correo,
+        dto.password,
+        dto.app,
+      );
+
       return res.status(200).json(result);
     } catch (error) {
       return ErrorService.handleApiError(error, res);
@@ -22,12 +41,19 @@ export class AuthController {
   loginTelefono = async (req: Request, res: Response) => {
     try {
       const [error, dto] = LoginTelefonoDto.create(req.body);
-      if (error) return res.status(400).json({ error });
+
+      if (error || !dto) {
+        return res.status(400).json({
+          error: error ?? "Los datos de inicio de sesión son inválidos",
+        });
+      }
 
       const result = await this.authService.loginTelefono(
-        dto!.telefono,
-        dto!.password,
+        dto.telefono,
+        dto.password,
+        dto.app,
       );
+
       return res.status(200).json(result);
     } catch (error) {
       return ErrorService.handleApiError(error, res);
@@ -36,10 +62,25 @@ export class AuthController {
 
   renewToken = async (req: Request, res: Response) => {
     try {
-      const id = (req as Request & { uid?: string }).uid;
-      if (!id) return res.status(401).json({ error: "Unauthorized" });
+      const authRequest = req as AuthenticatedRequest;
 
-      const result = await this.authService.renewToken(id);
+      const id = authRequest.uid;
+      const app = authRequest.authApp;
+
+      if (!id) {
+        return res.status(401).json({
+          error: "Unauthorized",
+        });
+      }
+
+      if (!app) {
+        return res.status(401).json({
+          error: "La sesión no contiene una aplicación válida",
+        });
+      }
+
+      const result = await this.authService.renewToken(id, app);
+
       return res.status(200).json(result);
     } catch (error) {
       return ErrorService.handleApiError(error, res);

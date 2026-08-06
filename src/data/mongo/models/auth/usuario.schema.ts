@@ -3,6 +3,7 @@ import {
   AUTH_ROLES,
   AUTH_ROLE_VALUES,
   AVAILABLE_USER_MODULES,
+  USER_APP_VALUES,
 } from "../../../../domain/constants";
 
 const usuarioSchema = new Schema(
@@ -66,7 +67,7 @@ const usuarioSchema = new Schema(
     },
     parkings: {
       type: [String],
-      default: [],
+      default: () => [],
     },
     permissionProfileId: {
       type: String,
@@ -74,8 +75,13 @@ const usuarioSchema = new Schema(
     },
     modules: {
       type: [String],
-      default: AVAILABLE_USER_MODULES,
+      default: () => [],
       enum: AVAILABLE_USER_MODULES,
+    },
+    allowedApps: {
+      type: [String],
+      default: () => [],
+      enum: USER_APP_VALUES,
     },
     nacimiento: {
       type: Number,
@@ -111,13 +117,16 @@ const usuarioSchema = new Schema(
     toJSON: {
       transform: (_doc, ret) => {
         const serialized = ret as Record<string, unknown>;
+
         serialized.id = String(serialized._id);
+
         delete serialized._id;
         delete serialized.password;
         delete serialized.emailValidationToken;
         delete serialized.emailValidationExpiresAt;
         delete serialized.passwordResetToken;
         delete serialized.passwordResetExpiresAt;
+
         return serialized;
       },
     },

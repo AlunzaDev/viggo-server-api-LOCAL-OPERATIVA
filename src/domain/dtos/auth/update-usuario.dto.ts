@@ -2,7 +2,9 @@ import {
   isUsuarioRol,
   normalizeUserParkings,
   normalizeUserModules,
+  normalizeUserApps,
   type UserModuleAccess,
+  type UserAppAccess,
   UsuarioRol,
 } from "../../constants";
 
@@ -16,6 +18,7 @@ export class UpdateUsuarioDto {
     public readonly rol?: UsuarioRol,
     public readonly parkings?: string[],
     public readonly permissionProfileId?: string,
+    public readonly allowedApps?: UserAppAccess[],
     public readonly modules?: UserModuleAccess[],
     public readonly coordinates?: number[],
     public readonly nacimiento?: number,
@@ -53,6 +56,10 @@ export class UpdateUsuarioDto {
             body.permissionProfileId.trim().length > 0
           ? body.permissionProfileId.trim()
           : "";
+    const allowedApps =
+      body.allowedApps === undefined
+        ? undefined
+        : normalizeUserApps(body.allowedApps);
     const modules =
       body.modules === undefined ? undefined : normalizeUserModules(body.modules);
 
@@ -107,6 +114,7 @@ export class UpdateUsuarioDto {
         rol,
         parkings,
         permissionProfileId,
+        allowedApps,
         modules,
         coordinates,
         nacimiento,
