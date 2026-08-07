@@ -22,6 +22,22 @@ export class PermissionProfileMongoDatasource extends PermissionProfileDatasourc
     return document ? PermissionProfileEntity.fromObject(document.toObject()) : null;
   }
 
+  async upsert(profile: PermissionProfileEntity): Promise<PermissionProfileEntity> {
+    const { id, ...payload } = profile;
+    const document = await PermissionProfileModel.findByIdAndUpdate(
+      id,
+      { $set: payload },
+      {
+        new: true,
+        upsert: true,
+        setDefaultsOnInsert: true,
+        runValidators: true,
+      },
+    );
+
+    return PermissionProfileEntity.fromObject(document.toObject());
+  }
+
   async findByNombre(nombre: string): Promise<PermissionProfileEntity | null> {
     const document = await PermissionProfileModel.findOne({ nombre });
     return document ? PermissionProfileEntity.fromObject(document.toObject()) : null;

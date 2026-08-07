@@ -1,4 +1,8 @@
-import { normalizeUserModules, type UserModuleAccess } from "../../constants";
+import {
+  getInvalidUserModules,
+  normalizeUserModules,
+  type UserModuleAccess,
+} from "../../constants";
 
 export class UpdatePermissionProfileDto {
   private constructor(
@@ -25,6 +29,14 @@ export class UpdatePermissionProfileDto {
       (!Array.isArray(body.modules) || (modules?.length ?? 0) === 0)
     ) {
       return ["'modules' debe incluir al menos un modulo"];
+    }
+
+    if (body.modules !== undefined) {
+      const invalidModules = getInvalidUserModules(body.modules);
+
+      if (invalidModules.length > 0) {
+        return [`Módulos operativos inválidos: ${invalidModules.join(", ")}`];
+      }
     }
 
     const dto = new UpdatePermissionProfileDto(

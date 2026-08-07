@@ -1,12 +1,21 @@
 import { Schema, model } from "mongoose";
-import { AVAILABLE_USER_MODULES } from "../../../../domain/constants";
+import {
+  AVAILABLE_USER_MODULES,
+  USER_APPS,
+} from "../../../../domain/constants";
 
 const permissionProfileSchema = new Schema(
   {
+    app: {
+      type: String,
+      required: [true, "La aplicación es obligatoria"],
+      enum: [USER_APPS.OPERATIVE_WEB],
+      default: USER_APPS.OPERATIVE_WEB,
+      index: true,
+    },
     nombre: {
       type: String,
       required: [true, "El nombre es obligatorio"],
-      unique: true,
       trim: true,
     },
     descripcion: {
@@ -29,11 +38,23 @@ const permissionProfileSchema = new Schema(
     toJSON: {
       transform: (_doc, ret) => {
         const serialized = ret as Record<string, unknown>;
+
         serialized.id = String(serialized._id);
         delete serialized._id;
+
         return serialized;
       },
     },
+  },
+);
+
+permissionProfileSchema.index(
+  {
+    app: 1,
+    nombre: 1,
+  },
+  {
+    unique: true,
   },
 );
 

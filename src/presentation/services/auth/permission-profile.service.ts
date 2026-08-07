@@ -22,7 +22,8 @@ export class PermissionProfileService {
 
   async getProfileById(id: string): Promise<PermissionProfileEntity> {
     const profile = await this.repository.findById(id);
-    if (!profile) throw CustomError.notFound("Perfil de permisos no encontrado");
+    if (!profile)
+      throw CustomError.notFound("Perfil de permisos no encontrado");
     return profile;
   }
 
@@ -34,20 +35,28 @@ export class PermissionProfileService {
       await this.validateUniqueName(id, profile.nombre);
     }
     const updated = await this.repository.update(id, profile);
-    if (!updated) throw CustomError.notFound("Perfil de permisos no encontrado");
+    if (!updated)
+      throw CustomError.notFound("Perfil de permisos no encontrado");
     return updated;
   }
 
   async deleteProfile(id: string): Promise<PermissionProfileEntity> {
     const usuarios = await this.usuarioRepository.getAll();
-    if (usuarios.some((usuario) => usuario.permissionProfileId === id)) {
+    const profileIsAssigned = usuarios.some((usuario) =>
+      usuario.appPermissions.some(
+        (permission) => permission.permissionProfileId === id,
+      ),
+    );
+
+    if (profileIsAssigned) {
       throw CustomError.badRequest(
         "No se puede eliminar el perfil porque hay usuarios asignados a el",
       );
     }
 
     const deleted = await this.repository.delete(id);
-    if (!deleted) throw CustomError.notFound("Perfil de permisos no encontrado");
+    if (!deleted)
+      throw CustomError.notFound("Perfil de permisos no encontrado");
     return deleted;
   }
 

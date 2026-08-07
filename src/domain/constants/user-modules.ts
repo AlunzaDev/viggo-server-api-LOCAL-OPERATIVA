@@ -1,9 +1,5 @@
 export const AVAILABLE_USER_MODULES = [
   "cashPayments",
-  "users",
-  "permissionProfiles",
-  "installations",
-  "projects",
   "modules",
   "pensions",
   "pensionPasses",
@@ -19,21 +15,24 @@ const USER_MODULE_SET = new Set<string>(AVAILABLE_USER_MODULES);
 const MODULE_ALIASES: Record<string, UserModuleAccess> = {
   cashpayments: "cashPayments",
   pospayments: "cashPayments",
-  users: "users",
-  permissionprofiles: "permissionProfiles",
-  installations: "installations",
-  projects: "projects",
+
   modules: "modules",
+
   pensions: "pensions",
+
   pensionpasses: "pensionPasses",
+
   tickets: "tickets",
+
   pensionmoves: "pensionMoves",
+
   payments: "payments",
 };
 
-export const getDefaultUserModules = (): UserModuleAccess[] => [
-  ...AVAILABLE_USER_MODULES,
-];
+const normalizeModuleValue = (value: unknown): string => {
+  const module = String(value ?? "").trim();
+  return MODULE_ALIASES[module.toLowerCase()] ?? module;
+};
 
 export const normalizeUserModules = (value: unknown): UserModuleAccess[] => {
   if (!Array.isArray(value)) {
@@ -43,9 +42,22 @@ export const normalizeUserModules = (value: unknown): UserModuleAccess[] => {
   return Array.from(
     new Set(
       value
-        .map((item) => String(item ?? "").trim())
-        .map((item) => MODULE_ALIASES[item.toLowerCase()] ?? item)
+        .map(normalizeModuleValue)
         .filter((item): item is UserModuleAccess => USER_MODULE_SET.has(item)),
+    ),
+  );
+};
+
+export const getInvalidUserModules = (value: unknown): string[] => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      value
+        .map(normalizeModuleValue)
+        .filter((module) => !USER_MODULE_SET.has(module)),
     ),
   );
 };

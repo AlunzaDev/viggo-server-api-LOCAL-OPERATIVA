@@ -1,9 +1,12 @@
 import { NextFunction, Request, Response } from "express";
 
 import { JwtPlugin } from "../../config/plugins/jwt.plugin";
+import { PermissionProfileMongoDatasource } from "../../infrastructure/datasources/auth/permission-profile.datasource.mongo";
+import { PermissionProfileRepositoryImpl } from "../../infrastructure/repositories/auth/permission-profile.repository.impl";
 
 import {
   hasUserModuleAccess,
+  isRoleAllowedForOperativeWeb,
   isUsuarioRol,
   isWebOperativeApp,
   normalizeUserApps,
@@ -33,6 +36,7 @@ type AuthenticatedUser = {
 type AuthenticatedRequest = Request & {
   uid?: string;
   authApp?: WebOperativeApp;
+  localProjectId?: string;
   usuario?: AuthenticatedUser;
 };
 
@@ -40,6 +44,12 @@ type AuthTokenPayload = {
   id: string;
   app: WebOperativeApp;
 };
+
+const authRepository = new AuthRepositoryImpl(new AuthMongoDatasource());
+
+const permissionProfileRepository = new PermissionProfileRepositoryImpl(
+  new PermissionProfileMongoDatasource(),
+);
 
 const getRequestToken = (req: Request): string | undefined => {
   const authorization = req.header("Authorization");
@@ -92,28 +102,43 @@ export const getAuthenticatedRequestApp = (
 };
 
 export const getAllowedProjectIdsFromRequest = (req: Request): string[] => {
-  const authUser = getAuthenticatedRequestUser(req);
+  const authRequest = req as AuthenticatedRequest;
+  const authUser = authRequest.usuario;
+
+  if (authRequest.localProjectId) {
+    // En Operativo manda la instalacion: todos los usuarios autenticados
+    // trabajan sobre su unico proyecto local; el rol/perfil limita funciones.
+    return authUser ? [authRequest.localProjectId] : [];
+  }
 
   return authUser?.parkings ?? [];
 };
 
 export const isSuperAdminRequest = (req: Request): boolean => {
-  return getAuthenticatedRequestUser(req)?.rol === "SUPER_ROLE";
+  const authRequest = req as AuthenticatedRequest;
+
+  // SUPER conserva sus privilegios funcionales, pero no puede salir del
+  // proyecto fisicamente vinculado a una instalacion operativa.
+  return (
+    getAuthenticatedRequestUser(req)?.rol === "SUPER_ROLE" &&
+    !authRequest.localProjectId
+  );
 };
 
 export const canAccessProjectFromRequest = (
   req: Request,
   projectId: string,
 ): boolean => {
-  if (isSuperAdminRequest(req)) {
-    return true;
-  }
-
   const normalizedProjectId = String(projectId ?? "").trim();
 
   if (!normalizedProjectId) {
     return false;
   }
+
+  const localProjectId = (req as AuthenticatedRequest).localProjectId;
+  if (localProjectId && normalizedProjectId !== localProjectId) return false;
+
+  if (isSuperAdminRequest(req)) return true;
 
   return getAllowedProjectIdsFromRequest(req).includes(normalizedProjectId);
 };
@@ -152,11 +177,7 @@ export class AuthMiddleware {
         });
       }
 
-      const datasource = new AuthMongoDatasource();
-
-      const repository = new AuthRepositoryImpl(datasource);
-
-      const usuario = await repository.findById(payload.id);
+      const usuario = await authRepository.findById(payload.id);
 
       if (!usuario || !usuario.estado) {
         return res.status(401).json({
@@ -178,11 +199,50 @@ export class AuthMiddleware {
         });
       }
 
+      if (!isRoleAllowedForOperativeWeb(normalizedRole)) {
+        return res.status(403).json({
+          error: "El rol del usuario no permite acceder al Web Operativo",
+        });
+      }
+
       const allowedApps = normalizeUserApps(usuario.allowedApps);
 
       if (!allowedApps.includes(payload.app)) {
         return res.status(403).json({
           error: "El usuario no tiene acceso al Web Operativo",
+        });
+      }
+
+      const assignment = usuario.appPermissions.find(
+        (permission) => permission.app === payload.app,
+      );
+
+      if (!assignment) {
+        return res.status(403).json({
+          error:
+            "El usuario no tiene un perfil de permisos asignado para el Web Operativo",
+        });
+      }
+
+      const permissionProfile = await permissionProfileRepository.findById(
+        assignment.permissionProfileId,
+      );
+
+      if (!permissionProfile) {
+        return res.status(403).json({
+          error: "El perfil de permisos asignado no existe localmente",
+        });
+      }
+
+      if (permissionProfile.app !== payload.app) {
+        return res.status(403).json({
+          error: "El perfil asignado no corresponde al Web Operativo",
+        });
+      }
+
+      if (!permissionProfile.estado) {
+        return res.status(403).json({
+          error: "El perfil de permisos asignado está inactivo",
         });
       }
 
@@ -197,7 +257,7 @@ export class AuthMiddleware {
         apellido: usuario.apellido,
         rol: normalizedRole,
         parkings: normalizeUserParkings(usuario.parkings),
-        modules: normalizeUserModules(usuario.modules),
+        modules: [...permissionProfile.modules],
         allowedApps,
       };
 

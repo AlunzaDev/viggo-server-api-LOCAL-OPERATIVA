@@ -23,6 +23,10 @@ export class PermissionProfileRepositoryImpl
     return this.datasource.findById(id);
   }
 
+  upsert(profile: PermissionProfileEntity): Promise<PermissionProfileEntity> {
+    return this.datasource.upsert(profile);
+  }
+
   findByNombre(nombre: string): Promise<PermissionProfileEntity | null> {
     return this.datasource.findByNombre(nombre);
   }

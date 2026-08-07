@@ -1,7 +1,14 @@
-import { normalizeUserModules, type UserModuleAccess } from "../../constants";
+import {
+  USER_APPS,
+  getInvalidUserModules,
+  normalizeUserModules,
+  type UserAppAccess,
+  type UserModuleAccess,
+} from "../../constants";
 
 export class CreatePermissionProfileDto {
   private constructor(
+    public readonly app: UserAppAccess,
     public readonly nombre: string,
     public readonly modules: UserModuleAccess[],
     public readonly descripcion?: string,
@@ -12,21 +19,39 @@ export class CreatePermissionProfileDto {
     body: Record<string, unknown>,
   ): [string?, CreatePermissionProfileDto?] {
     const nombre = typeof body.nombre === "string" ? body.nombre.trim() : "";
+
     const descripcion =
       typeof body.descripcion === "string" && body.descripcion.trim().length > 0
         ? body.descripcion.trim()
         : undefined;
+
     const modules = normalizeUserModules(body.modules);
+
     const estado = typeof body.estado === "boolean" ? body.estado : true;
 
-    if (!nombre) return ["'nombre' es requerido"];
+    if (!nombre) {
+      return ["'nombre' es requerido"];
+    }
+
     if (!Array.isArray(body.modules) || modules.length === 0) {
-      return ["'modules' debe incluir al menos un modulo"];
+      return ["'modules' debe incluir al menos un módulo"];
+    }
+
+    const invalidModules = getInvalidUserModules(body.modules);
+
+    if (invalidModules.length > 0) {
+      return [`Módulos operativos inválidos: ${invalidModules.join(", ")}`];
     }
 
     return [
       undefined,
-      new CreatePermissionProfileDto(nombre, modules, descripcion, estado),
+      new CreatePermissionProfileDto(
+        USER_APPS.OPERATIVE_WEB,
+        nombre,
+        modules,
+        descripcion,
+        estado,
+      ),
     ];
   }
 }

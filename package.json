@@ -6,6 +6,9 @@
   "main": "dist/app.js",
   "scripts": {
     "dev": "node scripts/dev.mjs",
+    "preflight": "node scripts/preflight.mjs",
+    "audit:app-permissions": "node scripts/audit-app-permissions.mjs",
+    "repair:app-permissions": "node scripts/repair-app-permissions.mjs",
     "build": "tsc",
     "start": "node dist/app.js",
     "check": "tsc --noEmit"
@@ -19,6 +22,9 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.16.1",
     "socket.io": "^4.8.3"
+  },
+  "overrides": {
+    "socket.io-parser": "4.2.7"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",

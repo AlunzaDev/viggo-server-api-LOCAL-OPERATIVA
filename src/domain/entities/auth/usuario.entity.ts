@@ -1,13 +1,18 @@
 import { CustomError } from "../../errors/custom.error";
+
 import {
+  isUserAppAccess,
   isUsuarioRol,
   normalizeUserApps,
-  normalizeUserModules,
   normalizeUserParkings,
   type UserAppAccess,
-  type UserModuleAccess,
   type UsuarioRol,
 } from "../../constants";
+
+export interface UserAppPermission {
+  app: UserAppAccess;
+  permissionProfileId: string;
+}
 
 export interface UsuarioEntityOptions {
   id: string;
@@ -20,9 +25,8 @@ export interface UsuarioEntityOptions {
   emailValidated: boolean;
   rol: UsuarioRol;
   parkings: string[];
-  permissionProfileId?: string;
   allowedApps: UserAppAccess[];
-  modules: UserModuleAccess[];
+  appPermissions: UserAppPermission[];
   nacimiento?: number;
   img?: string;
   estado: boolean;
@@ -55,6 +59,46 @@ const parseBoolean = (value: unknown, defaultValue = false): boolean => {
   return defaultValue;
 };
 
+const normalizeAppPermissions = (value: unknown): UserAppPermission[] => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const permissions: UserAppPermission[] = [];
+  const assignedApps = new Set<UserAppAccess>();
+
+  for (const item of value) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      continue;
+    }
+
+    const rawPermission = item as Record<string, unknown>;
+
+    const app = rawPermission.app;
+
+    const permissionProfileId = String(
+      rawPermission.permissionProfileId ?? "",
+    ).trim();
+
+    if (
+      !isUserAppAccess(app) ||
+      !permissionProfileId ||
+      assignedApps.has(app)
+    ) {
+      continue;
+    }
+
+    assignedApps.add(app);
+
+    permissions.push({
+      app,
+      permissionProfileId,
+    });
+  }
+
+  return permissions;
+};
+
 export class UsuarioEntity {
   public id: string;
   public nombre: string;
@@ -66,52 +110,30 @@ export class UsuarioEntity {
   public emailValidated: boolean;
   public rol: UsuarioRol;
   public parkings: string[];
-  public permissionProfileId?: string;
   public allowedApps: UserAppAccess[];
-  public modules: UserModuleAccess[];
+  public appPermissions: UserAppPermission[];
   public nacimiento?: number;
   public img?: string;
   public estado: boolean;
   public google: boolean;
 
   constructor(options: UsuarioEntityOptions) {
-    const {
-      id,
-      nombre,
-      apellido,
-      correo,
-      telefono,
-      coordinates,
-      password,
-      emailValidated,
-      rol,
-      parkings,
-      permissionProfileId,
-      allowedApps,
-      modules,
-      nacimiento,
-      img,
-      estado,
-      google,
-    } = options;
-
-    this.id = id;
-    this.nombre = nombre;
-    this.apellido = apellido;
-    this.correo = correo;
-    this.telefono = telefono;
-    this.coordinates = coordinates;
-    this.password = password;
-    this.emailValidated = emailValidated;
-    this.rol = rol;
-    this.parkings = normalizeUserParkings(parkings);
-    this.permissionProfileId = permissionProfileId;
-    this.allowedApps = normalizeUserApps(allowedApps);
-    this.modules = normalizeUserModules(modules);
-    this.nacimiento = nacimiento;
-    this.img = img;
-    this.estado = estado;
-    this.google = google;
+    this.id = options.id;
+    this.nombre = options.nombre;
+    this.apellido = options.apellido;
+    this.correo = options.correo;
+    this.telefono = options.telefono;
+    this.coordinates = options.coordinates;
+    this.password = options.password;
+    this.emailValidated = options.emailValidated;
+    this.rol = options.rol;
+    this.parkings = normalizeUserParkings(options.parkings);
+    this.allowedApps = normalizeUserApps(options.allowedApps);
+    this.appPermissions = normalizeAppPermissions(options.appPermissions);
+    this.nacimiento = options.nacimiento;
+    this.img = options.img;
+    this.estado = options.estado;
+    this.google = options.google;
   }
 
   static fromObject(object: Record<string, unknown>): UsuarioEntity {
@@ -127,9 +149,8 @@ export class UsuarioEntity {
       emailValidated,
       rol,
       parkings,
-      permissionProfileId,
       allowedApps,
-      modules,
+      appPermissions,
       nacimiento,
       img,
       estado,
@@ -179,7 +200,7 @@ export class UsuarioEntity {
     }
 
     const parsedCoordinates = Array.isArray(coordinates)
-      ? coordinates.map((value) => Number(value))
+      ? coordinates.map(Number)
       : undefined;
 
     if (parsedCoordinates?.some((value) => !Number.isFinite(value))) {
@@ -201,28 +222,38 @@ export class UsuarioEntity {
 
     return new UsuarioEntity({
       id: String(usuarioId).trim(),
+
       nombre: String(nombre).trim(),
+
       apellido: String(apellido).trim(),
+
       correo: String(correo).trim().toLowerCase(),
+
       telefono: String(telefono).trim(),
+
       coordinates: parsedCoordinates,
+
       password: String(password),
+
       emailValidated: parseBoolean(emailValidated, false),
+
       rol,
+
       parkings: normalizeUserParkings(parkings),
-      permissionProfileId:
-        typeof permissionProfileId === "string" &&
-        permissionProfileId.trim().length > 0
-          ? permissionProfileId.trim()
-          : undefined,
+
       allowedApps: normalizeUserApps(allowedApps),
-      modules: normalizeUserModules(modules),
+
+      appPermissions: normalizeAppPermissions(appPermissions),
+
       nacimiento: parsedNacimiento,
+
       img:
         typeof img === "string" && img.trim().length > 0
           ? img.trim()
           : undefined,
+
       estado: parseBoolean(estado, true),
+
       google: parseBoolean(google, false),
     });
   }

@@ -79,12 +79,67 @@ const authCookieSameSite = parseSameSite(
   env.get("AUTH_COOKIE_SAME_SITE").asString(),
   isProd ? "none" : "lax",
 );
+const jwtSeed = env.get("JWT_SEED").required().asString().trim();
+const installationSecretKey = env
+  .get("INSTALLATION_SECRET_KEY")
+  .default("")
+  .asString()
+  .trim();
+const syncServiceToken = env.get("SYNC_SERVICE_TOKEN").default("").asString().trim();
+const administrativoApiUrl = env
+  .get("ADMINISTRATIVO_API_URL")
+  .default("http://localhost:3000")
+  .asString()
+  .trim()
+  .replace(/\/$/, "");
+
+for (const origin of corsAllowedOrigins) {
+  let parsed: URL;
+  try {
+    parsed = new URL(origin);
+  } catch {
+    throw new Error(`Invalid CORS origin: ${origin}`);
+  }
+  if (!["http:", "https:"].includes(parsed.protocol) || parsed.origin !== origin) {
+    throw new Error(`CORS origin must be an exact HTTP(S) origin without a path: ${origin}`);
+  }
+}
+
+try {
+  const administrativoUrl = new URL(administrativoApiUrl);
+  if (!["http:", "https:"].includes(administrativoUrl.protocol)) {
+    throw new Error();
+  }
+} catch {
+  throw new Error("ADMINISTRATIVO_API_URL must be a valid HTTP(S) URL.");
+}
+
+if (authCookieSameSite === "none" && !authCookieSecure) {
+  throw new Error("AUTH_COOKIE_SECURE must be true when AUTH_COOKIE_SAME_SITE=none.");
+}
+
+if (isProd) {
+  const requireProductionSecret = (name: string, value: string): void => {
+    if (value.length < 32) {
+      throw new Error(`${name} must contain at least 32 characters in production.`);
+    }
+  };
+  if (corsAllowedOrigins.length === 0) {
+    throw new Error("CORS_ALLOWED_ORIGINS or WEB_CLIENT_URL is required in production.");
+  }
+  if (!authCookieSecure) {
+    throw new Error("AUTH_COOKIE_SECURE must be true in production.");
+  }
+  requireProductionSecret("JWT_SEED", jwtSeed);
+  requireProductionSecret("INSTALLATION_SECRET_KEY", installationSecretKey);
+  requireProductionSecret("SYNC_SERVICE_TOKEN", syncServiceToken);
+}
 
 export const envs = {
   APP_ENV: appEnv,
   PROD: isProd,
-  JWT_SEED: env.get("JWT_SEED").default("").asString(),
-  INSTALLATION_SECRET_KEY: env.get("INSTALLATION_SECRET_KEY").default("").asString(),
+  JWT_SEED: jwtSeed,
+  INSTALLATION_SECRET_KEY: installationSecretKey,
   MONGO_URL: mongoUrl,
   MONGO_DB_NAME: getConfigValue("MONGO_DB_NAME") ?? "cobro-cajas-wm",
   MONGO_DISCONNECT_EXIT_DELAY_MS: parseBoundedInteger(
@@ -102,10 +157,7 @@ export const envs = {
   CORS_ALLOWED_ORIGINS: [...new Set(corsAllowedOrigins)],
   PROJECT_ID: env.get("PROJECT_ID").default("").asString(),
   INSTALLATION_ID: env.get("INSTALLATION_ID").default("").asString(),
-  ADMINISTRATIVO_API_URL: env
-    .get("ADMINISTRATIVO_API_URL")
-    .default("http://localhost:3000")
-    .asString(),
+  ADMINISTRATIVO_API_URL: administrativoApiUrl,
   AUTH_COOKIE_NAME: env.get("AUTH_COOKIE_NAME").default("sikk_auth").asString(),
   AUTH_COOKIE_SECURE: authCookieSecure,
   AUTH_COOKIE_SAME_SITE: authCookieSameSite,
@@ -113,12 +165,14 @@ export const envs = {
     .get("AUTH_COOKIE_MAX_AGE_MS")
     .default(String(1000 * 60 * 60 * 24 * 2))
     .asIntPositive(),
-  OFFLINE_LOGIN_MAX_AGE_DAYS: env
-    .get("OFFLINE_LOGIN_MAX_AGE_DAYS")
-    .default("7")
-    .asIntPositive(),
+  OFFLINE_LOGIN_MAX_AGE_DAYS: parseBoundedInteger(
+    env.get("OFFLINE_LOGIN_MAX_AGE_DAYS").asString(),
+    7,
+    1,
+    30,
+  ),
   PAYMENT_CURRENCY: env.get("PAYMENT_CURRENCY").default("mxn").asString(),
-  SYNC_SERVICE_TOKEN: env.get("SYNC_SERVICE_TOKEN").default("").asString(),
+  SYNC_SERVICE_TOKEN: syncServiceToken,
   AUTO_CONFIG_SYNC_ENABLED: env
     .get("AUTO_CONFIG_SYNC_ENABLED")
     .default("true")

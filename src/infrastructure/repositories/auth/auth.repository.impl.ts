@@ -1,4 +1,6 @@
 import {
+  type LocalUserList,
+  type LocalUserSummary,
   AuthDatasource,
   type UserSyncMetadata,
 } from "../../../domain/datasources/auth/auth.datasource";
@@ -30,5 +32,17 @@ export class AuthRepositoryImpl implements AuthRepository {
 
   getSyncMetadataById(id: string): Promise<UserSyncMetadata | null> {
     return this.authDatasource.getSyncMetadataById(id);
+  }
+
+  listLocalUsers(options: {
+    page: number;
+    limit: number;
+    search?: string;
+  }): Promise<LocalUserList> {
+    return this.authDatasource.listLocalUsers(options);
+  }
+
+  findLocalUserSummaryById(id: string): Promise<LocalUserSummary | null> {
+    return this.authDatasource.findLocalUserSummaryById(id);
   }
 }

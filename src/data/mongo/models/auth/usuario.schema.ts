@@ -1,10 +1,30 @@
 import { Schema, model } from "mongoose";
+
 import {
   AUTH_ROLES,
   AUTH_ROLE_VALUES,
-  AVAILABLE_USER_MODULES,
   USER_APP_VALUES,
 } from "../../../../domain/constants";
+
+const userAppPermissionSchema = new Schema(
+  {
+    app: {
+      type: String,
+      required: [true, "La aplicación es obligatoria"],
+      enum: USER_APP_VALUES,
+    },
+
+    permissionProfileId: {
+      type: String,
+      required: [true, "El perfil de permisos es obligatorio"],
+      trim: true,
+    },
+  },
+  {
+    _id: false,
+    versionKey: false,
+  },
+);
 
 const usuarioSchema = new Schema(
   {
@@ -13,11 +33,13 @@ const usuarioSchema = new Schema(
       required: [true, "El nombre es obligatorio"],
       trim: true,
     },
+
     apellido: {
       type: String,
       required: [true, "El apellido es obligatorio"],
       trim: true,
     },
+
     correo: {
       type: String,
       required: [true, "El correo es obligatorio"],
@@ -25,88 +47,102 @@ const usuarioSchema = new Schema(
       trim: true,
       lowercase: true,
     },
+
     emailValidated: {
       type: Boolean,
       default: false,
     },
+
     emailValidationToken: {
       type: String,
       default: undefined,
     },
+
     emailValidationExpiresAt: {
       type: Date,
       default: undefined,
     },
+
     telefono: {
       type: String,
       required: [true, "El teléfono es obligatorio"],
       unique: true,
       trim: true,
     },
+
     coordinates: {
       type: [Number],
       required: false,
     },
+
     password: {
       type: String,
       required: [true, "La contraseña es obligatoria"],
     },
+
     passwordResetToken: {
       type: String,
       default: undefined,
     },
+
     passwordResetExpiresAt: {
       type: Date,
       default: undefined,
     },
+
     rol: {
       type: String,
       required: true,
       default: AUTH_ROLES.CLIENT,
       enum: AUTH_ROLE_VALUES,
     },
+
     parkings: {
       type: [String],
       default: () => [],
     },
-    permissionProfileId: {
-      type: String,
-      default: undefined,
-    },
-    modules: {
-      type: [String],
-      default: () => [],
-      enum: AVAILABLE_USER_MODULES,
-    },
+
     allowedApps: {
       type: [String],
       default: () => [],
       enum: USER_APP_VALUES,
     },
+
+    appPermissions: {
+      type: [userAppPermissionSchema],
+      default: () => [],
+    },
+
     nacimiento: {
       type: Number,
       required: false,
     },
+
     img: {
       type: String,
       default: "",
     },
+
     estado: {
       type: Boolean,
       default: true,
     },
+
     google: {
       type: Boolean,
       default: false,
     },
+
     syncSource: {
       type: String,
       default: "administrativo",
     },
+
     lastSyncedAt: {
       type: Number,
       default: undefined,
     },
+
     lastCloudCheckAt: {
       type: Number,
       default: undefined,
@@ -114,9 +150,10 @@ const usuarioSchema = new Schema(
   },
   {
     versionKey: false,
+
     toJSON: {
-      transform: (_doc, ret) => {
-        const serialized = ret as Record<string, unknown>;
+      transform: (_document, result) => {
+        const serialized = result as Record<string, unknown>;
 
         serialized.id = String(serialized._id);
 

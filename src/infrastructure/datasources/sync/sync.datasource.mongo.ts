@@ -169,10 +169,15 @@ export class SyncMongoDatasource implements SyncDatasource {
     const validUsers = validSnapshotItems(payload.users);
     const validProfiles = validSnapshotItems(payload.permissionProfiles);
 
-    const [profileResults, userResults] = await Promise.all([
-      Promise.all(validProfiles.map((profile) => applyChangedSnapshot(PermissionProfileModel, profile))),
-      Promise.all(validUsers.map((user) => applyChangedSnapshot(UsuarioModel, user))),
-    ]);
+    const profileResults = await Promise.all(
+      validProfiles.map((profile) =>
+        applyChangedSnapshot(PermissionProfileModel, profile),
+      ),
+    );
+
+    const userResults = await Promise.all(
+      validUsers.map((user) => applyChangedSnapshot(UsuarioModel, user)),
+    );
 
     return {
       users: validUsers.length,

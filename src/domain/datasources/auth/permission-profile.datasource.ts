@@ -6,6 +6,7 @@ export abstract class PermissionProfileDatasource {
   ): Promise<PermissionProfileEntity>;
   abstract getAll(): Promise<PermissionProfileEntity[]>;
   abstract findById(id: string): Promise<PermissionProfileEntity | null>;
+  abstract upsert(profile: PermissionProfileEntity): Promise<PermissionProfileEntity>;
   abstract findByNombre(nombre: string): Promise<PermissionProfileEntity | null>;
   abstract update(
     id: string,

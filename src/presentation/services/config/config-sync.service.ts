@@ -12,6 +12,7 @@ import { CustomError } from "../../../domain/errors/custom.error";
 import { InstallationIdentityService } from "../installation/installation-identity.service";
 import { LocalInstallationService } from "../installation/local-installation.service";
 import { SyncService } from "../sync/sync.service";
+import { USER_APPS } from "../../../domain/constants";
 
 type CloudResponse = Record<string, unknown>;
 type SyncStatus = "success" | "success_with_warnings" | "failed";
@@ -59,7 +60,8 @@ export class ConfigSyncService {
     return {
       cloudApiUrl: envs.ADMINISTRATIVO_API_URL,
       installationId: await InstallationIdentityService.getInstallationId(),
-      configured: installation?.status === "linked" && Boolean(installation.proyectoId),
+      configured:
+        installation?.status === "linked" && Boolean(installation.proyectoId),
       proyectoId: installation?.proyectoId ?? null,
       proyectoNombre: installation?.proyectoNombre ?? null,
       proyectoIdentificador: installation?.proyectoIdentificador ?? null,
@@ -86,7 +88,9 @@ export class ConfigSyncService {
 
     try {
       if (installation?.status !== "linked" || !proyectoId) {
-        throw CustomError.badRequest("La instalacion local aun no esta vinculada a un proyecto");
+        throw CustomError.badRequest(
+          "La instalacion local aun no esta vinculada a un proyecto",
+        );
       }
       if (!envs.SYNC_SERVICE_TOKEN) {
         throw CustomError.badRequest("SYNC_SERVICE_TOKEN no esta configurado");
@@ -101,7 +105,8 @@ export class ConfigSyncService {
       const accessVersion = Number(access.version ?? 0) || null;
       const configurationAlreadyApplied =
         configurationVersion !== null &&
-        Number(installation.lastConfigurationVersion ?? 0) === configurationVersion;
+        Number(installation.lastConfigurationVersion ?? 0) ===
+          configurationVersion;
       const accessAlreadyApplied =
         accessVersion !== null &&
         Number(installation.lastAccessVersion ?? 0) === accessVersion;
@@ -117,7 +122,10 @@ export class ConfigSyncService {
               reason: "VERSION_ALREADY_APPLIED",
             })
           : this.syncService.applyConfigurationSnapshot({
-              proyecto: (configuration.proyecto as Record<string, unknown> | undefined) ?? null,
+              proyecto:
+                (configuration.proyecto as
+                  | Record<string, unknown>
+                  | undefined) ?? null,
               modulos: Array.isArray(configuration.modulos)
                 ? (configuration.modulos as Record<string, unknown>[])
                 : [],
@@ -199,7 +207,8 @@ export class ConfigSyncService {
       await this.localInstallationService.updateSyncState({
         lastSyncAt: Date.now(),
         lastSyncStatus: "failed",
-        lastSyncError: error instanceof Error ? error.message : "Error desconocido",
+        lastSyncError:
+          error instanceof Error ? error.message : "Error desconocido",
       });
       await this.recordAudit({
         actor,
@@ -229,7 +238,8 @@ export class ConfigSyncService {
       response = await fetch(cloudUrl(path), {
         headers: {
           Authorization: `Bearer ${envs.SYNC_SERVICE_TOKEN}`,
-          "X-Viggo-Installation-Id": await InstallationIdentityService.getInstallationId(),
+          "X-Viggo-Installation-Id":
+            await InstallationIdentityService.getInstallationId(),
         },
       });
     } catch {
@@ -243,7 +253,9 @@ export class ConfigSyncService {
     const data = (await response.json().catch(() => ({}))) as CloudResponse;
     if (!response.ok) {
       throw CustomError.badRequest(
-        String(data.error ?? data.message ?? "No se pudo sincronizar con la nube"),
+        String(
+          data.error ?? data.message ?? "No se pudo sincronizar con la nube",
+        ),
         { status: response.status },
         "ADMINISTRATIVO_SYNC_FAILED",
       );
@@ -252,7 +264,9 @@ export class ConfigSyncService {
     return data;
   }
 
-  private async validateLocalIntegrity(proyectoId: string): Promise<IntegrityResult> {
+  private async validateLocalIntegrity(
+    proyectoId: string,
+  ): Promise<IntegrityResult> {
     const errors: IntegrityIssue[] = [];
     const warnings: IntegrityIssue[] = [];
     const validModuloTypes = new Set(["ENTRADA", "SALIDA", "POS"]);
@@ -268,15 +282,16 @@ export class ConfigSyncService {
       "OTHER",
     ]);
 
-    const [proyecto, modulos, pensiones, pensionPasses, usuarios] = await Promise.all([
-      ProyectoModel.findById(proyectoId).lean(),
-      ModuloModel.find({ proyecto: proyectoId }).lean(),
-      PensionModel.find({ proyecto: proyectoId }).lean(),
-      PensionPassModel.find().lean(),
-      UsuarioModel.find({
-        $or: [{ parkings: proyectoId }, { rol: "SUPER_ROLE" }],
-      }).lean(),
-    ]);
+    const [proyecto, modulos, pensiones, pensionPasses, usuarios] =
+      await Promise.all([
+        ProyectoModel.findById(proyectoId).lean(),
+        ModuloModel.find({ proyecto: proyectoId }).lean(),
+        PensionModel.find({ proyecto: proyectoId }).lean(),
+        PensionPassModel.find().lean(),
+        UsuarioModel.find({
+          $or: [{ parkings: proyectoId }, { rol: "SUPER_ROLE" }],
+        }).lean(),
+      ]);
 
     const addIssue = (
       severity: IntegritySeverity,
@@ -291,11 +306,23 @@ export class ConfigSyncService {
     };
 
     if (!proyecto) {
-      addIssue("error", "proyecto", "PROJECT_NOT_FOUND", "El proyecto vinculado no existe en esta instalacion", proyectoId);
+      addIssue(
+        "error",
+        "proyecto",
+        "PROJECT_NOT_FOUND",
+        "El proyecto vinculado no existe en esta instalacion",
+        proyectoId,
+      );
     }
 
     if (modulos.length === 0) {
-      addIssue("warning", "modulos", "NO_MODULES", "El proyecto no tiene modulos locales sincronizados", proyectoId);
+      addIssue(
+        "warning",
+        "modulos",
+        "NO_MODULES",
+        "El proyecto no tiene modulos locales sincronizados",
+        proyectoId,
+      );
     }
 
     modulos.forEach((modulo) => {
@@ -304,21 +331,43 @@ export class ConfigSyncService {
       const identificador = String(modulo.identificador ?? "").trim();
 
       if (!validModuloTypes.has(tipo)) {
-        addIssue("error", "modulos", "INVALID_MODULE_TYPE", `El modulo tiene tipo invalido: ${tipo || "sin tipo"}`, moduloId);
+        addIssue(
+          "error",
+          "modulos",
+          "INVALID_MODULE_TYPE",
+          `El modulo tiene tipo invalido: ${tipo || "sin tipo"}`,
+          moduloId,
+        );
       }
       if (!identificador) {
-        addIssue("error", "modulos", "MISSING_MODULE_IDENTIFIER", "El modulo no tiene identificador", moduloId);
+        addIssue(
+          "error",
+          "modulos",
+          "MISSING_MODULE_IDENTIFIER",
+          "El modulo no tiene identificador",
+          moduloId,
+        );
       }
 
-      const submodulos = Array.isArray(modulo.submodulos) ? modulo.submodulos : [];
+      const submodulos = Array.isArray(modulo.submodulos)
+        ? modulo.submodulos
+        : [];
       submodulos.forEach((submodulo, index) => {
         const source = submodulo as unknown as Record<string, unknown>;
-        const submoduloId = String(source.submoduloId ?? `${moduloId}:${index}`);
+        const submoduloId = String(
+          source.submoduloId ?? `${moduloId}:${index}`,
+        );
         const submoduloTipo = String(source.tipo ?? "").trim();
         const submoduloNombre = String(source.nombre ?? "").trim();
 
         if (!submoduloNombre) {
-          addIssue("error", "submodulos", "MISSING_SUBMODULE_NAME", "Un submodulo no tiene nombre", submoduloId);
+          addIssue(
+            "error",
+            "submodulos",
+            "MISSING_SUBMODULE_NAME",
+            "Un submodulo no tiene nombre",
+            submoduloId,
+          );
         }
         if (!validSubmoduloTypes.has(submoduloTipo)) {
           addIssue(
@@ -361,24 +410,52 @@ export class ConfigSyncService {
 
     const profileIds = Array.from(
       new Set(
-        usuarios
-          .map((usuario) => String(usuario.permissionProfileId ?? "").trim())
-          .filter(Boolean),
+        usuarios.flatMap((usuario) => {
+          const appPermissions = Array.isArray(usuario.appPermissions)
+            ? usuario.appPermissions
+            : [];
+
+          return appPermissions
+            .filter((permission) => permission.app === USER_APPS.OPERATIVE_WEB)
+            .map((permission) =>
+              String(permission.permissionProfileId ?? "").trim(),
+            )
+            .filter(Boolean);
+        }),
       ),
     );
-    const profiles = profileIds.length > 0
-      ? await PermissionProfileModel.find({ _id: { $in: profileIds } }).lean()
-      : [];
-    const profileIdSet = new Set(profiles.map((profile) => String(profile._id)));
+
+    const profiles =
+      profileIds.length > 0
+        ? await PermissionProfileModel.find({
+            _id: {
+              $in: profileIds,
+            },
+            app: USER_APPS.OPERATIVE_WEB,
+          }).lean()
+        : [];
+
+    const profileIdSet = new Set(
+      profiles.map((profile) => String(profile._id)),
+    );
 
     usuarios.forEach((usuario) => {
-      const profileId = String(usuario.permissionProfileId ?? "").trim();
+      const appPermissions = Array.isArray(usuario.appPermissions)
+        ? usuario.appPermissions
+        : [];
+
+      const assignment = appPermissions.find(
+        (permission) => permission.app === USER_APPS.OPERATIVE_WEB,
+      );
+
+      const profileId = String(assignment?.permissionProfileId ?? "").trim();
+
       if (profileId && !profileIdSet.has(profileId)) {
         addIssue(
           "warning",
           "usuarios",
           "MISSING_PERMISSION_PROFILE",
-          "Un usuario apunta a un perfil de permisos que no existe localmente",
+          "Un usuario apunta a un perfil de permisos operativo que no existe localmente",
           String(usuario._id),
         );
       }
@@ -393,7 +470,9 @@ export class ConfigSyncService {
         proyecto: proyecto ? 1 : 0,
         modulos: modulos.length,
         submodulos: modulos.reduce(
-          (total, modulo) => total + (Array.isArray(modulo.submodulos) ? modulo.submodulos.length : 0),
+          (total, modulo) =>
+            total +
+            (Array.isArray(modulo.submodulos) ? modulo.submodulos.length : 0),
           0,
         ),
         pensiones: pensiones.length,
@@ -418,7 +497,9 @@ export class ConfigSyncService {
     error?: unknown;
   }) {
     const finishedAt = Date.now();
-    const error = payload.error as { message?: string; code?: string; details?: unknown } | undefined;
+    const error = payload.error as
+      | { message?: string; code?: string; details?: unknown }
+      | undefined;
 
     await ConfigSyncAuditModel.create({
       installationId: payload.installationId,

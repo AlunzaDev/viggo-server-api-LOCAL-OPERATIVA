@@ -1,6 +1,7 @@
 import { Server as HttpServer } from "http";
 import { Server as SocketServer, Socket } from "socket.io";
 import { JwtPlugin } from "../../config/plugins/jwt.plugin";
+import { envs } from "../../config/plugins/envs.plugin";
 import { TicketMongoDatasource } from "../../infrastructure/datasources/parking/ticket.datasource.mongo";
 import { ModuloMongoDatasource } from "../../infrastructure/datasources/parking/modulo.datasource.mongo";
 import { ProyectoMongoDatasource } from "../../infrastructure/datasources/parking/proyecto.datasource.mongo";
@@ -33,7 +34,10 @@ export class SocketServerPlugin {
   static init(httpServer: HttpServer) {
     const io = new SocketServer(httpServer, {
       cors: {
-        origin: "*",
+        origin:
+          envs.CORS_ALLOWED_ORIGINS.length > 0
+            ? envs.CORS_ALLOWED_ORIGINS
+            : "*",
         methods: ["GET", "POST"],
       },
       transports: ["polling", "websocket"],

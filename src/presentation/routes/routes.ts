@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { MongoDatabase } from "../../data/mongo";
 import { AuthRoutes } from "./auth/auth.routes";
+import { LocalUserRoutes } from "./auth/local-user.routes";
 import { CashRegisterRoutes } from "./cash-register/cash-register.routes";
 import { ConfigRoutes } from "./config/config.routes";
 import { ModuloRoutes } from "./parking/modulo.routes";
@@ -16,6 +17,7 @@ import { SyncRoutes } from "./sync/sync.routes";
 import { LocalReportsRoutes } from "./local-reports/local-reports.routes";
 import { OperationalLogsRoutes } from "./operational-logs/operational-logs.routes";
 import { MonthlyFlushRoutes } from "./monthly-flush/monthly-flush.routes";
+import { LocalProjectScopeMiddleware } from "../middlewares";
 
 export class AppRoutes {
   static get routes(): Router {
@@ -39,25 +41,28 @@ export class AppRoutes {
 
     // Identidad local de usuarios previamente sincronizados desde ADMINISTRATIVO.
     router.use("/api/auth", AuthRoutes.routes);
+    router.use("/api/usuarios", LocalUserRoutes.routes);
     router.use("/api/installation", InstallationRoutes.routes);
 
+    const requireLocalProject = LocalProjectScopeMiddleware.requireLinkedProject;
+
     // Proyecciones administrativas de solo lectura + runtime local de dispositivos.
-    router.use("/api/proyectos", ProyectoRoutes.routes);
-    router.use("/api/modulos", ModuloRoutes.routes);
-    router.use("/api/pensiones", PensionRoutes.routes);
-    router.use("/api/pension-pass", PensionPassRoutes.routes);
+    router.use("/api/proyectos", requireLocalProject, ProyectoRoutes.routes);
+    router.use("/api/modulos", requireLocalProject, ModuloRoutes.routes);
+    router.use("/api/pensiones", requireLocalProject, PensionRoutes.routes);
+    router.use("/api/pension-pass", requireLocalProject, PensionPassRoutes.routes);
 
     // Dominio operativo local.
-    router.use("/api/tickets", TicketRoutes.routes);
-    router.use("/api/pension-moves", PensionMoveRoutes.routes);
-    router.use("/api/cash-register", CashRegisterRoutes.routes);
+    router.use("/api/tickets", requireLocalProject, TicketRoutes.routes);
+    router.use("/api/pension-moves", requireLocalProject, PensionMoveRoutes.routes);
+    router.use("/api/cash-register", requireLocalProject, CashRegisterRoutes.routes);
     router.use("/api/config", ConfigRoutes.routes);
-    router.use("/api/payments", TicketPaymentRoutes.routes);
-    router.use("/api/cash-payments", CashTicketPaymentRoutes.routes);
+    router.use("/api/payments", requireLocalProject, TicketPaymentRoutes.routes);
+    router.use("/api/cash-payments", requireLocalProject, CashTicketPaymentRoutes.routes);
     router.use("/api/sync", SyncRoutes.routes);
-    router.use("/api/local-reports", LocalReportsRoutes.routes);
-    router.use("/api/operational-logs", OperationalLogsRoutes.routes);
-    router.use("/api/monthly-flush", MonthlyFlushRoutes.routes);
+    router.use("/api/local-reports", requireLocalProject, LocalReportsRoutes.routes);
+    router.use("/api/operational-logs", requireLocalProject, OperationalLogsRoutes.routes);
+    router.use("/api/monthly-flush", requireLocalProject, MonthlyFlushRoutes.routes);
 
     return router;
   }
