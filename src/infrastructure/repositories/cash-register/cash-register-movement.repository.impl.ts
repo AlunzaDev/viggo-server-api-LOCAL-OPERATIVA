@@ -28,4 +28,10 @@ export class CashRegisterMovementRepositoryImpl
   ): Promise<CashRegisterMovementEntity | null> {
     return this.datasource.findByCashPaymentSessionId(cashPaymentSessionId);
   }
+
+  findByIdempotencyKey(
+    idempotencyKey: string,
+  ): Promise<CashRegisterMovementEntity | null> {
+    return this.datasource.findByIdempotencyKey(idempotencyKey);
+  }
 }

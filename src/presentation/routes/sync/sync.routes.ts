@@ -11,6 +11,8 @@ export class SyncRoutes {
     router.get("/status", controller.status);
     router.put("/snapshots/access", controller.applyAccessSnapshot);
     router.put("/snapshots/configuration", controller.applyConfigurationSnapshot);
+    router.patch("/modules/:id/device-binding/approve", controller.approveDeviceBinding);
+    router.patch("/modules/:id/device-binding/reject", controller.rejectDeviceBinding);
 
     return router;
   }

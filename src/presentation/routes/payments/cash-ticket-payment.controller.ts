@@ -60,6 +60,7 @@ export class CashTicketPaymentController {
   registerCashInsertion = async (req: Request, res: Response) => {
     try {
       const sessionId = String(req.params.sessionId);
+      const idempotencyKey = String(req.header("Idempotency-Key") ?? "").trim();
       const { amount, rawEvent } = req.body as {
         amount?: unknown;
         rawEvent?: Record<string, unknown>;
@@ -69,11 +70,17 @@ export class CashTicketPaymentController {
         return res.status(400).json({ error: "'amount' debe ser numerico" });
       }
 
+      if (!/^[A-Za-z0-9._:-]{16,128}$/.test(idempotencyKey)) {
+        return res.status(400).json({
+          error: "'Idempotency-Key' es requerido y debe tener entre 16 y 128 caracteres validos",
+        });
+      }
+
       const session = await this.cashTicketPaymentService.registerCashInsertion(
         sessionId,
         amount,
         this.buildActorContext(req),
-        rawEvent,
+        { ...(rawEvent ?? {}), idempotencyKey },
       );
 
       return res.status(200).json({ session });

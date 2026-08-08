@@ -40,14 +40,6 @@ export class PensionMoveRoutes {
       pensionMoveModuleAccess,
       controller.updatePensionMove,
     );
-    router.delete(
-      "/:id",
-      AuthMiddleware.requireAuth,
-      adminRoles,
-      pensionMoveModuleAccess,
-      controller.deletePensionMove,
-    );
-
     return router;
   }
 }

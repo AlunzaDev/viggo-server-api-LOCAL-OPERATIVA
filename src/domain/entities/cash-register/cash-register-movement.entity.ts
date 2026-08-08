@@ -33,6 +33,7 @@ export interface CashRegisterMovementEntityOptions {
   relatedTicketId?: string;
   relatedPaymentId?: string;
   relatedCashPaymentSessionId?: string;
+  idempotencyKey?: string;
   notes?: string;
   metadata?: Record<string, unknown>;
 }
@@ -52,6 +53,7 @@ export class CashRegisterMovementEntity {
   public relatedTicketId?: string;
   public relatedPaymentId?: string;
   public relatedCashPaymentSessionId?: string;
+  public idempotencyKey?: string;
   public notes?: string;
   public metadata?: Record<string, unknown>;
 
@@ -70,6 +72,7 @@ export class CashRegisterMovementEntity {
     this.relatedTicketId = options.relatedTicketId;
     this.relatedPaymentId = options.relatedPaymentId;
     this.relatedCashPaymentSessionId = options.relatedCashPaymentSessionId;
+    this.idempotencyKey = options.idempotencyKey;
     this.notes = options.notes;
     this.metadata = options.metadata;
   }
@@ -93,6 +96,7 @@ export class CashRegisterMovementEntity {
       relatedTicketId,
       relatedPaymentId,
       relatedCashPaymentSessionId,
+      idempotencyKey,
       notes,
       metadata,
     } = object;
@@ -150,6 +154,9 @@ export class CashRegisterMovementEntity {
         : undefined,
       relatedCashPaymentSessionId: relatedCashPaymentSessionId
         ? String(relatedCashPaymentSessionId).trim()
+        : undefined,
+      idempotencyKey: idempotencyKey
+        ? String(idempotencyKey).trim()
         : undefined,
       notes: notes ? String(notes).trim() : undefined,
       metadata:

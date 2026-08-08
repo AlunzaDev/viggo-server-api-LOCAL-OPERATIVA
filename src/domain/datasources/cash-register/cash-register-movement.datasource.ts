@@ -14,4 +14,8 @@ export abstract class CashRegisterMovementDatasource {
   abstract findByCashPaymentSessionId(
     cashPaymentSessionId: string,
   ): Promise<CashRegisterMovementEntity | null>;
+
+  abstract findByIdempotencyKey(
+    idempotencyKey: string,
+  ): Promise<CashRegisterMovementEntity | null>;
 }

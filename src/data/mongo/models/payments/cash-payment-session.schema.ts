@@ -136,6 +136,15 @@ const cashPaymentSessionSchema = new Schema(
 cashPaymentSessionSchema.index({ ticketId: 1, status: 1 });
 cashPaymentSessionSchema.index({ idBoleto: 1, status: 1 });
 cashPaymentSessionSchema.index({ startedAt: -1 });
+cashPaymentSessionSchema.index(
+  { ticketId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      status: { $in: ["created", "pending_cash", "partially_paid"] },
+    },
+  },
+);
 
 export const CashPaymentSessionModel = model(
   "CashPaymentSession",

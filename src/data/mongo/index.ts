@@ -10,3 +10,4 @@ export * from "./models/pension/pension-pass.schema";
 export * from "./models/pension/pension-move.schema";
 export * from "./models/system/config-sync-audit.schema";
 export * from "./models/system/operational-log.schema";
+export * from "./models/sync/mobile-command-receipt.schema";

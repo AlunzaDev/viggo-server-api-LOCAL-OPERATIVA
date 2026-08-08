@@ -34,6 +34,7 @@ interface OpenShiftInput {
 }
 
 interface RegisterMovementInput {
+  idempotencyKey: string;
   type: CashRegisterMovementType;
   direction?: CashRegisterMovementDirection;
   concept: string;
@@ -250,23 +251,47 @@ export class CashRegisterService {
     this.ensureShiftOpen(shift);
     this.ensureShiftOperator(shift, actor);
 
+    const existingMovement = await this.movementRepository.findByIdempotencyKey(
+      input.idempotencyKey,
+    );
+    if (existingMovement) {
+      this.ensureMatchingIdempotentMovement(existingMovement, shift, input, actor);
+      return {
+        movement: existingMovement,
+        detail: await this.getShiftDetail(shift.id, actor),
+        idempotentReplay: true,
+      };
+    }
+
     const direction =
       input.direction ?? this.resolveDirectionFromType(input.type);
 
-    const movement = await this.movementRepository.create({
-      shiftId: shift.id,
-      proyectoId: shift.proyectoId,
-      moduloId: shift.moduloId,
-      createdByUserId: actor.userId,
-      createdByUserName: actor.userName,
-      type: input.type,
-      direction,
-      concept: input.concept.trim(),
-      amount: Number(input.amount),
-      createdAt: Date.now(),
-      notes: input.notes?.trim() || undefined,
-      metadata: input.metadata,
-    });
+    let movement: CashRegisterMovementEntity;
+    try {
+      movement = await this.movementRepository.create({
+        shiftId: shift.id,
+        proyectoId: shift.proyectoId,
+        moduloId: shift.moduloId,
+        createdByUserId: actor.userId,
+        createdByUserName: actor.userName,
+        type: input.type,
+        direction,
+        concept: input.concept.trim(),
+        amount: Number(input.amount),
+        createdAt: Date.now(),
+        idempotencyKey: input.idempotencyKey,
+        notes: input.notes?.trim() || undefined,
+        metadata: input.metadata,
+      });
+    } catch (error) {
+      if (!this.isDuplicateKeyError(error)) throw error;
+      const concurrentMovement = await this.movementRepository.findByIdempotencyKey(
+        input.idempotencyKey,
+      );
+      if (!concurrentMovement) throw error;
+      this.ensureMatchingIdempotentMovement(concurrentMovement, shift, input, actor);
+      movement = concurrentMovement;
+    }
 
     return {
       movement,
@@ -498,6 +523,38 @@ export class CashRegisterService {
       default:
         return "in";
     }
+  }
+
+  private ensureMatchingIdempotentMovement(
+    movement: CashRegisterMovementEntity,
+    shift: CashRegisterShiftEntity,
+    input: RegisterMovementInput,
+    actor: CashRegisterActorContext,
+  ) {
+    const expectedDirection = input.direction ?? this.resolveDirectionFromType(input.type);
+    const matches =
+      movement.shiftId === shift.id &&
+      movement.createdByUserId === actor.userId &&
+      movement.type === input.type &&
+      movement.direction === expectedDirection &&
+      movement.concept === input.concept.trim() &&
+      movement.amount === Number(input.amount);
+
+    if (!matches) {
+      throw CustomError.conflict(
+        "La clave de idempotencia ya fue usada para otra operacion",
+        undefined,
+        "IDEMPOTENCY_KEY_REUSED",
+      );
+    }
+  }
+
+  private isDuplicateKeyError(error: unknown) {
+    return Boolean(
+      error &&
+      typeof error === "object" &&
+      (error as { code?: unknown }).code === 11000,
+    );
   }
 
   private normalizeCountLine(line: {

@@ -36,11 +36,13 @@ export const buildProyectoController = (): ProyectoController => {
 };
 
 export const buildTicketController = (): TicketController => {
-  const service = new TicketService(
+  return new TicketController(buildTicketService());
+};
+
+export const buildTicketService = (): TicketService => {
+  return new TicketService(
     buildTicketRepository(),
     buildProyectoRepository(),
     buildModuloRepository(),
   );
-
-  return new TicketController(service);
 };

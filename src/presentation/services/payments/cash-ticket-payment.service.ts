@@ -202,39 +202,48 @@ export class CashTicketPaymentService {
 
     this.ensureShiftOperator(activeShift.openedByUserId, actor);
 
-    const createdSession = await this.cashPaymentSessionRepository.create({
-      ticketId: ticket.id,
-      idBoleto: ticket.idBoleto,
-      status: "pending_cash",
-      amountExpected: ticket.monto,
-      amountReceived: 0,
-      changeAmount: 0,
-      moduloId: String(modulo._id),
-      moduloIdentificador: String(modulo.get("identificador") ?? "").trim() || undefined,
-      moduloNombre: String(modulo.get("nombre") ?? "").trim() || undefined,
-      deviceId: String(modulo.get("identificador") ?? "").trim() || undefined,
-      cashRegisterShiftId: activeShift.id,
-      startedAt: Date.now(),
-      completedAt: undefined,
-      cancelledAt: undefined,
-      events: [
-        {
-          type: "session_created",
-          createdAt: Date.now(),
-          payload: {
-            ticketId: ticket.id,
-            idBoleto: ticket.idBoleto,
-            moduloId: String(modulo._id),
-            moduloIdentificador:
-              String(modulo.get("identificador") ?? "").trim() || undefined,
-            moduloNombre: String(modulo.get("nombre") ?? "").trim() || undefined,
-            deviceId:
-              String(modulo.get("identificador") ?? "").trim() || undefined,
-            cashRegisterShiftId: activeShift.id,
+    let createdSession: CashPaymentSessionEntity;
+    try {
+      createdSession = await this.cashPaymentSessionRepository.create({
+        ticketId: ticket.id,
+        idBoleto: ticket.idBoleto,
+        status: "pending_cash",
+        amountExpected: ticket.monto,
+        amountReceived: 0,
+        changeAmount: 0,
+        moduloId: String(modulo._id),
+        moduloIdentificador: String(modulo.get("identificador") ?? "").trim() || undefined,
+        moduloNombre: String(modulo.get("nombre") ?? "").trim() || undefined,
+        deviceId: String(modulo.get("identificador") ?? "").trim() || undefined,
+        cashRegisterShiftId: activeShift.id,
+        startedAt: Date.now(),
+        completedAt: undefined,
+        cancelledAt: undefined,
+        events: [
+          {
+            type: "session_created",
+            createdAt: Date.now(),
+            payload: {
+              ticketId: ticket.id,
+              idBoleto: ticket.idBoleto,
+              moduloId: String(modulo._id),
+              moduloIdentificador:
+                String(modulo.get("identificador") ?? "").trim() || undefined,
+              moduloNombre: String(modulo.get("nombre") ?? "").trim() || undefined,
+              deviceId:
+                String(modulo.get("identificador") ?? "").trim() || undefined,
+              cashRegisterShiftId: activeShift.id,
+            },
           },
-        },
-      ],
-    });
+        ],
+      });
+    } catch (error) {
+      if (!this.isDuplicateKeyError(error)) throw error;
+      const concurrentSession =
+        await this.cashPaymentSessionRepository.findActiveByTicketId(ticket.id);
+      if (!concurrentSession) throw error;
+      return concurrentSession;
+    }
 
     await this.operationalLogsService.logEvent({
       scope: "payment",
@@ -769,6 +778,14 @@ export class CashTicketPaymentService {
       message.includes("Transaction numbers are only allowed") ||
       message.includes("replica set member or mongos") ||
       message.includes("Transaction") && message.includes("not supported")
+    );
+  }
+
+  private isDuplicateKeyError(error: unknown) {
+    return Boolean(
+      error &&
+      typeof error === "object" &&
+      (error as { code?: unknown }).code === 11000,
     );
   }
 }

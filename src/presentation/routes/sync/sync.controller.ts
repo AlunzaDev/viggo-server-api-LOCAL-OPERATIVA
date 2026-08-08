@@ -2,11 +2,15 @@ import { Request, Response } from "express";
 import { ErrorService } from "../../services/error.service";
 import { SyncRequest } from "../../middlewares";
 import { SyncService } from "../../services/sync/sync.service";
+import { ModuloService } from "../../services/parking/modulo.service";
 
 type SnapshotItem = Record<string, unknown> & { id?: unknown; _id?: unknown };
 
 export class SyncController {
-  constructor(private readonly service: SyncService) {}
+  constructor(
+    private readonly service: SyncService,
+    private readonly moduloService: ModuloService,
+  ) {}
 
   status = async (req: Request, res: Response) => {
     return res.status(200).json({
@@ -67,6 +71,69 @@ export class SyncController {
         version: body.version ?? null,
         ...result,
       });
+    } catch (error) {
+      return ErrorService.handleApiError(error, res);
+    }
+  };
+
+  approveDeviceBinding = async (req: Request, res: Response) => {
+    try {
+      const body = req.body as {
+        fingerprint?: unknown;
+        resolvedByUserId?: unknown;
+        resolvedByUserName?: unknown;
+        notes?: unknown;
+      };
+      const modulo = await this.moduloService.approveDeviceBindingRequest(
+        String(req.params.id ?? "").trim(),
+        {
+          fingerprint:
+            typeof body.fingerprint === "string"
+              ? body.fingerprint.trim()
+              : undefined,
+          notes:
+            typeof body.notes === "string"
+              ? body.notes.trim()
+              : `Aprobado desde Administrativo por ${String(
+                  body.resolvedByUserName ?? "usuario administrativo",
+                ).trim()}`,
+        },
+      );
+
+      return res.status(200).json({ modulo });
+    } catch (error) {
+      return ErrorService.handleApiError(error, res);
+    }
+  };
+
+  rejectDeviceBinding = async (req: Request, res: Response) => {
+    try {
+      const body = req.body as {
+        fingerprint?: unknown;
+        resolvedByUserId?: unknown;
+        resolvedByUserName?: unknown;
+        rejectionReason?: unknown;
+        notes?: unknown;
+      };
+      const modulo = await this.moduloService.rejectDeviceBindingRequest(
+        String(req.params.id ?? "").trim(),
+        {
+          fingerprint:
+            typeof body.fingerprint === "string"
+              ? body.fingerprint.trim()
+              : undefined,
+          notes:
+            typeof body.notes === "string"
+              ? body.notes.trim()
+              : typeof body.rejectionReason === "string"
+                ? body.rejectionReason.trim()
+                : `Rechazado desde Administrativo por ${String(
+                    body.resolvedByUserName ?? "usuario administrativo",
+                  ).trim()}`,
+        },
+      );
+
+      return res.status(200).json({ modulo });
     } catch (error) {
       return ErrorService.handleApiError(error, res);
     }

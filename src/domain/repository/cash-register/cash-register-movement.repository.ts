@@ -17,4 +17,8 @@ export abstract class CashRegisterMovementRepository extends CashRegisterMovemen
   abstract override findByCashPaymentSessionId(
     cashPaymentSessionId: string,
   ): Promise<CashRegisterMovementEntity | null>;
+
+  abstract override findByIdempotencyKey(
+    idempotencyKey: string,
+  ): Promise<CashRegisterMovementEntity | null>;
 }

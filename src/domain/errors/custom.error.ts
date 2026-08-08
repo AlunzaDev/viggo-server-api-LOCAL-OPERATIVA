@@ -21,6 +21,10 @@ export class CustomError extends Error {
         return new CustomError(403, message, code, details);
     }
 
+    static conflict(message: string, details?: unknown, code = "CONFLICT") {
+        return new CustomError(409, message, code, details);
+    }
+
     static notFound(message: string, details?: unknown, code = "NOT_FOUND") {
         return new CustomError(404, message, code, details);
     }

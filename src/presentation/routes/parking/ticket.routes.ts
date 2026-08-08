@@ -1,17 +1,12 @@
 import { Router } from "express";
 import { buildTicketController } from "../../dependencies";
 import { AuthMiddleware } from "../../middlewares";
-import { AUTH_ROLES } from "../../../domain/constants";
 
 export class TicketRoutes {
   static get routes(): Router {
     const router = Router();
 
     const controller = buildTicketController();
-    const adminRoles = AuthMiddleware.requireRoles(
-      AUTH_ROLES.ADMIN,
-      AUTH_ROLES.SUPER,
-    );
     const ticketModuleAccess = AuthMiddleware.requireModules("tickets");
 
     router.post(
@@ -50,12 +45,6 @@ export class TicketRoutes {
       controller.getTicketsByUsuario,
     );
     router.post(
-      "/payTicket",
-      AuthMiddleware.requireAuth,
-      ticketModuleAccess,
-      controller.payTicketLegacy,
-    );
-    router.post(
       "/killTicket",
       AuthMiddleware.requireAuth,
       ticketModuleAccess,
@@ -68,14 +57,6 @@ export class TicketRoutes {
       ticketModuleAccess,
       controller.updateTicket,
     );
-    router.delete(
-      "/:id",
-      AuthMiddleware.requireAuth,
-      adminRoles,
-      ticketModuleAccess,
-      controller.deleteTicket,
-    );
-
     return router;
   }
 }

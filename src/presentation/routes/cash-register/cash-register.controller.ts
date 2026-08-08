@@ -136,6 +136,7 @@ export class CashRegisterController {
   registerMovement = async (req: Request, res: Response) => {
     try {
       const shiftId = String(req.params.shiftId);
+      const idempotencyKey = String(req.header("Idempotency-Key") ?? "").trim();
       const { type, direction, concept, amount, notes, metadata } = req.body as {
         type?: unknown;
         direction?: unknown;
@@ -157,9 +158,16 @@ export class CashRegisterController {
         return res.status(400).json({ error: "'amount' debe ser numerico" });
       }
 
+      if (!/^[A-Za-z0-9._:-]{16,128}$/.test(idempotencyKey)) {
+        return res.status(400).json({
+          error: "'Idempotency-Key' es requerido y debe tener entre 16 y 128 caracteres validos",
+        });
+      }
+
       const result = await this.cashRegisterService.registerMovement(
         shiftId,
         {
+          idempotencyKey,
           type: type.trim() as never,
           direction:
             typeof direction === "string" && direction.trim().length > 0

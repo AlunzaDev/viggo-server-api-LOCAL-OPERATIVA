@@ -56,6 +56,38 @@ export class HeartbeatSnapshotService {
         lastHeartbeatAt: lastHeartbeatAt || null,
         lastDisconnectAt: runtime?.lastDisconnectAt?.getTime() ?? null,
         connectedAt: runtime?.connectedAt?.getTime() ?? null,
+        deviceBinding: modulo.deviceBinding
+          ? {
+              fingerprint: modulo.deviceBinding.fingerprint,
+              cpuSerial: modulo.deviceBinding.cpuSerial ?? "",
+              machineId: modulo.deviceBinding.machineId ?? "",
+              primaryMac: modulo.deviceBinding.primaryMac ?? "",
+              boundAt: modulo.deviceBinding.boundAt?.getTime() ?? null,
+              lastSeenAt: modulo.deviceBinding.lastSeenAt?.getTime() ?? null,
+            }
+          : null,
+        deviceBindingRequests: modulo.deviceBindingRequests.map((request) => ({
+          fingerprint: request.fingerprint,
+          cpuSerial: request.cpuSerial ?? "",
+          machineId: request.machineId ?? "",
+          primaryMac: request.primaryMac ?? "",
+          requestedAt: request.requestedAt?.getTime() ?? null,
+          status: request.status,
+          resolvedAt: request.resolvedAt?.getTime() ?? null,
+          notes: request.notes ?? "",
+        })),
+        deviceConnectionAudit: modulo.deviceConnectionAudit
+          ? {
+              fingerprint: modulo.deviceConnectionAudit.fingerprint ?? "",
+              socketId: modulo.deviceConnectionAudit.socketId ?? "",
+              attemptedAt:
+                modulo.deviceConnectionAudit.attemptedAt?.getTime() ?? null,
+              ipAddress: modulo.deviceConnectionAudit.ipAddress ?? "",
+              locationLabel: modulo.deviceConnectionAudit.locationLabel ?? "",
+              status: modulo.deviceConnectionAudit.status,
+              reason: modulo.deviceConnectionAudit.reason ?? "",
+            }
+          : null,
         submodules: modulo.submodulos.map((submodulo) => ({
           id: submodulo.submoduloId,
           nombre: submodulo.nombre,

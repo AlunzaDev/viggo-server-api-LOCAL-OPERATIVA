@@ -59,6 +59,7 @@ export class Server {
         "X-Requested-With",
         "X-Token",
         "X-API-KEY",
+        "Idempotency-Key",
       ],
     };
 

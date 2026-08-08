@@ -20,6 +20,13 @@ export class UpdateTicketDto {
     ) {}
 
     static create(body: Record<string, unknown>): [string?, UpdateTicketDto?] {
+        const protectedFinancialFields = ["pagado", "monto", "horaCobro"]
+            .filter((field) => body[field] !== undefined);
+        if (protectedFinancialFields.length > 0) {
+            return [
+                `Los campos financieros solo pueden cambiar durante un cobro confirmado: ${protectedFinancialFields.join(", ")}`,
+            ];
+        }
         const status =
             body.status === "ACTIVE" ||
             body.status === "COMPLETED" ||
@@ -36,11 +43,11 @@ export class UpdateTicketDto {
                 typeof body.idBoleto === "string" ? body.idBoleto.trim() : undefined,
                 body.horaInicio !== undefined ? Number(body.horaInicio) : undefined,
                 body.horaConsulta !== undefined ? Number(body.horaConsulta) : undefined,
-                body.horaCobro !== undefined ? Number(body.horaCobro) : undefined,
+                undefined,
                 body.horaSalida !== undefined ? Number(body.horaSalida) : undefined,
                 body.duracion !== undefined ? Number(body.duracion) : undefined,
-                body.monto !== undefined ? Number(body.monto) : undefined,
-                typeof body.pagado === "boolean" ? body.pagado : undefined,
+                undefined,
+                undefined,
                 typeof body.salida === "string" ? body.salida.trim() : undefined,
                 status,
                 body.barrierOpenedAt !== undefined

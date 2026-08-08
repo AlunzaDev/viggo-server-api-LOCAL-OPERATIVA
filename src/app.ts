@@ -3,6 +3,7 @@ import { buildConfigSyncScheduler } from "./presentation/dependencies/config.dep
 import { buildMonthlyFlushScheduler } from "./presentation/dependencies/monthly-flush.dependencies";
 import { AppRoutes } from "./presentation/routes/routes";
 import { Server } from "./presentation/server";
+import { buildMobileCommandScheduler } from "./presentation/dependencies/mobile.dependencies";
 
 process.on("unhandledRejection", (reason) => {
     console.error("[UNHANDLED REJECTION]", reason);
@@ -17,6 +18,7 @@ process.on("uncaughtException", (error) => {
 const bootstrap = async () => {
 const configSyncScheduler = buildConfigSyncScheduler();
 const monthlyFlushScheduler = buildMonthlyFlushScheduler();
+const mobileCommandScheduler = buildMobileCommandScheduler();
 const server = new Server({
   host: envs.HOST,
   port: envs.PORT,
@@ -26,6 +28,7 @@ const server = new Server({
 
     await server.start();
     configSyncScheduler.start();
+    mobileCommandScheduler.start();
     await monthlyFlushScheduler.start();
 };
 

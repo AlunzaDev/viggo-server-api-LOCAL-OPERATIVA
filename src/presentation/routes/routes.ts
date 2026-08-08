@@ -1,5 +1,4 @@
 import { Router } from "express";
-import { MongoDatabase } from "../../data/mongo";
 import { AuthRoutes } from "./auth/auth.routes";
 import { LocalUserRoutes } from "./auth/local-user.routes";
 import { CashRegisterRoutes } from "./cash-register/cash-register.routes";
@@ -18,6 +17,8 @@ import { LocalReportsRoutes } from "./local-reports/local-reports.routes";
 import { OperationalLogsRoutes } from "./operational-logs/operational-logs.routes";
 import { MonthlyFlushRoutes } from "./monthly-flush/monthly-flush.routes";
 import { LocalProjectScopeMiddleware } from "../middlewares";
+import { HealthRoutes } from "./health/health.routes";
+import { DeviceSetupRoutes } from "./device-setup/device-setup.routes";
 
 export class AppRoutes {
   static get routes(): Router {
@@ -31,13 +32,7 @@ export class AppRoutes {
       });
     });
 
-    router.get("/api/health", (_req, res) => {
-      const health = MongoDatabase.getHealthSnapshot();
-      res.status(health.status === "ok" ? 200 : 503).json({
-        service: "viggo-operativo",
-        ...health,
-      });
-    });
+    router.use("/api/health", HealthRoutes.routes);
 
     // Identidad local de usuarios previamente sincronizados desde ADMINISTRATIVO.
     router.use("/api/auth", AuthRoutes.routes);
@@ -45,6 +40,8 @@ export class AppRoutes {
     router.use("/api/installation", InstallationRoutes.routes);
 
     const requireLocalProject = LocalProjectScopeMiddleware.requireLinkedProject;
+
+    router.use("/api/device-setup", requireLocalProject, DeviceSetupRoutes.routes);
 
     // Proyecciones administrativas de solo lectura + runtime local de dispositivos.
     router.use("/api/proyectos", requireLocalProject, ProyectoRoutes.routes);

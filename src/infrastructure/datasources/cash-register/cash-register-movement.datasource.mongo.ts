@@ -34,4 +34,11 @@ export class CashRegisterMovementMongoDatasource
 
     return movement ? CashRegisterMovementEntity.fromObject(movement.toJSON()) : null;
   }
+
+  async findByIdempotencyKey(
+    idempotencyKey: string,
+  ): Promise<CashRegisterMovementEntity | null> {
+    const movement = await CashRegisterMovementModel.findOne({ idempotencyKey });
+    return movement ? CashRegisterMovementEntity.fromObject(movement.toJSON()) : null;
+  }
 }

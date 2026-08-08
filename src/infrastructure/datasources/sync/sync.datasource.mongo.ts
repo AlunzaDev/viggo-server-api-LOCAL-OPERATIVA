@@ -5,6 +5,10 @@ import { ProyectoModel } from "../../../data/mongo/models/parking/proyecto.schem
 import { PensionPassModel } from "../../../data/mongo/models/pension/pension-pass.schema";
 import { PensionModel } from "../../../data/mongo/models/pension/pension.schema";
 import {
+  normalizeUserModules,
+  USER_APPS,
+} from "../../../domain/constants";
+import {
   SyncDatasource,
   type AccessSnapshotPayload,
   type ConfigurationSnapshotPayload,
@@ -89,6 +93,37 @@ const normalizeSnapshotItem = (item: SnapshotItem): SnapshotItem => {
 const validSnapshotItems = (items: SnapshotItem[]) =>
   items.filter((item) => getSnapshotId(item));
 
+const normalizeOperativeProfile = (item: SnapshotItem): SnapshotItem | null => {
+  if (item.app !== USER_APPS.OPERATIVE_WEB) return null;
+  const modules = normalizeUserModules(item.modules);
+  if (modules.length === 0) return null;
+  return {
+    ...item,
+    app: USER_APPS.OPERATIVE_WEB,
+    modules,
+  };
+};
+
+const normalizeOperativeUser = (item: SnapshotItem): SnapshotItem | null => {
+  const allowedApps = Array.isArray(item.allowedApps)
+    ? item.allowedApps.filter((app) => app === USER_APPS.OPERATIVE_WEB)
+    : [];
+  const appPermissions = Array.isArray(item.appPermissions)
+    ? item.appPermissions.filter((permission) => {
+        if (!permission || typeof permission !== "object") return false;
+        return (permission as Record<string, unknown>).app === USER_APPS.OPERATIVE_WEB;
+      })
+    : [];
+
+  if (allowedApps.length === 0 || appPermissions.length === 0) return null;
+
+  return {
+    ...item,
+    allowedApps,
+    appPermissions,
+  };
+};
+
 const normalizeComparable = (value: unknown): unknown => {
   if (value == null) return value;
   if (value instanceof Date) return value.toISOString();
@@ -166,8 +201,12 @@ const summarizeResults = (
 
 export class SyncMongoDatasource implements SyncDatasource {
   async applyAccessSnapshot(payload: AccessSnapshotPayload) {
-    const validUsers = validSnapshotItems(payload.users);
-    const validProfiles = validSnapshotItems(payload.permissionProfiles);
+    const validUsers = validSnapshotItems(payload.users)
+      .map(normalizeOperativeUser)
+      .filter((user): user is SnapshotItem => Boolean(user));
+    const validProfiles = validSnapshotItems(payload.permissionProfiles)
+      .map(normalizeOperativeProfile)
+      .filter((profile): profile is SnapshotItem => Boolean(profile));
 
     const profileResults = await Promise.all(
       validProfiles.map((profile) =>

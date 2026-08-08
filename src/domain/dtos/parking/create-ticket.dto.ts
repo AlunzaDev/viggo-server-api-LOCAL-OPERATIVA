@@ -27,11 +27,11 @@ export class CreateTicketDto {
         const horaInicio = Number(body.horaInicio);
         const horaConsulta =
             body.horaConsulta === undefined ? -1 : Number(body.horaConsulta);
-        const horaCobro = body.horaCobro === undefined ? -1 : Number(body.horaCobro);
+        const horaCobro = -1;
         const horaSalida = body.horaSalida === undefined ? -1 : Number(body.horaSalida);
         const duracion = body.duracion === undefined ? 0 : Number(body.duracion);
-        const monto = body.monto === undefined ? 0 : Number(body.monto);
-        const pagado = typeof body.pagado === "boolean" ? body.pagado : false;
+        const monto = 0;
+        const pagado = false;
         const salida = typeof body.salida === "string" ? body.salida.trim() : undefined;
 
         if (!proyecto) return ["'proyecto' es requerido"];

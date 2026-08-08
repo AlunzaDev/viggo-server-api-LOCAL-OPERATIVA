@@ -5,15 +5,17 @@ services:
     image: mongo:7.0
     container_name: viggo-operativo-mongo
     restart: unless-stopped
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASS}
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
     ports:
       - "127.0.0.1:27017:27017"
     volumes:
       - ./mongo:/data/db
     healthcheck:
-      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      test:
+        [
+          "CMD-SHELL",
+          "mongosh --quiet --eval \"try { rs.status().ok } catch (e) { rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo-db:27017'}]}).ok }\" | grep 1",
+        ]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -29,11 +31,13 @@ services:
       mongo-db:
         condition: service_healthy
     env_file:
-      - ${BACKEND_ENV_FILE:-.env}
+      - ${BACKEND_ENV_FILE:-.env.docker}
     environment:
       APP_ENV: ${APP_ENV:-prod}
+      PROD: "true"
+      MONGO_URL: mongodb://mongo-db:27017/${MONGO_DB_NAME:-viggo-operativo}?replicaSet=rs0
     ports:
-      - "${BACKEND_PORT:-8080}:8080"
+      - "${BACKEND_PORT:-8081}:8080"
     volumes:
       - ./public/uploads:/project/public/uploads
       - ./logs:/project/logs
@@ -49,3 +53,23 @@ services:
       timeout: 5s
       retries: 3
       start_period: 20s
+
+  mongo-backup:
+    image: mongo:7.0
+    container_name: viggo-operativo-mongo-backup
+    restart: unless-stopped
+    depends_on:
+      mongo-db:
+        condition: service_healthy
+    environment:
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-3600}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+      MONGO_DB_NAME: ${MONGO_DB_NAME:-viggo-operativo}
+    volumes:
+      - ./backups:/backups
+    command:
+      [
+        "sh",
+        "-c",
+        "while true; do now=$$(date +%Y%m%d-%H%M%S); mongodump --host mongo-db:27017 --db $$MONGO_DB_NAME --out /backups/$$now && find /backups -mindepth 1 -maxdepth 1 -type d -mtime +$$BACKUP_RETENTION_DAYS -exec rm -rf {} +; sleep $$BACKUP_INTERVAL_SECONDS; done",
+      ]

@@ -79,6 +79,11 @@ const cashRegisterMovementSchema = new Schema(
       default: undefined,
       trim: true,
     },
+    idempotencyKey: {
+      type: String,
+      default: undefined,
+      trim: true,
+    },
     notes: {
       type: String,
       default: undefined,
@@ -98,6 +103,10 @@ const cashRegisterMovementSchema = new Schema(
 cashRegisterMovementSchema.index({ shiftId: 1, createdAt: -1 });
 cashRegisterMovementSchema.index(
   { relatedCashPaymentSessionId: 1 },
+  { unique: true, sparse: true },
+);
+cashRegisterMovementSchema.index(
+  { idempotencyKey: 1 },
   { unique: true, sparse: true },
 );
 
