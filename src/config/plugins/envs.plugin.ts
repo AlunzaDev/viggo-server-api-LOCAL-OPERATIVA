@@ -189,6 +189,22 @@ export const envs = {
     0,
     600000,
   ),
+  MOBILE_COMMANDS_SYNC_ENABLED: env
+    .get("MOBILE_COMMANDS_SYNC_ENABLED")
+    .default("false")
+    .asBool(),
+  MOBILE_COMMANDS_SYNC_INTERVAL_MS: parseBoundedInteger(
+    env.get("MOBILE_COMMANDS_SYNC_INTERVAL_MS").asString(),
+    15000,
+    2000,
+    300000,
+  ),
+  MOBILE_COMMANDS_SYNC_START_DELAY_MS: parseBoundedInteger(
+    env.get("MOBILE_COMMANDS_SYNC_START_DELAY_MS").asString(),
+    5000,
+    0,
+    300000,
+  ),
   MONTHLY_FLUSH_SCHEDULER_INTERVAL_MS: parseBoundedInteger(
     env.get("MONTHLY_FLUSH_SCHEDULER_INTERVAL_MS").asString(),
     300000,

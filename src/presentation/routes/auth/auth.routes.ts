@@ -13,9 +13,13 @@ export class AuthRoutes {
       maxRequests: 12,
     });
 
-    router.post("/login-correo", authRateLimit, controller.loginCorreo);
+    // Temporalmente desactivado en desarrollo para no bloquear pruebas manuales.
+    // Reactivar antes de producción:
+    // router.post("/login-correo", authRateLimit, controller.loginCorreo);
+    router.post("/login-correo", controller.loginCorreo);
 
-    router.post("/login-telefono", authRateLimit, controller.loginTelefono);
+    // router.post("/login-telefono", authRateLimit, controller.loginTelefono);
+    router.post("/login-telefono", controller.loginTelefono);
 
     router.post("/renew", AuthMiddleware.requireAuth, controller.renewToken);
 

@@ -1,3 +1,4 @@
+import { envs } from "../../../config";
 import { MobileCommandService } from "./mobile-command.service";
 
 export class MobileCommandScheduler {
@@ -6,10 +7,17 @@ export class MobileCommandScheduler {
   constructor(private readonly service: MobileCommandService) {}
 
   start() {
+    if (!envs.MOBILE_COMMANDS_SYNC_ENABLED) {
+      console.info("[OPERATIVO mobile-commands] Polling disabled");
+      return;
+    }
     if (this.timer) return;
     const tick = () => void this.runOnce();
-    this.timer = setInterval(tick, 2_000);
-    setTimeout(tick, 1_000);
+    this.timer = setInterval(tick, envs.MOBILE_COMMANDS_SYNC_INTERVAL_MS);
+    setTimeout(tick, envs.MOBILE_COMMANDS_SYNC_START_DELAY_MS);
+    console.info(
+      `[OPERATIVO mobile-commands] Polling enabled. Interval=${envs.MOBILE_COMMANDS_SYNC_INTERVAL_MS}ms startDelay=${envs.MOBILE_COMMANDS_SYNC_START_DELAY_MS}ms`,
+    );
   }
 
   private async runOnce() {
