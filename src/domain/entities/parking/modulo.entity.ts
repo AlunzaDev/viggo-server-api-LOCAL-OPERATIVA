@@ -96,6 +96,22 @@ export interface ModuloDeviceRuntime {
     message?: string;
 }
 
+export type ModuloRemoteSupportProvider = "MESHCENTRAL";
+
+export interface ModuloRemoteSupport {
+    provider: ModuloRemoteSupportProvider;
+    enabled: boolean;
+    deviceName?: string;
+    deviceId?: string;
+    groupId?: string;
+    baseUrl?: string;
+    supportUrl?: string;
+    desktopUrl?: string;
+    terminalUrl?: string;
+    linkedAt?: Date;
+    updatedAt?: Date;
+}
+
 export interface ModuloEntityOptions {
     id: string;
     nombre: string;
@@ -112,6 +128,7 @@ export interface ModuloEntityOptions {
     deviceBindingRequests?: ModuloDeviceBindingRequest[];
     deviceConnectionAudit?: ModuloDeviceConnectionAudit | null;
     deviceRuntime?: ModuloDeviceRuntime | null;
+    remoteSupport?: ModuloRemoteSupport | null;
     submodulos?: ModuloSubmodulo[];
 }
 
@@ -131,6 +148,7 @@ export class ModuloEntity {
     public deviceBindingRequests: ModuloDeviceBindingRequest[];
     public deviceConnectionAudit?: ModuloDeviceConnectionAudit | null;
     public deviceRuntime?: ModuloDeviceRuntime | null;
+    public remoteSupport?: ModuloRemoteSupport | null;
     public submodulos: ModuloSubmodulo[];
 
     constructor(options: ModuloEntityOptions) {
@@ -150,6 +168,7 @@ export class ModuloEntity {
             deviceBindingRequests,
             deviceConnectionAudit,
             deviceRuntime,
+            remoteSupport,
             submodulos,
         } = options;
 
@@ -168,6 +187,7 @@ export class ModuloEntity {
         this.deviceBindingRequests = deviceBindingRequests ?? [];
         this.deviceConnectionAudit = deviceConnectionAudit ?? null;
         this.deviceRuntime = deviceRuntime ?? null;
+        this.remoteSupport = remoteSupport ?? null;
         this.submodulos = submodulos ?? [];
     }
 
@@ -189,6 +209,7 @@ export class ModuloEntity {
             deviceBindingRequests,
             deviceConnectionAudit,
             deviceRuntime,
+            remoteSupport,
             submodulos,
         } = object;
 
@@ -220,6 +241,7 @@ export class ModuloEntity {
             deviceBindingRequests: parseDeviceBindingRequests(deviceBindingRequests),
             deviceConnectionAudit: parseDeviceConnectionAudit(deviceConnectionAudit),
             deviceRuntime: parseDeviceRuntime(deviceRuntime),
+            remoteSupport: parseRemoteSupport(remoteSupport),
             submodulos: parseSubmodulos(submodulos),
         });
     }
@@ -439,6 +461,38 @@ function parseDeviceRuntime(value: unknown): ModuloDeviceRuntime | null {
                       "deviceRuntime.lastDisconnectAt",
                   ),
         message: String(runtime.message ?? "").trim() || undefined,
+    };
+}
+
+function parseRemoteSupport(value: unknown): ModuloRemoteSupport | null {
+    if (!value || typeof value !== "object") {
+        return null;
+    }
+
+    const support = value as Record<string, unknown>;
+    const provider = String(support.provider ?? "MESHCENTRAL").trim().toUpperCase();
+    if (provider !== "MESHCENTRAL") {
+        return null;
+    }
+
+    return {
+        provider,
+        enabled: Boolean(support.enabled),
+        deviceName: String(support.deviceName ?? "").trim() || undefined,
+        deviceId: String(support.deviceId ?? "").trim() || undefined,
+        groupId: String(support.groupId ?? "").trim() || undefined,
+        baseUrl: String(support.baseUrl ?? "").trim() || undefined,
+        supportUrl: String(support.supportUrl ?? "").trim() || undefined,
+        desktopUrl: String(support.desktopUrl ?? "").trim() || undefined,
+        terminalUrl: String(support.terminalUrl ?? "").trim() || undefined,
+        linkedAt:
+            support.linkedAt === undefined || support.linkedAt === null
+                ? undefined
+                : toDate(support.linkedAt, "remoteSupport.linkedAt"),
+        updatedAt:
+            support.updatedAt === undefined || support.updatedAt === null
+                ? undefined
+                : toDate(support.updatedAt, "remoteSupport.updatedAt"),
     };
 }
 

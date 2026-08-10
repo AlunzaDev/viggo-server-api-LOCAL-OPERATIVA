@@ -296,6 +296,67 @@ const moduloSubmoduloSchema = new Schema(
     },
 );
 
+const remoteSupportSchema = new Schema(
+    {
+        provider: {
+            type: String,
+            enum: ["MESHCENTRAL"],
+            default: "MESHCENTRAL",
+        },
+        enabled: {
+            type: Boolean,
+            default: false,
+        },
+        deviceName: {
+            type: String,
+            default: "",
+            trim: true,
+        },
+        deviceId: {
+            type: String,
+            default: "",
+            trim: true,
+        },
+        groupId: {
+            type: String,
+            default: "",
+            trim: true,
+        },
+        baseUrl: {
+            type: String,
+            default: "",
+            trim: true,
+        },
+        supportUrl: {
+            type: String,
+            default: "",
+            trim: true,
+        },
+        desktopUrl: {
+            type: String,
+            default: "",
+            trim: true,
+        },
+        terminalUrl: {
+            type: String,
+            default: "",
+            trim: true,
+        },
+        linkedAt: {
+            type: Date,
+            default: null,
+        },
+        updatedAt: {
+            type: Date,
+            default: null,
+        },
+    },
+    {
+        _id: false,
+        versionKey: false,
+    },
+);
+
 const moduloSchema = new Schema(
     {
         nombre: {
@@ -372,6 +433,11 @@ const moduloSchema = new Schema(
         },
         deviceRuntime: {
             type: deviceRuntimeSchema,
+            required: false,
+            default: null,
+        },
+        remoteSupport: {
+            type: remoteSupportSchema,
             required: false,
             default: null,
         },
