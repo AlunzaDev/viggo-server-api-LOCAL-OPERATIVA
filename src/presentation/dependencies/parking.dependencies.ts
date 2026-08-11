@@ -10,6 +10,7 @@ import { TicketController } from "../routes/parking/ticket.controller";
 import { ModuloService } from "../services/parking/modulo.service";
 import { ProyectoService } from "../services/parking/proyecto.service";
 import { TicketService } from "../services/parking/ticket.service";
+import { MeshCentralDeviceResolverService } from "../services/remote-support/meshcentral-device-resolver.service";
 
 const buildModuloRepository = () =>
   new ModuloRepositoryImpl(new ModuloMongoDatasource());
@@ -24,9 +25,15 @@ export const buildModuloService = (): ModuloService =>
   new ModuloService(buildModuloRepository(), buildProyectoRepository());
 
 export const buildModuloController = (): ModuloController => {
-  const service = buildModuloService();
+  const moduloRepository = buildModuloRepository();
+  const proyectoRepository = buildProyectoRepository();
+  const service = new ModuloService(moduloRepository, proyectoRepository);
+  const meshCentralDeviceResolverService = new MeshCentralDeviceResolverService(
+    moduloRepository,
+    proyectoRepository,
+  );
 
-  return new ModuloController(service);
+  return new ModuloController(service, meshCentralDeviceResolverService);
 };
 
 export const buildProyectoController = (): ProyectoController => {

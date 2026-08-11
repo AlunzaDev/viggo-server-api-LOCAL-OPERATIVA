@@ -92,6 +92,41 @@ const administrativoApiUrl = env
   .asString()
   .trim()
   .replace(/\/$/, "");
+const meshCentralLoginUser = env
+  .get("MESHCENTRAL_LOGIN_USER")
+  .default("")
+  .asString()
+  .trim();
+const meshCentralLoginPass = env
+  .get("MESHCENTRAL_LOGIN_PASS")
+  .default("")
+  .asString();
+const meshCentralLoginToken = env
+  .get("MESHCENTRAL_LOGIN_TOKEN")
+  .default("")
+  .asString()
+  .trim();
+const meshCentralLoginKeyFile = env
+  .get("MESHCENTRAL_LOGIN_KEY_FILE")
+  .default("")
+  .asString()
+  .trim();
+const meshCentralMeshCtrlPath = env
+  .get("MESHCENTRAL_MESHCTRL_PATH")
+  .default("")
+  .asString()
+  .trim();
+const meshCentralMeshCtrlMode = env
+  .get("MESHCENTRAL_MESHCTRL_MODE")
+  .default("local")
+  .asString()
+  .trim()
+  .toLowerCase();
+const meshCentralDockerContainer = env
+  .get("MESHCENTRAL_DOCKER_CONTAINER")
+  .default("viggo-meshcentral")
+  .asString()
+  .trim();
 
 for (const origin of corsAllowedOrigins) {
   let parsed: URL;
@@ -173,6 +208,19 @@ export const envs = {
   ),
   PAYMENT_CURRENCY: env.get("PAYMENT_CURRENCY").default("mxn").asString(),
   SYNC_SERVICE_TOKEN: syncServiceToken,
+  MESHCENTRAL_LOGIN_USER: meshCentralLoginUser,
+  MESHCENTRAL_LOGIN_PASS: meshCentralLoginPass,
+  MESHCENTRAL_LOGIN_TOKEN: meshCentralLoginToken,
+  MESHCENTRAL_LOGIN_KEY_FILE: meshCentralLoginKeyFile,
+  MESHCENTRAL_MESHCTRL_PATH: meshCentralMeshCtrlPath,
+  MESHCENTRAL_MESHCTRL_MODE: meshCentralMeshCtrlMode,
+  MESHCENTRAL_DOCKER_CONTAINER: meshCentralDockerContainer,
+  MESHCENTRAL_COMMAND_TIMEOUT_MS: parseBoundedInteger(
+    env.get("MESHCENTRAL_COMMAND_TIMEOUT_MS").asString(),
+    30000,
+    5000,
+    180000,
+  ),
   AUTO_CONFIG_SYNC_ENABLED: env
     .get("AUTO_CONFIG_SYNC_ENABLED")
     .default("true")

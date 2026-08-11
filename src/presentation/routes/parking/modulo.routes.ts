@@ -66,6 +66,13 @@ export class ModuloRoutes {
       moduleAccess,
       controller.reopenDeviceBindingRequest,
     );
+    router.post(
+      "/:id/remote-support/resolve-meshcentral-device",
+      AuthMiddleware.requireAuth,
+      localAdmin,
+      moduleAccess,
+      controller.resolveMeshCentralDevice,
+    );
 
     return router;
   }

@@ -6,6 +6,7 @@ import {
 } from "../../middlewares";
 import { ErrorService } from "../../services/error.service";
 import { ModuloService } from "../../services/parking/modulo.service";
+import { MeshCentralDeviceResolverService } from "../../services/remote-support/meshcentral-device-resolver.service";
 import {
   buildPaginatedResponse,
   paginateArray,
@@ -14,7 +15,10 @@ import {
 import { SocketServerPlugin } from "../../sockets/socket-server";
 
 export class ModuloController {
-  constructor(private readonly moduloService: ModuloService) {}
+  constructor(
+    private readonly moduloService: ModuloService,
+    private readonly meshCentralDeviceResolverService?: MeshCentralDeviceResolverService,
+  ) {}
 
   private readonly moduloTipos = ["ENTRADA", "SALIDA", "POS"] as const;
 
@@ -188,6 +192,27 @@ export class ModuloController {
   rejectDeviceBindingRequest = this.resolveBinding("REJECTED");
   reopenDeviceBindingRequest = this.resolveBinding("PENDING");
 
+  resolveMeshCentralDevice = async (req: Request, res: Response) => {
+    try {
+      if (!this.meshCentralDeviceResolverService) {
+        return res.status(503).json({ error: "Servicio MeshCentral no disponible" });
+      }
+
+      const id = String(req.params.id);
+      const current = await this.moduloService.getModuloById(id);
+      if (!canAccessProjectFromRequest(req, current.proyecto)) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+
+      const result =
+        await this.meshCentralDeviceResolverService.resolveModuleDevice(id);
+
+      return res.status(result.resolved ? 200 : 404).json(result);
+    } catch (error) {
+      return ErrorService.handleApiError(error, res);
+    }
+  };
+
   private resolveBinding(status: "RESET" | "APPROVED" | "REJECTED" | "PENDING") {
     return async (req: Request, res: Response) => {
       try {
@@ -211,8 +236,20 @@ export class ModuloController {
           fingerprint: payload.fingerprint,
           status,
           reason: `${status}_DEVICE_BINDING`,
-          timestamp: new Date().toISOString(),
+            timestamp: new Date().toISOString(),
         });
+
+        if (status === "APPROVED" && this.meshCentralDeviceResolverService) {
+          void this.meshCentralDeviceResolverService
+            .resolveModuleDevice(id)
+            .catch((error) => {
+              console.warn("[OPERATIVO remote-support] No se pudo resolver MeshCentral deviceId:", {
+                moduleId: id,
+                reason: error instanceof Error ? error.message : String(error),
+              });
+            });
+        }
+
         return res.status(200).json({ modulo });
       } catch (error) {
         return ErrorService.handleApiError(error, res);
