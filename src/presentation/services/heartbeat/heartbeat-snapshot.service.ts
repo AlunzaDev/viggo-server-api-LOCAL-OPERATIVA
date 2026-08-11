@@ -1,13 +1,34 @@
 import { envs } from "../../../config";
+import { LocalInstallationModel } from "../../../data/mongo/models/system/local-installation.schema";
 import { ModuloRepository } from "../../../domain/repository/parking/modulo.repository";
 import { ProyectoRepository } from "../../../domain/repository/parking/proyecto.repository";
 import { DEVICE_HEARTBEAT_TIMEOUT_MS } from "../../sockets/device-socket.types";
 import { InstallationIdentityService } from "../installation/installation-identity.service";
+import { InstallationTokenCryptoService } from "../installation/installation-token-crypto.service";
 
 type HeartbeatStatus = "online" | "offline" | "pending";
 
 const buildCloudUrl = (path: string) =>
   `${envs.ADMINISTRATIVO_API_URL.replace(/\/+$/, "")}${path}`;
+
+const getSyncToken = async (): Promise<string> => {
+  const installation = await LocalInstallationModel.findOne({ key: "default" })
+    .select("encryptedSyncToken")
+    .lean();
+  const encryptedSyncToken = String(installation?.encryptedSyncToken ?? "").trim();
+
+  if (encryptedSyncToken) {
+    try {
+      return InstallationTokenCryptoService.decrypt(encryptedSyncToken);
+    } catch (error) {
+      console.warn("[OPERATIVO heartbeat] No se pudo descifrar token de instalacion:", {
+        reason: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return envs.SYNC_SERVICE_TOKEN;
+};
 
 export class HeartbeatSnapshotService {
   constructor(
@@ -53,6 +74,9 @@ export class HeartbeatSnapshotService {
         connectionStatus: runtime?.connectionStatus ?? "PENDING",
         isConnected: Boolean(runtime?.isConnected),
         isAuthorized: Boolean(runtime?.isAuthorized),
+        socketId: runtime?.socketId ?? "",
+        ipAddress: runtime?.ipAddress ?? "",
+        locationLabel: runtime?.locationLabel ?? "",
         lastHeartbeatAt: lastHeartbeatAt || null,
         lastDisconnectAt: runtime?.lastDisconnectAt?.getTime() ?? null,
         connectedAt: runtime?.connectedAt?.getTime() ?? null,
@@ -71,6 +95,8 @@ export class HeartbeatSnapshotService {
           cpuSerial: request.cpuSerial ?? "",
           machineId: request.machineId ?? "",
           primaryMac: request.primaryMac ?? "",
+          ipAddress: request.ipAddress ?? "",
+          locationLabel: request.locationLabel ?? "",
           requestedAt: request.requestedAt?.getTime() ?? null,
           status: request.status,
           resolvedAt: request.resolvedAt?.getTime() ?? null,
@@ -138,15 +164,20 @@ export class HeartbeatSnapshotService {
   }
 
   async syncSnapshot(proyectoId: string) {
-    if (!envs.SYNC_SERVICE_TOKEN) return;
-
     try {
       const installationId = await InstallationIdentityService.getInstallationId();
+      const syncToken = await getSyncToken();
+
+      if (!syncToken) {
+        console.warn("[OPERATIVO heartbeat] Snapshot omitido: no hay token de sincronizacion");
+        return;
+      }
+
       const { snapshot } = await this.buildSnapshot(proyectoId);
       const response = await fetch(buildCloudUrl("/api/sync/heartbeat-snapshot"), {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${envs.SYNC_SERVICE_TOKEN}`,
+          Authorization: `Bearer ${syncToken}`,
           "Content-Type": "application/json",
           "X-Viggo-Installation-Id": installationId,
         },
