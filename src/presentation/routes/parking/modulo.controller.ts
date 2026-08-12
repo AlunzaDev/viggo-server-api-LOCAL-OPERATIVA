@@ -6,7 +6,7 @@ import {
 } from "../../middlewares";
 import { ErrorService } from "../../services/error.service";
 import { ModuloService } from "../../services/parking/modulo.service";
-import { MeshCentralDeviceResolverService } from "../../services/remote-support/meshcentral-device-resolver.service";
+import { RemoteSupportService } from "../../services/remote-support/remote-support.service";
 import {
   buildPaginatedResponse,
   paginateArray,
@@ -17,7 +17,7 @@ import { SocketServerPlugin } from "../../sockets/socket-server";
 export class ModuloController {
   constructor(
     private readonly moduloService: ModuloService,
-    private readonly meshCentralDeviceResolverService?: MeshCentralDeviceResolverService,
+    private readonly remoteSupportService?: RemoteSupportService,
   ) {}
 
   private readonly moduloTipos = ["ENTRADA", "SALIDA", "POS"] as const;
@@ -192,10 +192,10 @@ export class ModuloController {
   rejectDeviceBindingRequest = this.resolveBinding("REJECTED");
   reopenDeviceBindingRequest = this.resolveBinding("PENDING");
 
-  resolveMeshCentralDevice = async (req: Request, res: Response) => {
+  resolveRemoteSupportDevice = async (req: Request, res: Response) => {
     try {
-      if (!this.meshCentralDeviceResolverService) {
-        return res.status(503).json({ error: "Servicio MeshCentral no disponible" });
+      if (!this.remoteSupportService) {
+        return res.status(503).json({ error: "Servicio de soporte remoto no disponible" });
       }
 
       const id = String(req.params.id);
@@ -205,9 +205,43 @@ export class ModuloController {
       }
 
       const result =
-        await this.meshCentralDeviceResolverService.resolveModuleDevice(id);
+        await this.remoteSupportService.resolveModuleDevice(id);
+
+      if (result.resolved && result.modulo?.proyecto) {
+        void this.moduloService
+          .syncHeartbeatSnapshot(result.modulo.proyecto)
+          .catch((error) => {
+            console.warn("[OPERATIVO remote-support] No se pudo sincronizar soporte remoto con ADMIN:", {
+              moduleId: id,
+              reason: error instanceof Error ? error.message : String(error),
+            });
+          });
+      }
 
       return res.status(result.resolved ? 200 : 404).json(result);
+    } catch (error) {
+      return ErrorService.handleApiError(error, res);
+    }
+  };
+
+  createRemoteSupportSessionUrl = async (req: Request, res: Response) => {
+    try {
+      if (!this.remoteSupportService) {
+        return res.status(503).json({ error: "Servicio de soporte remoto no disponible" });
+      }
+
+      const id = String(req.params.id);
+      const current = await this.moduloService.getModuloById(id);
+      if (!canAccessProjectFromRequest(req, current.proyecto)) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+
+      const session = await this.remoteSupportService.createModuleSessionUrl(
+        id,
+        (req.body as Record<string, unknown> | undefined)?.viewMode,
+      );
+
+      return res.status(200).json(session);
     } catch (error) {
       return ErrorService.handleApiError(error, res);
     }
@@ -239,11 +273,17 @@ export class ModuloController {
             timestamp: new Date().toISOString(),
         });
 
-        if (status === "APPROVED" && this.meshCentralDeviceResolverService) {
-          void this.meshCentralDeviceResolverService
+        if (status === "APPROVED" && this.remoteSupportService) {
+          void this.remoteSupportService
             .resolveModuleDevice(id)
+            .then((result) => {
+              if (result.resolved && result.modulo?.proyecto) {
+                return this.moduloService.syncHeartbeatSnapshot(result.modulo.proyecto);
+              }
+              return undefined;
+            })
             .catch((error) => {
-              console.warn("[OPERATIVO remote-support] No se pudo resolver MeshCentral deviceId:", {
+              console.warn("[OPERATIVO remote-support] No se pudo resolver el dispositivo remoto:", {
                 moduleId: id,
                 reason: error instanceof Error ? error.message : String(error),
               });

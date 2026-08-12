@@ -1,4 +1,8 @@
 import { Schema, model } from "mongoose";
+import {
+    DEFAULT_REMOTE_SUPPORT_PROVIDER,
+    REMOTE_SUPPORT_PROVIDERS,
+} from "../../../../domain/entities/parking/remote-support.entity";
 
 const deviceBindingSchema = new Schema(
     {
@@ -300,8 +304,8 @@ const remoteSupportSchema = new Schema(
     {
         provider: {
             type: String,
-            enum: ["MESHCENTRAL"],
-            default: "MESHCENTRAL",
+            enum: REMOTE_SUPPORT_PROVIDERS,
+            default: DEFAULT_REMOTE_SUPPORT_PROVIDER,
         },
         enabled: {
             type: Boolean,

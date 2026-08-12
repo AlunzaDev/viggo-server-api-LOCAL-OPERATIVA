@@ -127,11 +127,15 @@ export class MeshCentralDeviceResolverService {
     const proyecto = await this.proyectoRepository.findById(modulo.proyecto);
     const projectSupport = proyecto?.remoteSupport ?? null;
     const moduleSupport = modulo.remoteSupport ?? null;
+    const provider = moduleSupport?.provider || projectSupport?.provider || "MESHCENTRAL";
+    if (provider !== "MESHCENTRAL") {
+      throw new Error(`El proveedor '${provider}' no es compatible con MeshCentral`);
+    }
     const baseUrl = normalizeText(projectSupport?.baseUrl || moduleSupport?.baseUrl);
     const groupId = normalizeText(projectSupport?.groupId || moduleSupport?.groupId);
 
     if (!baseUrl || !groupId) {
-      throw new Error("El proyecto no tiene URL MeshCentral o groupId configurado");
+      throw new Error("El proyecto no tiene URL de soporte remoto o groupId configurado");
     }
 
     const devices = await this.listDevices(baseUrl);

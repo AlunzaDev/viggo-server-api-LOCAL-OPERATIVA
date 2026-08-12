@@ -1,4 +1,8 @@
 import { CustomError } from "../../errors/custom.error";
+import {
+    parseRemoteSupportProvider,
+    RemoteSupportProvider,
+} from "./remote-support.entity";
 
 export type ModuloTipo = "ENTRADA" | "SALIDA" | "POS";
 export const MODULO_SUBMODULO_TIPOS = [
@@ -96,7 +100,7 @@ export interface ModuloDeviceRuntime {
     message?: string;
 }
 
-export type ModuloRemoteSupportProvider = "MESHCENTRAL";
+export type ModuloRemoteSupportProvider = RemoteSupportProvider;
 
 export interface ModuloRemoteSupport {
     provider: ModuloRemoteSupportProvider;
@@ -470,8 +474,8 @@ function parseRemoteSupport(value: unknown): ModuloRemoteSupport | null {
     }
 
     const support = value as Record<string, unknown>;
-    const provider = String(support.provider ?? "MESHCENTRAL").trim().toUpperCase();
-    if (provider !== "MESHCENTRAL") {
+    const provider = parseRemoteSupportProvider(support.provider);
+    if (!provider) {
         return null;
     }
 

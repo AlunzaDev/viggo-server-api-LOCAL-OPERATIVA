@@ -125,6 +125,10 @@ export class ModuloService {
     return this.heartbeatSnapshotService.buildSnapshot(proyectoId);
   }
 
+  syncHeartbeatSnapshot(proyectoId: string) {
+    return this.heartbeatSnapshotService.syncSnapshot(proyectoId);
+  }
+
   private async withHeartbeatSync(promise: Promise<ModuloEntity>) {
     const modulo = await promise;
     void this.heartbeatSnapshotService.syncSnapshot(modulo.proyecto);

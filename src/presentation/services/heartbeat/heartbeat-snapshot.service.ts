@@ -114,6 +114,21 @@ export class HeartbeatSnapshotService {
               reason: modulo.deviceConnectionAudit.reason ?? "",
             }
           : null,
+        remoteSupport: modulo.remoteSupport
+          ? {
+              provider: modulo.remoteSupport.provider,
+              enabled: modulo.remoteSupport.enabled,
+              deviceName: modulo.remoteSupport.deviceName ?? "",
+              deviceId: modulo.remoteSupport.deviceId ?? "",
+              groupId: modulo.remoteSupport.groupId ?? "",
+              baseUrl: modulo.remoteSupport.baseUrl ?? "",
+              supportUrl: modulo.remoteSupport.supportUrl ?? "",
+              desktopUrl: modulo.remoteSupport.desktopUrl ?? "",
+              terminalUrl: modulo.remoteSupport.terminalUrl ?? "",
+              linkedAt: modulo.remoteSupport.linkedAt?.getTime() ?? null,
+              updatedAt: modulo.remoteSupport.updatedAt?.getTime() ?? null,
+            }
+          : null,
         submodules: modulo.submodulos.map((submodulo) => ({
           id: submodulo.submoduloId,
           nombre: submodulo.nombre,

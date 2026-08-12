@@ -1,4 +1,8 @@
 import { Schema, model } from "mongoose";
+import {
+    DEFAULT_REMOTE_SUPPORT_PROVIDER,
+    REMOTE_SUPPORT_PROVIDERS,
+} from "../../../../domain/entities/parking/remote-support.entity";
 
 const isValidCoordinatePair = (value: unknown): boolean =>
     Array.isArray(value) &&
@@ -83,9 +87,9 @@ const proyectoSchema = new Schema(
         remoteSupport: {
             provider: {
                 type: String,
-                enum: ["MESHCENTRAL"],
+                enum: REMOTE_SUPPORT_PROVIDERS,
                 required: false,
-                default: "MESHCENTRAL",
+                default: DEFAULT_REMOTE_SUPPORT_PROVIDER,
                 trim: true,
                 uppercase: true,
             },

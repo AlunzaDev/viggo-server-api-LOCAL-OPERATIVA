@@ -85,7 +85,11 @@ const installationSecretKey = env
   .default("")
   .asString()
   .trim();
-const syncServiceToken = env.get("SYNC_SERVICE_TOKEN").default("").asString().trim();
+const syncServiceToken = env
+  .get("SYNC_SERVICE_TOKEN")
+  .default("")
+  .asString()
+  .trim();
 const administrativoApiUrl = env
   .get("ADMINISTRATIVO_API_URL")
   .default("http://localhost:3000")
@@ -104,13 +108,15 @@ const meshCentralLoginPass = env
 const meshCentralLoginToken = env
   .get("MESHCENTRAL_LOGIN_TOKEN")
   .default("")
-  .asString()
-  .trim();
+  .asString();
 const meshCentralLoginKeyFile = env
   .get("MESHCENTRAL_LOGIN_KEY_FILE")
   .default("")
-  .asString()
-  .trim();
+  .asString();
+const meshCentralLoginTokenKey = env
+  .get("MESHCENTRAL_LOGIN_TOKEN_KEY")
+  .default("")
+  .asString();
 const meshCentralMeshCtrlPath = env
   .get("MESHCENTRAL_MESHCTRL_PATH")
   .default("")
@@ -135,8 +141,13 @@ for (const origin of corsAllowedOrigins) {
   } catch {
     throw new Error(`Invalid CORS origin: ${origin}`);
   }
-  if (!["http:", "https:"].includes(parsed.protocol) || parsed.origin !== origin) {
-    throw new Error(`CORS origin must be an exact HTTP(S) origin without a path: ${origin}`);
+  if (
+    !["http:", "https:"].includes(parsed.protocol) ||
+    parsed.origin !== origin
+  ) {
+    throw new Error(
+      `CORS origin must be an exact HTTP(S) origin without a path: ${origin}`,
+    );
   }
 }
 
@@ -150,17 +161,23 @@ try {
 }
 
 if (authCookieSameSite === "none" && !authCookieSecure) {
-  throw new Error("AUTH_COOKIE_SECURE must be true when AUTH_COOKIE_SAME_SITE=none.");
+  throw new Error(
+    "AUTH_COOKIE_SECURE must be true when AUTH_COOKIE_SAME_SITE=none.",
+  );
 }
 
 if (isProd) {
   const requireProductionSecret = (name: string, value: string): void => {
     if (value.length < 32) {
-      throw new Error(`${name} must contain at least 32 characters in production.`);
+      throw new Error(
+        `${name} must contain at least 32 characters in production.`,
+      );
     }
   };
   if (corsAllowedOrigins.length === 0) {
-    throw new Error("CORS_ALLOWED_ORIGINS or WEB_CLIENT_URL is required in production.");
+    throw new Error(
+      "CORS_ALLOWED_ORIGINS or WEB_CLIENT_URL is required in production.",
+    );
   }
   if (!authCookieSecure) {
     throw new Error("AUTH_COOKIE_SECURE must be true in production.");
@@ -208,10 +225,13 @@ export const envs = {
   ),
   PAYMENT_CURRENCY: env.get("PAYMENT_CURRENCY").default("mxn").asString(),
   SYNC_SERVICE_TOKEN: syncServiceToken,
+
   MESHCENTRAL_LOGIN_USER: meshCentralLoginUser,
   MESHCENTRAL_LOGIN_PASS: meshCentralLoginPass,
   MESHCENTRAL_LOGIN_TOKEN: meshCentralLoginToken,
   MESHCENTRAL_LOGIN_KEY_FILE: meshCentralLoginKeyFile,
+  MESHCENTRAL_LOGIN_TOKEN_KEY: meshCentralLoginTokenKey,
+
   MESHCENTRAL_MESHCTRL_PATH: meshCentralMeshCtrlPath,
   MESHCENTRAL_MESHCTRL_MODE: meshCentralMeshCtrlMode,
   MESHCENTRAL_DOCKER_CONTAINER: meshCentralDockerContainer,
