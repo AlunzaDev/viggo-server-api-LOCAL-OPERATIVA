@@ -1,11 +1,11 @@
 import { envs } from "../../../config";
 import { CashPaymentSessionEntity } from "../../../domain/entities/payments/cash-payment-session.entity";
 import { CustomError } from "../../../domain/errors/custom.error";
-import { CashRegisterShiftRepository } from "../../../domain/repository/cash-register/cash-register-shift.repository";
-import { TicketRepository } from "../../../domain/repository/parking/ticket.repository";
-import { CashPaymentSessionRepository } from "../../../domain/repository/payments/cash-payment-session.repository";
-import { PaymentRepository } from "../../../domain/repository/payments/payment.repository";
-import { CashTicketPaymentRepository } from "../../../domain/repository/payments/cash-ticket-payment.repository";
+import { CashRegisterShiftRepository } from "../../../domain/repositories/cash-register/cash-register-shift.repository";
+import { TicketRepository } from "../../../domain/repositories/parking/ticket.repository";
+import { CashPaymentSessionRepository } from "../../../domain/repositories/payments/cash-payment-session.repository";
+import { PaymentRepository } from "../../../domain/repositories/payments/payment.repository";
+import { CashTicketPaymentRepository } from "../../../domain/repositories/payments/cash-ticket-payment.repository";
 import { CashRegisterService } from "../cash-register/cash-register.service";
 import { OperationalLogsService } from "../operational-logs/operational-logs.service";
 

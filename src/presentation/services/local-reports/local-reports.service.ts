@@ -1,5 +1,5 @@
 import type { LocalReportsSnapshotPayload } from "../../../domain/datasources/local-reports/local-reports.datasource";
-import { LocalReportsRepository } from "../../../domain/repository/local-reports/local-reports.repository";
+import { LocalReportsRepository } from "../../../domain/repositories/local-reports/local-reports.repository";
 import { ModuloService } from "../parking/modulo.service";
 
 export class LocalReportsService {

@@ -1,8 +1,8 @@
 import type {
   OperationalLogRepository,
-} from "../../../domain/repository/system/operational-log.repository";
+} from "../../../domain/repositories/system/operational-log.repository";
 import type { OperationalLogListResult } from "../../../domain/datasources/system/operational-log.datasource";
-import type { MonthlyFlushRepository } from "../../../domain/repository/system/monthly-flush.repository";
+import type { MonthlyFlushRepository } from "../../../domain/repositories/system/monthly-flush.repository";
 import {
   OperationalLogEntity,
   type OperationalLogKind,
@@ -10,8 +10,8 @@ import {
   type OperationalLogSeverity,
   type OperationalLogSource,
 } from "../../../domain/entities/system/operational-log.entity";
-import type { ModuloRepository } from "../../../domain/repository/parking/modulo.repository";
-import type { ProyectoRepository } from "../../../domain/repository/parking/proyecto.repository";
+import type { ModuloRepository } from "../../../domain/repositories/parking/modulo.repository";
+import type { ProyectoRepository } from "../../../domain/repositories/parking/proyecto.repository";
 import { InstallationIdentityService } from "../installation/installation-identity.service";
 
 export interface CreateOperationalLogInput {

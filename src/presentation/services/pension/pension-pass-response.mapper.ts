@@ -1,8 +1,8 @@
 import { PensionMoveEntity } from "../../../domain/entities/pension/pension-move.entity";
 import { PensionPassEntity } from "../../../domain/entities/pension/pension-pass.entity";
-import { ModuloRepository } from "../../../domain/repository/parking/modulo.repository";
-import { ProyectoRepository } from "../../../domain/repository/parking/proyecto.repository";
-import { PensionRepository } from "../../../domain/repository/pension/pension.repository";
+import { ModuloRepository } from "../../../domain/repositories/parking/modulo.repository";
+import { ProyectoRepository } from "../../../domain/repositories/parking/proyecto.repository";
+import { PensionRepository } from "../../../domain/repositories/pension/pension.repository";
 
 export interface PensionPassCardResponse {
   uid: string;

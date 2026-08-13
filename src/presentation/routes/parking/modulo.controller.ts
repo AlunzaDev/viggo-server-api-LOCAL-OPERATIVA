@@ -6,7 +6,8 @@ import {
 } from "../../middlewares";
 import { ErrorService } from "../../services/error.service";
 import { ModuloService } from "../../services/parking/modulo.service";
-import { RemoteSupportService } from "../../services/remote-support/remote-support.service";
+import { CreateRemoteSupportSessionUrlUseCase } from "../../../application/use-cases/remote-support/create-remote-support-session-url.usecase";
+import { ResolveRemoteSupportDeviceUseCase } from "../../../application/use-cases/remote-support/resolve-remote-support-device.usecase";
 import {
   buildPaginatedResponse,
   paginateArray,
@@ -17,7 +18,8 @@ import { SocketServerPlugin } from "../../sockets/socket-server";
 export class ModuloController {
   constructor(
     private readonly moduloService: ModuloService,
-    private readonly remoteSupportService?: RemoteSupportService,
+    private readonly resolveRemoteSupportDeviceUseCase?: ResolveRemoteSupportDeviceUseCase,
+    private readonly createRemoteSupportSessionUrlUseCase?: CreateRemoteSupportSessionUrlUseCase,
   ) {}
 
   private readonly moduloTipos = ["ENTRADA", "SALIDA", "POS"] as const;
@@ -194,7 +196,7 @@ export class ModuloController {
 
   resolveRemoteSupportDevice = async (req: Request, res: Response) => {
     try {
-      if (!this.remoteSupportService) {
+      if (!this.resolveRemoteSupportDeviceUseCase) {
         return res.status(503).json({ error: "Servicio de soporte remoto no disponible" });
       }
 
@@ -205,7 +207,7 @@ export class ModuloController {
       }
 
       const result =
-        await this.remoteSupportService.resolveModuleDevice(id);
+        await this.resolveRemoteSupportDeviceUseCase.execute(id);
 
       if (result.resolved && result.modulo?.proyecto) {
         void this.moduloService
@@ -226,7 +228,7 @@ export class ModuloController {
 
   createRemoteSupportSessionUrl = async (req: Request, res: Response) => {
     try {
-      if (!this.remoteSupportService) {
+      if (!this.createRemoteSupportSessionUrlUseCase) {
         return res.status(503).json({ error: "Servicio de soporte remoto no disponible" });
       }
 
@@ -236,10 +238,35 @@ export class ModuloController {
         return res.status(403).json({ error: "Forbidden" });
       }
 
-      const session = await this.remoteSupportService.createModuleSessionUrl(
+      const session = await this.createRemoteSupportSessionUrlUseCase.execute(
         id,
         (req.body as Record<string, unknown> | undefined)?.viewMode,
       );
+
+      return res.status(200).json(session);
+    } catch (error) {
+      return ErrorService.handleApiError(error, res);
+    }
+  };
+
+  createProjectRemoteSupportSessionUrl = async (req: Request, res: Response) => {
+    try {
+      if (!this.createRemoteSupportSessionUrlUseCase) {
+        return res.status(503).json({ error: "Servicio de soporte remoto no disponible" });
+      }
+
+      const projectId = typeof req.body?.projectId === "string"
+        ? req.body.projectId.trim()
+        : "";
+      if (!projectId) {
+        return res.status(400).json({ error: "projectId es requerido" });
+      }
+      if (!canAccessProjectFromRequest(req, projectId)) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+
+      const session =
+        await this.createRemoteSupportSessionUrlUseCase.executeForProject(projectId);
 
       return res.status(200).json(session);
     } catch (error) {
@@ -273,9 +300,9 @@ export class ModuloController {
             timestamp: new Date().toISOString(),
         });
 
-        if (status === "APPROVED" && this.remoteSupportService) {
-          void this.remoteSupportService
-            .resolveModuleDevice(id)
+        if (status === "APPROVED" && this.resolveRemoteSupportDeviceUseCase) {
+          void this.resolveRemoteSupportDeviceUseCase
+            .execute(id)
             .then((result) => {
               if (result.resolved && result.modulo?.proyecto) {
                 return this.moduloService.syncHeartbeatSnapshot(result.modulo.proyecto);

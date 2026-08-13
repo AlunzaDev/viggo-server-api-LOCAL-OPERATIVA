@@ -2,8 +2,8 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { envs } from "../../../config";
 import { ModuloEntity } from "../../../domain/entities/parking/modulo.entity";
-import { ModuloRepository } from "../../../domain/repository/parking/modulo.repository";
-import { ProyectoRepository } from "../../../domain/repository/parking/proyecto.repository";
+import { ModuloRepository } from "../../../domain/repositories/parking/modulo.repository";
+import { ProyectoRepository } from "../../../domain/repositories/parking/proyecto.repository";
 
 const execFileAsync = promisify(execFile);
 

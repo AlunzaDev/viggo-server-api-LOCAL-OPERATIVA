@@ -1,5 +1,5 @@
 import type { CashTicketPaymentDatasource } from "../../../domain/datasources/payments/cash-ticket-payment.datasource";
-import { CashTicketPaymentRepository } from "../../../domain/repository/payments/cash-ticket-payment.repository";
+import { CashTicketPaymentRepository } from "../../../domain/repositories/payments/cash-ticket-payment.repository";
 
 export class CashTicketPaymentRepositoryImpl implements CashTicketPaymentRepository {
   constructor(private readonly datasource: CashTicketPaymentDatasource) {}

@@ -1,9 +1,9 @@
 import { JwtPlugin } from "../../../config/plugins/jwt.plugin";
 import { TicketEntity } from "../../../domain/entities/parking/ticket.entity";
 import { CustomError } from "../../../domain/errors/custom.error";
-import { ModuloRepository } from "../../../domain/repository/parking/modulo.repository";
-import { ProyectoRepository } from "../../../domain/repository/parking/proyecto.repository";
-import { TicketRepository } from "../../../domain/repository/parking/ticket.repository";
+import { ModuloRepository } from "../../../domain/repositories/parking/modulo.repository";
+import { ProyectoRepository } from "../../../domain/repositories/parking/proyecto.repository";
+import { TicketRepository } from "../../../domain/repositories/parking/ticket.repository";
 import {
   buildPaginatedResponse,
   paginateArray,

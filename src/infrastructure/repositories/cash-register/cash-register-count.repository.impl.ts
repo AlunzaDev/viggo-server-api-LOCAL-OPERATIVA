@@ -1,6 +1,6 @@
 import { CashRegisterCountDatasource } from "../../../domain/datasources/cash-register/cash-register-count.datasource";
 import { CashRegisterCountEntity } from "../../../domain/entities/cash-register/cash-register-count.entity";
-import { CashRegisterCountRepository } from "../../../domain/repository/cash-register/cash-register-count.repository";
+import { CashRegisterCountRepository } from "../../../domain/repositories/cash-register/cash-register-count.repository";
 
 export class CashRegisterCountRepositoryImpl
   implements CashRegisterCountRepository

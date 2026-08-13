@@ -3,7 +3,7 @@ import {
     ModuloFilters,
 } from "../../../domain/datasources/parking/modulo.datasource";
 import { ModuloEntity } from "../../../domain/entities/parking/modulo.entity";
-import { ModuloRepository } from "../../../domain/repository/parking/modulo.repository";
+import { ModuloRepository } from "../../../domain/repositories/parking/modulo.repository";
 
 export class ModuloRepositoryImpl implements ModuloRepository {
     constructor(private readonly moduloDatasource: ModuloDatasource) {}

@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { AuthRepository } from "../../../domain/repository/auth/auth.repository";
+import { AuthRepository } from "../../../domain/repositories/auth/auth.repository";
 import { ErrorService } from "../../services/error.service";
 
 export class LocalUserController {

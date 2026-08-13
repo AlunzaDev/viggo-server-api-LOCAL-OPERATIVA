@@ -4,7 +4,7 @@ import {
   OperationalLogDatasource,
 } from "../../../domain/datasources/system/operational-log.datasource";
 import { OperationalLogEntity } from "../../../domain/entities/system/operational-log.entity";
-import { OperationalLogRepository } from "../../../domain/repository/system/operational-log.repository";
+import { OperationalLogRepository } from "../../../domain/repositories/system/operational-log.repository";
 
 export class OperationalLogRepositoryImpl implements OperationalLogRepository {
   constructor(private readonly datasource: OperationalLogDatasource) {}

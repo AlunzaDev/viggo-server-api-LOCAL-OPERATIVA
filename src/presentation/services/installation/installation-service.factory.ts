@@ -1,4 +1,4 @@
-import { LocalInstallationRepository } from "../../../domain/repository/installation/local-installation.repository";
+import { LocalInstallationRepository } from "../../../domain/repositories/installation/local-installation.repository";
 import { InstallationIdentityService } from "./installation-identity.service";
 import { LocalInstallationService } from "./local-installation.service";
 

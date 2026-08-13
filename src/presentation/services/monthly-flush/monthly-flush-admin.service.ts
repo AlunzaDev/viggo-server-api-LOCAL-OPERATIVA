@@ -5,8 +5,8 @@ import {
   type MonthlyFlushTriggerType,
 } from "../../../domain/entities/system/monthly-flush-job.entity";
 import { OperationalLogFlushSummaryEntity } from "../../../domain/entities/system/operational-log-flush-summary.entity";
-import type { OperationalLogRepository } from "../../../domain/repository/system/operational-log.repository";
-import type { MonthlyFlushRepository } from "../../../domain/repository/system/monthly-flush.repository";
+import type { OperationalLogRepository } from "../../../domain/repositories/system/operational-log.repository";
+import type { MonthlyFlushRepository } from "../../../domain/repositories/system/monthly-flush.repository";
 import { normalizeFlushSummaryMessage } from "../operational-logs/operational-logs.helpers";
 
 const CONFIG_KEY = "monthly-flush";

@@ -1,6 +1,6 @@
 import { RemoteSupportProvider } from "../../../domain/entities/parking/remote-support.entity";
-import { ModuloRepository } from "../../../domain/repository/parking/modulo.repository";
-import { ProyectoRepository } from "../../../domain/repository/parking/proyecto.repository";
+import { ModuloRepository } from "../../../domain/repositories/parking/modulo.repository";
+import { ProyectoRepository } from "../../../domain/repositories/parking/proyecto.repository";
 import { MeshCentralDeviceResolverService } from "./meshcentral-device-resolver.service";
 import { RemoteSupportProviderAdapter } from "./remote-support-provider-adapter";
 import { MeshCentralSessionUrlService } from "./meshcentral-session-url.service";
@@ -31,6 +31,10 @@ export class RemoteSupportService {
   async createModuleSessionUrl(moduleId: string, viewModeInput: unknown = 10) {
     const adapter = await this.getAdapterForModule(moduleId);
     return adapter.createModuleSessionUrl(moduleId, viewModeInput);
+  }
+
+  async createProjectSessionUrl(projectId: string) {
+    return this.meshCentralSessionUrl.createProjectSessionUrl(projectId);
   }
 
   private async getAdapterForModule(

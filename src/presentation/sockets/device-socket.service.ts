@@ -1,7 +1,7 @@
 import { Server as SocketServer, Socket } from "socket.io";
 import { JwtPlugin } from "../../config/plugins/jwt.plugin";
 import { ModuloService } from "../services/parking/modulo.service";
-import { TicketRepository } from "../../domain/repository/parking/ticket.repository";
+import { TicketRepository } from "../../domain/repositories/parking/ticket.repository";
 import { DeviceRuntimeAccessEventService } from "./device-runtime-access-event.service";
 import { DeviceSessionRegistry } from "./device-session-registry";
 import { DeviceSocketRegistrationService } from "./device-socket-registration.service";

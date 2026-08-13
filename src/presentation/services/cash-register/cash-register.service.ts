@@ -14,11 +14,11 @@ import {
   CashRegisterMovementEntity,
 } from "../../../domain/entities/cash-register/cash-register-movement.entity";
 import { CashRegisterShiftEntity } from "../../../domain/entities/cash-register/cash-register-shift.entity";
-import { CashRegisterCountRepository } from "../../../domain/repository/cash-register/cash-register-count.repository";
-import { CashRegisterCutRepository } from "../../../domain/repository/cash-register/cash-register-cut.repository";
-import { CashRegisterMovementRepository } from "../../../domain/repository/cash-register/cash-register-movement.repository";
-import { CashRegisterModuleRepository } from "../../../domain/repository/cash-register/cash-register-module.repository";
-import { CashRegisterShiftRepository } from "../../../domain/repository/cash-register/cash-register-shift.repository";
+import { CashRegisterCountRepository } from "../../../domain/repositories/cash-register/cash-register-count.repository";
+import { CashRegisterCutRepository } from "../../../domain/repositories/cash-register/cash-register-cut.repository";
+import { CashRegisterMovementRepository } from "../../../domain/repositories/cash-register/cash-register-movement.repository";
+import { CashRegisterModuleRepository } from "../../../domain/repositories/cash-register/cash-register-module.repository";
+import { CashRegisterShiftRepository } from "../../../domain/repositories/cash-register/cash-register-shift.repository";
 
 export interface CashRegisterActorContext {
   userId: string;

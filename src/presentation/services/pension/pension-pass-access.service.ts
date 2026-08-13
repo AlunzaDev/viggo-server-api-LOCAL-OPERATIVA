@@ -3,10 +3,10 @@ import { PensionEntity } from "../../../domain/entities/pension/pension.entity";
 import { PensionMoveTipo } from "../../../domain/entities/pension/pension-move.entity";
 import { PensionPassEntity } from "../../../domain/entities/pension/pension-pass.entity";
 import { CustomError } from "../../../domain/errors/custom.error";
-import { ModuloRepository } from "../../../domain/repository/parking/modulo.repository";
-import { PensionMoveRepository } from "../../../domain/repository/pension/pension-move.repository";
-import { PensionPassRepository } from "../../../domain/repository/pension/pension-pass.repository";
-import { PensionRepository } from "../../../domain/repository/pension/pension.repository";
+import { ModuloRepository } from "../../../domain/repositories/parking/modulo.repository";
+import { PensionMoveRepository } from "../../../domain/repositories/pension/pension-move.repository";
+import { PensionPassRepository } from "../../../domain/repositories/pension/pension-pass.repository";
+import { PensionRepository } from "../../../domain/repositories/pension/pension.repository";
 import { SocketServerPlugin } from "../../sockets/socket-server";
 import {
   PensionMoveResponse,

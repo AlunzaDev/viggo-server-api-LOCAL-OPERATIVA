@@ -2,7 +2,7 @@ import { MonthlyFlushDatasource } from "../../../domain/datasources/system/month
 import { MonthlyFlushConfigEntity } from "../../../domain/entities/system/monthly-flush-config.entity";
 import { MonthlyFlushJobEntity } from "../../../domain/entities/system/monthly-flush-job.entity";
 import { OperationalLogFlushSummaryEntity } from "../../../domain/entities/system/operational-log-flush-summary.entity";
-import { MonthlyFlushRepository } from "../../../domain/repository/system/monthly-flush.repository";
+import { MonthlyFlushRepository } from "../../../domain/repositories/system/monthly-flush.repository";
 
 export class MonthlyFlushRepositoryImpl implements MonthlyFlushRepository {
   constructor(private readonly datasource: MonthlyFlushDatasource) {}

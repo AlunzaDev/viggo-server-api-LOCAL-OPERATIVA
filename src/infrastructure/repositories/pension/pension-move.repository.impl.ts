@@ -1,6 +1,6 @@
 import { PensionMoveDatasource } from "../../../domain/datasources/pension/pension-move.datasource";
 import { PensionMoveEntity } from "../../../domain/entities/pension/pension-move.entity";
-import { PensionMoveRepository } from "../../../domain/repository/pension/pension-move.repository";
+import { PensionMoveRepository } from "../../../domain/repositories/pension/pension-move.repository";
 
 export class PensionMoveRepositoryImpl implements PensionMoveRepository {
     constructor(private readonly pensionMoveDatasource: PensionMoveDatasource) {}

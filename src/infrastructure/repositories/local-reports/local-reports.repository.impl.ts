@@ -2,7 +2,7 @@ import type {
   LocalReportsDatasource,
   LocalReportsSnapshotPayload,
 } from "../../../domain/datasources/local-reports/local-reports.datasource";
-import { LocalReportsRepository } from "../../../domain/repository/local-reports/local-reports.repository";
+import { LocalReportsRepository } from "../../../domain/repositories/local-reports/local-reports.repository";
 
 export class LocalReportsRepositoryImpl implements LocalReportsRepository {
   constructor(private readonly datasource: LocalReportsDatasource) {}

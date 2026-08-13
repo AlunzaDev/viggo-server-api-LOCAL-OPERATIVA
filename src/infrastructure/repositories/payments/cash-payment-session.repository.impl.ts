@@ -1,6 +1,6 @@
 import { CashPaymentSessionDatasource } from "../../../domain/datasources/payments/cash-payment-session.datasource";
 import { CashPaymentSessionEntity } from "../../../domain/entities/payments/cash-payment-session.entity";
-import { CashPaymentSessionRepository } from "../../../domain/repository/payments/cash-payment-session.repository";
+import { CashPaymentSessionRepository } from "../../../domain/repositories/payments/cash-payment-session.repository";
 
 export class CashPaymentSessionRepositoryImpl extends CashPaymentSessionRepository {
   constructor(

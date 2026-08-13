@@ -1,6 +1,6 @@
 import { PermissionProfileDatasource } from "../../../domain/datasources/auth/permission-profile.datasource";
 import { PermissionProfileEntity } from "../../../domain/entities/auth/permission-profile.entity";
-import { PermissionProfileRepository } from "../../../domain/repository/auth/permission-profile.repository";
+import { PermissionProfileRepository } from "../../../domain/repositories/auth/permission-profile.repository";
 
 export class PermissionProfileRepositoryImpl
   implements PermissionProfileRepository

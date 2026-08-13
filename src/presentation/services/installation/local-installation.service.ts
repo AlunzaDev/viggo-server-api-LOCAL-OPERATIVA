@@ -2,7 +2,7 @@ import type {
   LinkLocalProjectPayload,
   LocalInstallationSyncStatePayload,
 } from "../../../domain/datasources/installation/local-installation.datasource";
-import { LocalInstallationRepository } from "../../../domain/repository/installation/local-installation.repository";
+import { LocalInstallationRepository } from "../../../domain/repositories/installation/local-installation.repository";
 
 export class LocalInstallationService {
   constructor(private readonly repository: LocalInstallationRepository) {}

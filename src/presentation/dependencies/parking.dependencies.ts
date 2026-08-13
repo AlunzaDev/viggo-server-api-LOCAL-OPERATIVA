@@ -1,3 +1,6 @@
+import { RemoteSupportService } from "../../application/services/remote-support/remote-support.service";
+import { CreateRemoteSupportSessionUrlUseCase } from "../../application/use-cases/remote-support/create-remote-support-session-url.usecase";
+import { ResolveRemoteSupportDeviceUseCase } from "../../application/use-cases/remote-support/resolve-remote-support-device.usecase";
 import { ModuloMongoDatasource } from "../../infrastructure/datasources/parking/modulo.datasource.mongo";
 import { ProyectoMongoDatasource } from "../../infrastructure/datasources/parking/proyecto.datasource.mongo";
 import { TicketMongoDatasource } from "../../infrastructure/datasources/parking/ticket.datasource.mongo";
@@ -10,7 +13,6 @@ import { TicketController } from "../routes/parking/ticket.controller";
 import { ModuloService } from "../services/parking/modulo.service";
 import { ProyectoService } from "../services/parking/proyecto.service";
 import { TicketService } from "../services/parking/ticket.service";
-import { RemoteSupportService } from "../services/remote-support/remote-support.service";
 
 const buildModuloRepository = () =>
   new ModuloRepositoryImpl(new ModuloMongoDatasource());
@@ -32,10 +34,17 @@ export const buildModuloController = (): ModuloController => {
     moduloRepository,
     proyectoRepository,
   );
+  const resolveRemoteSupportDeviceUseCase = new ResolveRemoteSupportDeviceUseCase(
+    remoteSupportService,
+  );
+  const createRemoteSupportSessionUrlUseCase = new CreateRemoteSupportSessionUrlUseCase(
+    remoteSupportService,
+  );
 
   return new ModuloController(
     service,
-    remoteSupportService,
+    resolveRemoteSupportDeviceUseCase,
+    createRemoteSupportSessionUrlUseCase,
   );
 };
 

@@ -67,6 +67,13 @@ export class ModuloRoutes {
       controller.reopenDeviceBindingRequest,
     );
     router.post(
+      "/remote-support/session-url",
+      AuthMiddleware.requireAuth,
+      localAdmin,
+      moduleAccess,
+      controller.createProjectRemoteSupportSessionUrl,
+    );
+    router.post(
       "/:id/remote-support/resolve-device",
       AuthMiddleware.requireAuth,
       localAdmin,

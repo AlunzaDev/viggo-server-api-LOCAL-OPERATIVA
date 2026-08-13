@@ -1,7 +1,7 @@
 import { randomBytes, createCipheriv } from "node:crypto";
 import { envs } from "../../../config";
-import { ModuloRepository } from "../../../domain/repository/parking/modulo.repository";
-import { ProyectoRepository } from "../../../domain/repository/parking/proyecto.repository";
+import { ModuloRepository } from "../../../domain/repositories/parking/modulo.repository";
+import { ProyectoRepository } from "../../../domain/repositories/parking/proyecto.repository";
 
 type MeshCentralViewMode = 10 | 11 | 12;
 
@@ -93,6 +93,51 @@ export class MeshCentralSessionUrlService {
       expiresInSeconds: 3600,
       deviceId,
       deviceName: normalizeText(moduleSupport?.deviceName) || modulo.nombre,
+    };
+  }
+
+  async createProjectSessionUrl(projectId: string) {
+    if (!envs.MESHCENTRAL_LOGIN_TOKEN_KEY) {
+      throw new Error("MESHCENTRAL_LOGIN_TOKEN_KEY no esta configurado");
+    }
+    if (!envs.MESHCENTRAL_LOGIN_USER) {
+      throw new Error("MESHCENTRAL_LOGIN_USER no esta configurado");
+    }
+
+    const proyecto = await this.proyectoRepository.findById(projectId);
+    if (!proyecto) {
+      throw new Error("Proyecto no encontrado");
+    }
+
+    const projectSupport = proyecto.remoteSupport ?? null;
+    const provider = projectSupport?.provider || "MESHCENTRAL";
+    if (provider !== "MESHCENTRAL") {
+      throw new Error(`El proveedor '${provider}' no es compatible con MeshCentral`);
+    }
+
+    const baseUrl = normalizeText(projectSupport?.baseUrl).replace(/\/+$/, "");
+    if (!baseUrl) {
+      throw new Error("El proyecto no tiene URL de soporte remoto configurada");
+    }
+
+    const loginToken = buildLoginToken(
+      {
+        u: `user//${envs.MESHCENTRAL_LOGIN_USER}`,
+        a: 3,
+      },
+      envs.MESHCENTRAL_LOGIN_TOKEN_KEY,
+    );
+    const loginUrl = new URL(baseUrl);
+    loginUrl.searchParams.set("login", loginToken);
+
+    return {
+      url: loginUrl.toString(),
+      loginUrl: loginUrl.toString(),
+      targetUrl: baseUrl,
+      viewMode: 0,
+      expiresInSeconds: 3600,
+      projectId: proyecto.id,
+      projectName: proyecto.nombre,
     };
   }
 }

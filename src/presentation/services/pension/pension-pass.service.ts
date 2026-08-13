@@ -1,10 +1,10 @@
 import { PensionPassEntity } from "../../../domain/entities/pension/pension-pass.entity";
 import { CustomError } from "../../../domain/errors/custom.error";
-import { ModuloRepository } from "../../../domain/repository/parking/modulo.repository";
-import { ProyectoRepository } from "../../../domain/repository/parking/proyecto.repository";
-import { PensionMoveRepository } from "../../../domain/repository/pension/pension-move.repository";
-import { PensionPassRepository } from "../../../domain/repository/pension/pension-pass.repository";
-import { PensionRepository } from "../../../domain/repository/pension/pension.repository";
+import { ModuloRepository } from "../../../domain/repositories/parking/modulo.repository";
+import { ProyectoRepository } from "../../../domain/repositories/parking/proyecto.repository";
+import { PensionMoveRepository } from "../../../domain/repositories/pension/pension-move.repository";
+import { PensionPassRepository } from "../../../domain/repositories/pension/pension-pass.repository";
+import { PensionRepository } from "../../../domain/repositories/pension/pension.repository";
 import {
   buildPaginatedResponse,
   paginateArray,

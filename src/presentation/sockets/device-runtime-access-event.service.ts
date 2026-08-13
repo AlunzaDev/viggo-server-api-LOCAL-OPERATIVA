@@ -1,5 +1,5 @@
 import { Socket } from "socket.io";
-import { TicketRepository } from "../../domain/repository/parking/ticket.repository";
+import { TicketRepository } from "../../domain/repositories/parking/ticket.repository";
 import { buildOperationalLogsService } from "../dependencies/operational-logs.dependencies";
 import {
   DeviceRuntimeAccessEventPayload,

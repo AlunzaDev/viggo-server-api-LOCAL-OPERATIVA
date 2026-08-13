@@ -1,6 +1,6 @@
 import { CashRegisterCutDatasource } from "../../../domain/datasources/cash-register/cash-register-cut.datasource";
 import { CashRegisterCutEntity } from "../../../domain/entities/cash-register/cash-register-cut.entity";
-import { CashRegisterCutRepository } from "../../../domain/repository/cash-register/cash-register-cut.repository";
+import { CashRegisterCutRepository } from "../../../domain/repositories/cash-register/cash-register-cut.repository";
 
 export class CashRegisterCutRepositoryImpl implements CashRegisterCutRepository {
   constructor(private readonly datasource: CashRegisterCutDatasource) {}

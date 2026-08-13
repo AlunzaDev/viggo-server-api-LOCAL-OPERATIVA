@@ -4,7 +4,7 @@ import {
 } from "../../../domain/entities/parking/modulo.entity";
 import { bcryptPlugin } from "../../../config/plugins/bcrypt.plugin";
 import { CustomError } from "../../../domain/errors/custom.error";
-import { ModuloRepository } from "../../../domain/repository/parking/modulo.repository";
+import { ModuloRepository } from "../../../domain/repositories/parking/modulo.repository";
 import {
   buildDeviceRuntimePayload,
   buildNextDeviceBinding,

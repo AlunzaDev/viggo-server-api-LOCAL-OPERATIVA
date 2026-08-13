@@ -3,7 +3,7 @@ import type {
   ConfigurationSnapshotPayload,
   SyncDatasource,
 } from "../../../domain/datasources/sync/sync.datasource";
-import { SyncRepository } from "../../../domain/repository/sync/sync.repository";
+import { SyncRepository } from "../../../domain/repositories/sync/sync.repository";
 
 export class SyncRepositoryImpl implements SyncRepository {
   constructor(private readonly datasource: SyncDatasource) {}

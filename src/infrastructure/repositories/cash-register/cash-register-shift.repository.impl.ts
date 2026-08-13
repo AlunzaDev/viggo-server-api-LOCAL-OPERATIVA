@@ -3,7 +3,7 @@ import {
   CashRegisterShiftFilters,
 } from "../../../domain/datasources/cash-register/cash-register-shift.datasource";
 import { CashRegisterShiftEntity } from "../../../domain/entities/cash-register/cash-register-shift.entity";
-import { CashRegisterShiftRepository } from "../../../domain/repository/cash-register/cash-register-shift.repository";
+import { CashRegisterShiftRepository } from "../../../domain/repositories/cash-register/cash-register-shift.repository";
 
 export class CashRegisterShiftRepositoryImpl
   implements CashRegisterShiftRepository

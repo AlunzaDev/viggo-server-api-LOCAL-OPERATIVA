@@ -1,6 +1,6 @@
 import { TicketDatasource } from "../../../domain/datasources/parking/ticket.datasource";
 import { TicketEntity } from "../../../domain/entities/parking/ticket.entity";
-import { TicketRepository } from "../../../domain/repository/parking/ticket.repository";
+import { TicketRepository } from "../../../domain/repositories/parking/ticket.repository";
 
 export class TicketRepositoryImpl implements TicketRepository {
     constructor(private readonly ticketDatasource: TicketDatasource) {}

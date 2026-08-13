@@ -1,7 +1,7 @@
 import { envs } from "../../../config";
 import { LocalInstallationModel } from "../../../data/mongo/models/system/local-installation.schema";
-import { ModuloRepository } from "../../../domain/repository/parking/modulo.repository";
-import { ProyectoRepository } from "../../../domain/repository/parking/proyecto.repository";
+import { ModuloRepository } from "../../../domain/repositories/parking/modulo.repository";
+import { ProyectoRepository } from "../../../domain/repositories/parking/proyecto.repository";
 import { DEVICE_HEARTBEAT_TIMEOUT_MS } from "../../sockets/device-socket.types";
 import { InstallationIdentityService } from "../installation/installation-identity.service";
 import { InstallationTokenCryptoService } from "../installation/installation-token-crypto.service";
