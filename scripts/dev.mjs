@@ -1,16 +1,24 @@
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import net from "node:net";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { parse as parseDotenv } from "dotenv";
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(currentDir, "..");
 const tscBin = resolve(projectRoot, "node_modules", "typescript", "bin", "tsc");
 const appEntry = resolve(projectRoot, "dist", "app.js");
-const preferredPort = Number(process.env.PORT ?? 3000);
+const appEnv = (process.env.APP_ENV ?? "dev").trim().toLowerCase();
+const envFile = resolve(projectRoot, `.env.${appEnv}`);
+const fileEnv = existsSync(envFile)
+  ? parseDotenv(readFileSync(envFile))
+  : {};
+const preferredPort = Number(process.env.PORT ?? fileEnv.PORT ?? 3000);
 const fallbackPort = Number(
-  process.env.OPERATIVO_FALLBACK_PORT ?? 3002,
+  process.env.OPERATIVO_FALLBACK_PORT ??
+    fileEnv.OPERATIVO_FALLBACK_PORT ??
+    3002,
 );
 
 process.stdout.write("\x1Bc");

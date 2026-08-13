@@ -145,7 +145,7 @@ Este endpoint hace upsert de usuarios y perfiles enviados por `ADMINISTRATIVO`. 
 `codigoProyecto` es un codigo de 4 digitos generado por `ADMINISTRATIVO` (`0001` a `9999`). `OPERATIVO` no lo genera; solo lo conserva como dato sincronizado para identificar el parking localmente.
 # Nota: puerto local
 
-`OPERATIVO` intenta iniciar en `PORT=3000`. Si ese puerto ya esta ocupado por ADMINISTRATIVO, automaticamente usa `3002`.
+`OPERATIVO` usa el `PORT` configurado en `.env.dev` (por defecto `3002`). Si ese puerto ya esta ocupado, usa `OPERATIVO_FALLBACK_PORT` (por defecto `3005`).
 
 # Nota: consulta directa desde ADMINISTRATIVO
 
