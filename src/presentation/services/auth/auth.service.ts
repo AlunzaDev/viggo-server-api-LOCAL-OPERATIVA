@@ -113,6 +113,16 @@ export class AuthService {
     return this.issueSession(usuario, app);
   }
 
+  async updateBarrierBlasterHighScore(id: string, score: number): Promise<number> {
+    const usuario = await this.authRepository.updateBarrierBlasterHighScore(id, score);
+
+    if (!usuario) {
+      throw CustomError.unauthorized("Usuario no encontrado");
+    }
+
+    return usuario.barrierBlasterHighScore;
+  }
+
   private async login(
     usuario: UsuarioEntity | null,
     password: string,

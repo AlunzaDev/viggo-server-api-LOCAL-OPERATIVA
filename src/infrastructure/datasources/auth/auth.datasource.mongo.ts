@@ -39,6 +39,18 @@ export class AuthMongoDatasource extends AuthDatasource {
     return document ? UsuarioEntity.fromObject(document.toObject()) : null;
   }
 
+  async updateBarrierBlasterHighScore(
+    id: string,
+    score: number,
+  ): Promise<UsuarioEntity | null> {
+    const document = await UsuarioModel.findByIdAndUpdate(
+      id,
+      { $max: { barrierBlasterHighScore: score } },
+      { new: true },
+    );
+    return document ? UsuarioEntity.fromObject(document.toObject()) : null;
+  }
+
   async upsert(usuario: UsuarioEntity): Promise<UsuarioEntity> {
     const { id, ...payload } = usuario;
     const document = await UsuarioModel.findByIdAndUpdate(id, payload, {
@@ -50,7 +62,7 @@ export class AuthMongoDatasource extends AuthDatasource {
   }
 
   async upsertFromAdministrativo(usuario: UsuarioEntity): Promise<UsuarioEntity> {
-    const { id, ...payload } = usuario;
+    const { id, barrierBlasterHighScore: _localHighScore, ...payload } = usuario;
     const now = Date.now();
     const document = await UsuarioModel.findByIdAndUpdate(
       id,

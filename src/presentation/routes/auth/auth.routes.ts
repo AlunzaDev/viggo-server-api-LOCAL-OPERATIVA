@@ -22,6 +22,11 @@ export class AuthRoutes {
     router.post("/login-telefono", controller.loginTelefono);
 
     router.post("/renew", AuthMiddleware.requireAuth, controller.renewToken);
+    router.patch(
+      "/me/barrier-blaster-high-score",
+      AuthMiddleware.requireAuth,
+      controller.updateBarrierBlasterHighScore,
+    );
 
     return router;
   }

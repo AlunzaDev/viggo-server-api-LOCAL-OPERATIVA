@@ -22,6 +22,13 @@ export class AuthRepositoryImpl implements AuthRepository {
     return this.authDatasource.findById(id);
   }
 
+  updateBarrierBlasterHighScore(
+    id: string,
+    score: number,
+  ): Promise<UsuarioEntity | null> {
+    return this.authDatasource.updateBarrierBlasterHighScore(id, score);
+  }
+
   upsert(usuario: UsuarioEntity): Promise<UsuarioEntity> {
     return this.authDatasource.upsert(usuario);
   }

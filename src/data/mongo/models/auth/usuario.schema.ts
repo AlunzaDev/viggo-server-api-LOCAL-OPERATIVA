@@ -133,6 +133,12 @@ const usuarioSchema = new Schema(
       default: false,
     },
 
+    barrierBlasterHighScore: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
     syncSource: {
       type: String,
       default: "administrativo",

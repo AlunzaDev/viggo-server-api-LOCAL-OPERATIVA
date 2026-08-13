@@ -31,6 +31,7 @@ export interface UsuarioEntityOptions {
   img?: string;
   estado: boolean;
   google: boolean;
+  barrierBlasterHighScore: number;
 }
 
 const parseBoolean = (value: unknown, defaultValue = false): boolean => {
@@ -116,6 +117,7 @@ export class UsuarioEntity {
   public img?: string;
   public estado: boolean;
   public google: boolean;
+  public barrierBlasterHighScore: number;
 
   constructor(options: UsuarioEntityOptions) {
     this.id = options.id;
@@ -134,6 +136,7 @@ export class UsuarioEntity {
     this.img = options.img;
     this.estado = options.estado;
     this.google = options.google;
+    this.barrierBlasterHighScore = options.barrierBlasterHighScore;
   }
 
   static fromObject(object: Record<string, unknown>): UsuarioEntity {
@@ -155,6 +158,7 @@ export class UsuarioEntity {
       img,
       estado,
       google,
+      barrierBlasterHighScore,
     } = object;
 
     const usuarioId = id ?? (_id !== undefined ? String(_id) : undefined);
@@ -255,6 +259,13 @@ export class UsuarioEntity {
       estado: parseBoolean(estado, true),
 
       google: parseBoolean(google, false),
+
+      barrierBlasterHighScore:
+        typeof barrierBlasterHighScore === "number" &&
+        Number.isFinite(barrierBlasterHighScore) &&
+        barrierBlasterHighScore > 0
+          ? Math.floor(barrierBlasterHighScore)
+          : 0,
     });
   }
 }
