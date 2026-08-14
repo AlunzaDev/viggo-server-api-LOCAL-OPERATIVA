@@ -14,6 +14,11 @@ import {
   parsePaginationDateQuery,
 } from "../../services/shared/pagination-query";
 import { SocketServerPlugin } from "../../sockets/socket-server";
+import {
+  ModuloTipo,
+  parseModuloTipo,
+} from "../../../domain/entities/parking/module-type.entity";
+import { ModuloEntity } from "../../../domain/entities/parking/modulo.entity";
 
 export class ModuloController {
   constructor(
@@ -21,8 +26,6 @@ export class ModuloController {
     private readonly resolveRemoteSupportDeviceUseCase?: ResolveRemoteSupportDeviceUseCase,
     private readonly createRemoteSupportSessionUrlUseCase?: CreateRemoteSupportSessionUrlUseCase,
   ) {}
-
-  private readonly moduloTipos = ["ENTRADA", "SALIDA", "POS"] as const;
 
   private normalizeText(value: string) {
     return value
@@ -54,16 +57,43 @@ export class ModuloController {
     return null;
   }
 
-  private parseTipos(value: unknown): Array<"ENTRADA" | "SALIDA" | "POS"> | null {
+  private parseTipo(value: unknown): ModuloTipo | null {
+    return parseModuloTipo(value);
+  }
+
+  private parseTipos(value: unknown): ModuloTipo[] | null {
     if (value === undefined) return [];
     const values = Array.isArray(value)
       ? value
       : String(value).split(",").map((item) => item.trim()).filter(Boolean);
-    const normalized = values.map((item) => String(item).trim().toUpperCase());
-    if (normalized.some((item) => !this.moduloTipos.includes(item as never))) {
+    const parsed = values.map((item) => this.parseTipo(item));
+    if (parsed.some((item) => item === null)) {
       return null;
     }
-    return normalized as Array<"ENTRADA" | "SALIDA" | "POS">;
+    return parsed.filter((item): item is ModuloTipo => Boolean(item));
+  }
+
+  private sanitizeModulo(modulo: ModuloEntity) {
+    return {
+      id: modulo.id,
+      nombre: modulo.nombre,
+      proyecto: modulo.proyecto,
+      tipo: modulo.tipo,
+      capabilities: modulo.capabilities,
+      estado: modulo.estado,
+      identificador: modulo.identificador,
+      ip: modulo.ip,
+      mac: modulo.mac,
+      ubicacion: modulo.ubicacion,
+      coordinates: modulo.coordinates,
+      descripcion: modulo.descripcion,
+      deviceBinding: modulo.deviceBinding,
+      deviceBindingRequests: modulo.deviceBindingRequests,
+      deviceConnectionAudit: modulo.deviceConnectionAudit,
+      deviceRuntime: modulo.deviceRuntime,
+      remoteSupport: modulo.remoteSupport,
+      submodulos: modulo.submodulos,
+    };
   }
 
   getModulos = async (req: Request, res: Response) => {
@@ -115,14 +145,15 @@ export class ModuloController {
       }
 
       if (!shouldPaginate) {
-        return res.status(200).json({ modulos });
+        return res.status(200).json({ modulos: modulos.map((modulo) => this.sanitizeModulo(modulo)) });
       }
+      const sanitized = modulos.map((modulo) => this.sanitizeModulo(modulo));
 
       return res.status(200).json(
         buildPaginatedResponse(
           "modulos",
-          paginateArray(modulos, page, limit),
-          modulos.length,
+          paginateArray(sanitized, page, limit),
+          sanitized.length,
           page,
           limit,
         ),
@@ -139,7 +170,7 @@ export class ModuloController {
       if (!isSuperAdminRequest(req)) {
         modulos = modulos.filter((modulo) => allowed.includes(modulo.proyecto));
       }
-      return res.status(200).json({ modulos });
+      return res.status(200).json({ modulos: modulos.map((modulo) => this.sanitizeModulo(modulo)) });
     } catch (error) {
       return ErrorService.handleApiError(error, res);
     }
@@ -151,7 +182,7 @@ export class ModuloController {
       if (!canAccessProjectFromRequest(req, modulo.proyecto)) {
         return res.status(403).json({ error: "Forbidden" });
       }
-      return res.status(200).json({ modulo });
+      return res.status(200).json({ modulo: this.sanitizeModulo(modulo) });
     } catch (error) {
       return ErrorService.handleApiError(error, res);
     }
@@ -178,7 +209,7 @@ export class ModuloController {
       if (!canAccessProjectFromRequest(req, modulo.proyecto)) {
         return res.status(403).json({ error: "Forbidden" });
       }
-      return res.status(200).json({ modulo });
+      return res.status(200).json({ modulo: this.sanitizeModulo(modulo) });
     } catch (error) {
       return ErrorService.handleApiError(error, res);
     }
@@ -317,7 +348,7 @@ export class ModuloController {
             });
         }
 
-        return res.status(200).json({ modulo });
+        return res.status(200).json({ modulo: this.sanitizeModulo(modulo) });
       } catch (error) {
         return ErrorService.handleApiError(error, res);
       }

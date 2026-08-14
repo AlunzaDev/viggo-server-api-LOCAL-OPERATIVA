@@ -1,6 +1,8 @@
-import { ModuloTipo } from "../../entities/parking/modulo.entity";
-
-const MODULO_TIPOS: ModuloTipo[] = ["ENTRADA", "SALIDA", "POS"];
+import {
+    MODULO_TIPOS,
+    ModuloTipo,
+    parseModuloTipo,
+} from "../../entities/parking/module-type.entity";
 
 export class UpdateModuloDto {
     private constructor(
@@ -13,18 +15,18 @@ export class UpdateModuloDto {
     ) {}
 
     static create(body: Record<string, unknown>): [string?, UpdateModuloDto?] {
-        const tipo =
-            typeof body.tipo === "string" ? body.tipo.trim().toUpperCase() : undefined;
-        if (tipo !== undefined && !MODULO_TIPOS.includes(tipo as ModuloTipo)) {
-            return ["'tipo' no es valido"];
+        const parsedTipo = body.tipo === undefined ? undefined : parseModuloTipo(body.tipo);
+        if (body.tipo !== undefined && !parsedTipo) {
+            return [`'tipo' debe ser uno de: ${MODULO_TIPOS.join(", ")}`];
         }
+        const tipo = parsedTipo ?? undefined;
 
         return [
             undefined,
             new UpdateModuloDto(
                 typeof body.nombre === "string" ? body.nombre.trim() : undefined,
                 typeof body.proyecto === "string" ? body.proyecto.trim() : undefined,
-                tipo as ModuloTipo | undefined,
+                tipo,
                 typeof body.identificador === "string"
                     ? body.identificador.trim()
                     : undefined,

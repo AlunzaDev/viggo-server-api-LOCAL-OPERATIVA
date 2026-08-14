@@ -19,6 +19,8 @@ import { CashRegisterCutRepository } from "../../../domain/repositories/cash-reg
 import { CashRegisterMovementRepository } from "../../../domain/repositories/cash-register/cash-register-movement.repository";
 import { CashRegisterModuleRepository } from "../../../domain/repositories/cash-register/cash-register-module.repository";
 import { CashRegisterShiftRepository } from "../../../domain/repositories/cash-register/cash-register-shift.repository";
+import { getModuloTypeCapabilities } from "../../../domain/entities/parking/module-type-capabilities.entity";
+import { parseModuloTipo } from "../../../domain/entities/parking/module-type.entity";
 
 export interface CashRegisterActorContext {
   userId: string;
@@ -472,8 +474,8 @@ export class CashRegisterService {
       throw CustomError.notFound("Caja no encontrada");
     }
 
-    const moduloTipo = modulo.tipo.trim().toUpperCase();
-    if (moduloTipo !== "POS") {
+    const moduloTipo = parseModuloTipo(modulo.tipo);
+    if (!moduloTipo || !getModuloTypeCapabilities(moduloTipo).canChargePayments) {
       throw CustomError.badRequest("El modulo seleccionado no es una caja POS");
     }
 

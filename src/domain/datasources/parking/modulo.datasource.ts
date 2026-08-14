@@ -1,13 +1,19 @@
-import { ModuloEntity, ModuloSubmodulo } from "../../entities/parking/modulo.entity";
+import {
+    ModuloCreateValues,
+    ModuloEntity,
+    ModuloSubmodulo,
+    ModuloUpdateValues,
+} from "../../entities/parking/modulo.entity";
+import { ModuloTipo } from "../../entities/parking/module-type.entity";
 
 export interface ModuloFilters {
     proyecto?: string;
-    tipo?: ModuloEntity["tipo"];
+    tipo?: ModuloTipo;
     estado?: boolean;
 }
 
 export abstract class ModuloDatasource {
-    abstract create(modulo: Omit<ModuloEntity, "id">): Promise<ModuloEntity>;
+    abstract create(modulo: ModuloCreateValues): Promise<ModuloEntity>;
     abstract findById(id: string): Promise<ModuloEntity | null>;
     abstract findByIdentificador(identificador: string): Promise<ModuloEntity | null>;
     abstract getAll(): Promise<ModuloEntity[]>;
@@ -17,7 +23,7 @@ export abstract class ModuloDatasource {
     abstract getSubmodulos(id: string): Promise<ModuloSubmodulo[] | null>;
     abstract update(
         id: string,
-        modulo: Partial<Omit<ModuloEntity, "id">>,
+        modulo: ModuloUpdateValues,
     ): Promise<ModuloEntity | null>;
     abstract resetDeviceBinding(id: string): Promise<ModuloEntity | null>;
     abstract delete(id: string): Promise<ModuloEntity | null>;

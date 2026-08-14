@@ -2,13 +2,17 @@ import {
     ModuloDatasource,
     ModuloFilters,
 } from "../../../domain/datasources/parking/modulo.datasource";
-import { ModuloEntity } from "../../../domain/entities/parking/modulo.entity";
+import {
+    ModuloCreateValues,
+    ModuloEntity,
+    ModuloUpdateValues,
+} from "../../../domain/entities/parking/modulo.entity";
 import { ModuloRepository } from "../../../domain/repositories/parking/modulo.repository";
 
 export class ModuloRepositoryImpl implements ModuloRepository {
     constructor(private readonly moduloDatasource: ModuloDatasource) {}
 
-    create(modulo: Omit<ModuloEntity, "id">): Promise<ModuloEntity> {
+    create(modulo: ModuloCreateValues): Promise<ModuloEntity> {
         return this.moduloDatasource.create(modulo);
     }
 
@@ -42,7 +46,7 @@ export class ModuloRepositoryImpl implements ModuloRepository {
 
     update(
         id: string,
-        modulo: Partial<Omit<ModuloEntity, "id">>,
+        modulo: ModuloUpdateValues,
     ): Promise<ModuloEntity | null> {
         return this.moduloDatasource.update(id, modulo);
     }

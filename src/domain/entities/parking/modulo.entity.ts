@@ -3,8 +3,12 @@ import {
     parseRemoteSupportProvider,
     RemoteSupportProvider,
 } from "./remote-support.entity";
+import { ModuloTipo, parseModuloTipo } from "./module-type.entity";
+import {
+    getModuloTypeCapabilities,
+    ModuloTypeCapabilities,
+} from "./module-type-capabilities.entity";
 
-export type ModuloTipo = "ENTRADA" | "SALIDA" | "POS";
 export const MODULO_SUBMODULO_TIPOS = [
     "QR_SCANNER",
     "PRINTER",
@@ -136,6 +140,10 @@ export interface ModuloEntityOptions {
     submodulos?: ModuloSubmodulo[];
 }
 
+export type ModuloCreateValues = Omit<ModuloEntityOptions, "id">;
+
+export type ModuloUpdateValues = Partial<ModuloCreateValues>;
+
 export class ModuloEntity {
     public id: string;
     public nombre: string;
@@ -195,6 +203,18 @@ export class ModuloEntity {
         this.submodulos = submodulos ?? [];
     }
 
+    get capabilities(): ModuloTypeCapabilities {
+        return getModuloTypeCapabilities(this.tipo);
+    }
+
+    get requiresDeviceBinding(): boolean {
+        return this.capabilities.requiresDeviceBinding;
+    }
+
+    get supportsRemoteSupport(): boolean {
+        return this.capabilities.supportsRemoteSupport;
+    }
+
     static fromObject(object: { [key: string]: unknown }): ModuloEntity {
         const {
             _id,
@@ -218,11 +238,12 @@ export class ModuloEntity {
         } = object;
 
         const moduloId = id || (_id ? String(_id) : undefined);
+        const parsedTipo = parseModuloTipo(tipo);
 
         if (!moduloId) throw CustomError.badRequest("Missing id");
         if (!nombre) throw CustomError.badRequest("Missing nombre");
         if (!proyecto) throw CustomError.badRequest("Missing proyecto");
-        if (!tipo) throw CustomError.badRequest("Missing tipo");
+        if (!parsedTipo) throw CustomError.badRequest("Invalid tipo");
         if (estado === undefined || estado === null) {
             throw CustomError.badRequest("Missing estado");
         }
@@ -232,7 +253,7 @@ export class ModuloEntity {
             id: String(moduloId),
             nombre: String(nombre).trim(),
             proyecto: String(proyecto),
-            tipo: String(tipo) as ModuloTipo,
+            tipo: parsedTipo,
             estado: Boolean(estado),
             identificador: String(identificador).trim(),
             ip: typeof ip === "string" ? ip.trim() || undefined : undefined,

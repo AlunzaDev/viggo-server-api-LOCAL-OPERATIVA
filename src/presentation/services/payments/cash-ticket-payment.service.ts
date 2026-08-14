@@ -8,6 +8,8 @@ import { PaymentRepository } from "../../../domain/repositories/payments/payment
 import { CashTicketPaymentRepository } from "../../../domain/repositories/payments/cash-ticket-payment.repository";
 import { CashRegisterService } from "../cash-register/cash-register.service";
 import { OperationalLogsService } from "../operational-logs/operational-logs.service";
+import { getModuloTypeCapabilities } from "../../../domain/entities/parking/module-type-capabilities.entity";
+import { parseModuloTipo } from "../../../domain/entities/parking/module-type.entity";
 
 export interface CashPaymentActorContext {
   userId: string;
@@ -156,8 +158,8 @@ export class CashTicketPaymentService {
       );
     }
 
-    const moduloTipo = String(modulo.get("tipo") ?? "").trim().toUpperCase();
-    if (moduloTipo !== "POS") {
+    const moduloTipo = parseModuloTipo(modulo.get("tipo"));
+    if (!moduloTipo || !getModuloTypeCapabilities(moduloTipo).canChargePayments) {
       throw CustomError.badRequest("El modulo seleccionado no es un POS");
     }
 

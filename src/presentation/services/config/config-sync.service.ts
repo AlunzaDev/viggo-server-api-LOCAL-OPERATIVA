@@ -13,6 +13,7 @@ import { InstallationIdentityService } from "../installation/installation-identi
 import { LocalInstallationService } from "../installation/local-installation.service";
 import { SyncService } from "../sync/sync.service";
 import { USER_APPS } from "../../../domain/constants";
+import { parseModuloTipo } from "../../../domain/entities/parking/module-type.entity";
 
 type CloudResponse = Record<string, unknown>;
 type SyncStatus = "success" | "success_with_warnings" | "failed";
@@ -269,7 +270,6 @@ export class ConfigSyncService {
   ): Promise<IntegrityResult> {
     const errors: IntegrityIssue[] = [];
     const warnings: IntegrityIssue[] = [];
-    const validModuloTypes = new Set(["ENTRADA", "SALIDA", "POS"]);
     const validSubmoduloTypes = new Set([
       "QR_SCANNER",
       "PRINTER",
@@ -330,7 +330,7 @@ export class ConfigSyncService {
       const tipo = String(modulo.tipo ?? "").trim();
       const identificador = String(modulo.identificador ?? "").trim();
 
-      if (!validModuloTypes.has(tipo)) {
+      if (!parseModuloTipo(tipo)) {
         addIssue(
           "error",
           "modulos",

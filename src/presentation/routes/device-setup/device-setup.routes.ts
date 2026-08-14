@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { ModuloModel } from "../../../data/mongo/models/parking/modulo.schema";
 import { ProyectoModel } from "../../../data/mongo/models/parking/proyecto.schema";
+import { getModuloTypesRequiringDeviceBinding } from "../../../domain/entities/parking/module-type-capabilities.entity";
 
 const serializeDocument = (document: unknown): Record<string, unknown> => {
   if (!document || typeof document !== "object") return {};
@@ -23,7 +24,7 @@ const getProjectModules = (projectId: string) =>
   ModuloModel.find({
     proyecto: projectId,
     estado: { $ne: false },
-    tipo: { $in: ["ENTRADA", "SALIDA"] },
+    tipo: { $in: getModuloTypesRequiringDeviceBinding() },
   }).sort({ identificador: 1, nombre: 1 });
 
 export class DeviceSetupRoutes {
@@ -74,4 +75,3 @@ export class DeviceSetupRoutes {
     return router;
   }
 }
-

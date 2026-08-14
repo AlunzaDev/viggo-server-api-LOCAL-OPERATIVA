@@ -3,10 +3,14 @@ import {
     ModuloDatasource,
     ModuloFilters,
 } from "../../../domain/datasources/parking/modulo.datasource";
-import { ModuloEntity } from "../../../domain/entities/parking/modulo.entity";
+import {
+    ModuloCreateValues,
+    ModuloEntity,
+    ModuloUpdateValues,
+} from "../../../domain/entities/parking/modulo.entity";
 
 export class ModuloMongoDatasource extends ModuloDatasource {
-    async create(modulo: Omit<ModuloEntity, "id">): Promise<ModuloEntity> {
+    async create(modulo: ModuloCreateValues): Promise<ModuloEntity> {
         const moduloDocument = await ModuloModel.create(modulo);
         return ModuloEntity.fromObject(moduloDocument.toObject());
     }
@@ -62,7 +66,7 @@ export class ModuloMongoDatasource extends ModuloDatasource {
 
     async update(
         id: string,
-        modulo: Partial<Omit<ModuloEntity, "id">>,
+        modulo: ModuloUpdateValues,
     ): Promise<ModuloEntity | null> {
         const moduloDocument = await ModuloModel.findByIdAndUpdate(id, modulo, {
             new: true,
