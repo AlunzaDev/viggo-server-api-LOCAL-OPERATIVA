@@ -33,6 +33,16 @@ const parseBooleanQuery = (value: unknown): boolean | undefined | null => {
   return null;
 };
 
+const getIdempotencyKeyFromRequest = (req: Request): string | undefined => {
+  const headerValue = String(req.header("Idempotency-Key") ?? "").trim();
+  if (headerValue) return headerValue;
+
+  const body = req.body as { idempotencyKey?: unknown };
+  return typeof body.idempotencyKey === "string"
+    ? body.idempotencyKey.trim()
+    : undefined;
+};
+
 export class TicketController {
   constructor(private readonly ticketService: TicketService) {}
 
@@ -116,6 +126,7 @@ export class TicketController {
       const ticket = await this.ticketService.createTicketFromModuleToken(
         usuarioId,
         moduleToken.trim(),
+        { idempotencyKey: getIdempotencyKeyFromRequest(req) },
       );
       const legacyTicket =
         await this.ticketService.toLegacyTicketResponse(ticket);
@@ -143,6 +154,7 @@ export class TicketController {
       const ticket = await this.ticketService.killTicketFromModuleToken(
         usuarioId,
         moduleToken.trim(),
+        { idempotencyKey: getIdempotencyKeyFromRequest(req) },
       );
       const legacyTicket =
         await this.ticketService.toLegacyTicketResponse(ticket);

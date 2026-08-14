@@ -26,6 +26,7 @@ export interface DeviceRuntimeAccessEventPayload
   extends RuntimeAccessTrackingPayload {
   event: DeviceRuntimeAccessEventName;
   occurredAt: number;
+  eventId?: string;
 }
 
 export interface DeviceIdentityPayload {

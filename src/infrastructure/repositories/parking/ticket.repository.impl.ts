@@ -17,6 +17,18 @@ export class TicketRepositoryImpl implements TicketRepository {
         return this.ticketDatasource.findByIdBoleto(idBoleto);
     }
 
+    findByIdempotencyKey(
+        idempotencyKey: string,
+    ): Promise<TicketEntity | null> {
+        return this.ticketDatasource.findByIdempotencyKey(idempotencyKey);
+    }
+
+    findByExitIdempotencyKey(
+        idempotencyKey: string,
+    ): Promise<TicketEntity | null> {
+        return this.ticketDatasource.findByExitIdempotencyKey(idempotencyKey);
+    }
+
     getAll(): Promise<TicketEntity[]> {
         return this.ticketDatasource.getAll();
     }

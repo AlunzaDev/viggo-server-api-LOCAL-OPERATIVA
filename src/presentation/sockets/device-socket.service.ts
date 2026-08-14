@@ -58,6 +58,14 @@ export class DeviceSocketService {
       throw new Error("Invalid moduleToken");
     }
 
+    if (String(payload.type ?? "") !== "DEVICE") {
+      throw new Error("Invalid moduleToken type");
+    }
+
+    if (String(payload.aud ?? "") !== "viggo-operative-socket") {
+      throw new Error("Invalid moduleToken audience");
+    }
+
     return moduloId;
   }
 

@@ -21,6 +21,7 @@ import {
 } from "./device-socket.types";
 
 export class SocketServerPlugin {
+  private static readonly allowedRooms = new Set(["Modulos"]);
   private static io?: SocketServer;
   private static moduloService = createModuloService();
   private static registry = new DeviceSessionRegistry();
@@ -82,9 +83,17 @@ export class SocketServerPlugin {
       console.log(`Socket connected: ${socket.id}`);
 
       socket.on("entrarSala", ({ sala }: { sala?: string }) => {
-        if (!sala) return;
-        socket.join(sala);
-        console.log(`Socket ${socket.id} joined room ${sala}`);
+        const requestedRoom = String(sala ?? "").trim();
+        if (!requestedRoom) return;
+        if (!this.allowedRooms.has(requestedRoom)) {
+          console.warn("Socket room join rejected:", {
+            socketId: socket.id,
+            requestedRoom,
+          });
+          return;
+        }
+        socket.join(requestedRoom);
+        console.log(`Socket ${socket.id} joined room ${requestedRoom}`);
       });
 
       socket.on("registrarDispositivo", async (payload, callback) => {

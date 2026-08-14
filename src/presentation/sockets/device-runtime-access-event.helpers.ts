@@ -8,6 +8,7 @@ type TicketPatch = {
   fraudDetectedAt?: number;
   fraudReason?: string;
   status?: "ACTIVE" | "COMPLETED" | "FRAUD";
+  runtimeEventIds?: string[];
 };
 
 const isFiniteTimestamp = (value: number) => Number.isFinite(value) && value > 0;

@@ -77,6 +77,20 @@ const ticketSchema = new Schema(
             default: "",
             trim: true,
         },
+        idempotencyKey: {
+            type: String,
+            trim: true,
+            default: undefined,
+        },
+        exitIdempotencyKey: {
+            type: String,
+            trim: true,
+            default: undefined,
+        },
+        runtimeEventIds: {
+            type: [String],
+            default: [],
+        },
     },
     {
         versionKey: false,
@@ -87,6 +101,25 @@ const ticketSchema = new Schema(
                 delete serialized._id;
                 return serialized;
             },
+        },
+    },
+);
+
+ticketSchema.index(
+    { idempotencyKey: 1 },
+    {
+        unique: true,
+        partialFilterExpression: {
+            idempotencyKey: { $type: "string" },
+        },
+    },
+);
+ticketSchema.index(
+    { exitIdempotencyKey: 1 },
+    {
+        unique: true,
+        partialFilterExpression: {
+            exitIdempotencyKey: { $type: "string" },
         },
     },
 );

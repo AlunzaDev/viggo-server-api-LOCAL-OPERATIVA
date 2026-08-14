@@ -19,6 +19,9 @@ export interface TicketEntityOptions {
     barrierConfirmedAt?: number;
     fraudDetectedAt?: number;
     fraudReason?: string;
+    idempotencyKey?: string;
+    exitIdempotencyKey?: string;
+    runtimeEventIds?: string[];
 }
 
 export class TicketEntity {
@@ -40,6 +43,9 @@ export class TicketEntity {
     public barrierConfirmedAt: number;
     public fraudDetectedAt: number;
     public fraudReason: string;
+    public idempotencyKey?: string;
+    public exitIdempotencyKey?: string;
+    public runtimeEventIds?: string[];
 
     constructor(options: TicketEntityOptions) {
         const {
@@ -61,6 +67,9 @@ export class TicketEntity {
             barrierConfirmedAt,
             fraudDetectedAt,
             fraudReason,
+            idempotencyKey,
+            exitIdempotencyKey,
+            runtimeEventIds,
         } = options;
 
         this.id = id;
@@ -81,6 +90,11 @@ export class TicketEntity {
         this.barrierConfirmedAt = barrierConfirmedAt ?? -1;
         this.fraudDetectedAt = fraudDetectedAt ?? -1;
         this.fraudReason = fraudReason ?? "";
+        this.idempotencyKey = idempotencyKey?.trim() || undefined;
+        this.exitIdempotencyKey = exitIdempotencyKey?.trim() || undefined;
+        this.runtimeEventIds = Array.isArray(runtimeEventIds)
+            ? runtimeEventIds.map((value) => String(value).trim()).filter(Boolean)
+            : [];
     }
 
     static fromObject(object: { [key: string]: unknown }): TicketEntity {
@@ -104,6 +118,9 @@ export class TicketEntity {
             barrierConfirmedAt,
             fraudDetectedAt,
             fraudReason,
+            idempotencyKey,
+            exitIdempotencyKey,
+            runtimeEventIds,
         } = object;
 
         const ticketId = id || (_id ? String(_id) : undefined);
@@ -166,6 +183,17 @@ export class TicketEntity {
                     ? -1
                     : Number(fraudDetectedAt),
             fraudReason: typeof fraudReason === "string" ? fraudReason : "",
+            idempotencyKey:
+                typeof idempotencyKey === "string"
+                    ? idempotencyKey.trim()
+                    : undefined,
+            exitIdempotencyKey:
+                typeof exitIdempotencyKey === "string"
+                    ? exitIdempotencyKey.trim()
+                    : undefined,
+            runtimeEventIds: Array.isArray(runtimeEventIds)
+                ? runtimeEventIds.map((value) => String(value).trim()).filter(Boolean)
+                : [],
         });
     }
 }

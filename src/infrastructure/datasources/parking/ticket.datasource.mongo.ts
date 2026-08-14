@@ -22,6 +22,26 @@ export class TicketMongoDatasource extends TicketDatasource {
         return TicketEntity.fromObject(ticketDocument.toObject());
     }
 
+    async findByIdempotencyKey(
+        idempotencyKey: string,
+    ): Promise<TicketEntity | null> {
+        const ticketDocument = await TicketModel.findOne({ idempotencyKey });
+        if (!ticketDocument) return null;
+
+        return TicketEntity.fromObject(ticketDocument.toObject());
+    }
+
+    async findByExitIdempotencyKey(
+        idempotencyKey: string,
+    ): Promise<TicketEntity | null> {
+        const ticketDocument = await TicketModel.findOne({
+            exitIdempotencyKey: idempotencyKey,
+        });
+        if (!ticketDocument) return null;
+
+        return TicketEntity.fromObject(ticketDocument.toObject());
+    }
+
     async getAll(): Promise<TicketEntity[]> {
         const tickets = await TicketModel.find();
         return tickets.map((ticket) => TicketEntity.fromObject(ticket.toObject()));

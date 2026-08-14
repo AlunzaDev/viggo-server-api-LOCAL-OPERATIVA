@@ -147,28 +147,6 @@ export class DeviceSocketRuntimeService {
       );
     }
 
-    this.registry.touchSession(authorizedConnection.socketId);
-    await operationalLogsService.logEvent({
-      scope: "access_flow",
-      type: "barrier_open_requested",
-      moduloId,
-      ticketId: payload?.accessTracking?.ticketId,
-      flowId: payload?.accessTracking?.ticketId,
-      source: "backend",
-      message: "Se solicito la apertura de barrera al dispositivo autorizado.",
-      metadata: {
-        accessTracking: payload?.accessTracking,
-        socketId: authorizedConnection.socketId,
-        fingerprint: authorizedConnection.fingerprint,
-      },
-    });
-
-    console.log("Open barrier authorized connection validated:", {
-      moduloId,
-      socketId: authorizedConnection.socketId,
-      fingerprint: authorizedConnection.fingerprint,
-    });
-
     const socket = io.sockets.sockets.get(authorizedConnection.socketId);
 
     if (!socket) {
@@ -203,6 +181,35 @@ export class DeviceSocketRuntimeService {
       );
       return;
     }
+
+    await this.assertAuthorizedSocketState(
+      moduloId,
+      socket,
+      authorizedConnection.fingerprint,
+      payload,
+    );
+
+    this.registry.touchSession(authorizedConnection.socketId);
+    await operationalLogsService.logEvent({
+      scope: "access_flow",
+      type: "barrier_open_requested",
+      moduloId,
+      ticketId: payload?.accessTracking?.ticketId,
+      flowId: payload?.accessTracking?.ticketId,
+      source: "backend",
+      message: "Se solicito la apertura de barrera al dispositivo autorizado.",
+      metadata: {
+        accessTracking: payload?.accessTracking,
+        socketId: authorizedConnection.socketId,
+        fingerprint: authorizedConnection.fingerprint,
+      },
+    });
+
+    console.log("Open barrier authorized connection validated:", {
+      moduloId,
+      socketId: authorizedConnection.socketId,
+      fingerprint: authorizedConnection.fingerprint,
+    });
 
     const response = await this.emitOpenBarrier(socket, payload);
 
@@ -435,5 +442,60 @@ export class DeviceSocketRuntimeService {
           },
         );
     });
+  }
+
+  private async assertAuthorizedSocketState(
+    moduloId: string,
+    socket: Socket,
+    approvedFingerprint: string,
+    payload?: OpenBarrierCommandPayload,
+  ): Promise<void> {
+    const socketModuloId =
+      typeof socket.data.moduloId === "string" ? socket.data.moduloId : "";
+    const socketFingerprint =
+      typeof socket.data.deviceFingerprint === "string"
+        ? socket.data.deviceFingerprint
+        : "";
+    const socketApproved = Boolean(socket.data.deviceApproved);
+
+    if (
+      !socketApproved ||
+      socketModuloId !== moduloId ||
+      socketFingerprint !== approvedFingerprint
+    ) {
+      this.registry.deleteAuthorizedConnection(moduloId);
+      this.registry.deleteSession(socket.id);
+      await operationalLogsService.logIncident({
+        scope: "access_flow",
+        type: "barrier_command_socket_mismatch",
+        severity: "critical",
+        moduloId,
+        ticketId: payload?.accessTracking?.ticketId,
+        flowId: payload?.accessTracking?.ticketId,
+        source: "backend",
+        message: "Se rechazo apertura de barrera porque el socket no coincide con la sesion autorizada.",
+        metadata: {
+          socketId: socket.id,
+          socketModuloId,
+          expectedModuloId: moduloId,
+          socketFingerprint,
+          expectedFingerprint: approvedFingerprint,
+          socketApproved,
+          accessTracking: payload?.accessTracking,
+        },
+      });
+      throw CustomError.forbidden(
+        "El socket del dispositivo no coincide con la sesion autorizada",
+        {
+          moduloId,
+          socketId: socket.id,
+          socketModuloId,
+          socketFingerprint,
+          approvedFingerprint,
+          socketApproved,
+        },
+        "AUTHORIZED_SOCKET_MISMATCH",
+      );
+    }
   }
 }

@@ -62,7 +62,21 @@ export class DeviceRuntimeAccessEventService {
         return;
       }
 
+      if (
+        normalizedPayload.eventId &&
+        (ticket.runtimeEventIds ?? []).includes(normalizedPayload.eventId)
+      ) {
+        callback?.({ ok: true });
+        return;
+      }
+
       const patch = buildRuntimeAccessTicketPatch(ticket, normalizedPayload);
+      if (normalizedPayload.eventId) {
+        patch.runtimeEventIds = [
+          ...(ticket.runtimeEventIds ?? []),
+          normalizedPayload.eventId,
+        ].slice(-50);
+      }
       await this.ticketRepository.update(ticket.id, patch);
       await this.logRuntimeEvent(normalizedPayload, ticket.proyecto, moduloId);
 
@@ -83,6 +97,7 @@ export class DeviceRuntimeAccessEventService {
     const moduleId = String(payload?.moduleId ?? "").trim();
     const kind = payload?.kind === "ticket" ? "ticket" : "";
     const event = String(payload?.event ?? "").trim();
+    const eventId = String(payload?.eventId ?? "").trim();
     const occurredAt = Number(payload?.occurredAt ?? 0);
     const mode = payload?.mode === "salida" ? "salida" : "entrada";
 
@@ -103,6 +118,7 @@ export class DeviceRuntimeAccessEventService {
       mode,
       event: event as DeviceRuntimeAccessEventPayload["event"],
       occurredAt,
+      eventId: eventId || undefined,
     };
   }
 
@@ -125,6 +141,7 @@ export class DeviceRuntimeAccessEventService {
         metadata: {
           mode: payload.mode,
           occurredAt: payload.occurredAt,
+          eventId: payload.eventId,
         },
       });
       return;
@@ -144,6 +161,7 @@ export class DeviceRuntimeAccessEventService {
         metadata: {
           mode: payload.mode,
           occurredAt: payload.occurredAt,
+          eventId: payload.eventId,
         },
       });
       return;
@@ -162,6 +180,7 @@ export class DeviceRuntimeAccessEventService {
       metadata: {
         mode: payload.mode,
         occurredAt: payload.occurredAt,
+        eventId: payload.eventId,
       },
     });
     await operationalLogsService.logIncident({
@@ -177,6 +196,7 @@ export class DeviceRuntimeAccessEventService {
       metadata: {
         mode: payload.mode,
         occurredAt: payload.occurredAt,
+        eventId: payload.eventId,
       },
     });
   }

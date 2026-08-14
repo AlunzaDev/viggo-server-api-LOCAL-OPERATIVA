@@ -62,7 +62,11 @@ export class MobileCommandService {
       const moduleToken = String(operation.payload.moduleToken ?? "").trim();
       if (!moduleToken) throw CustomError.badRequest("moduleToken es requerido");
       const existing = await this.ticketService.getActiveTicketByUsuario(operation.userId);
-      const ticket = existing ?? await this.ticketService.createTicketFromModuleToken(operation.userId, moduleToken);
+      const ticket = existing ?? await this.ticketService.createTicketFromModuleToken(
+        operation.userId,
+        moduleToken,
+        { idempotencyKey: `mobile:${operation.operationId}` },
+      );
       return { ticket: await this.ticketService.toLegacyTicketResponse(ticket) };
     }
 
@@ -83,7 +87,11 @@ export class MobileCommandService {
 
     if (operation.type === "EXIT_TICKET") {
       const moduleToken = String(operation.payload.moduleToken ?? "").trim();
-      const ticket = await this.ticketService.killTicketFromModuleToken(operation.userId, moduleToken);
+      const ticket = await this.ticketService.killTicketFromModuleToken(
+        operation.userId,
+        moduleToken,
+        { idempotencyKey: `mobile:${operation.operationId}` },
+      );
       return { ticket: await this.ticketService.toLegacyTicketResponse(ticket) };
     }
 

@@ -15,6 +15,8 @@ import { buildOperationalLogsService } from "../../dependencies/operational-logs
 
 const operationalLogsService = buildOperationalLogsService();
 
+const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9._:-]{16,128}$/;
+
 interface LegacyTicketResponse {
   uid: string;
   proyecto: {
@@ -82,7 +84,18 @@ export class TicketService {
   async createTicketFromModuleToken(
     usuarioId: string,
     moduleToken: string,
+    options: { idempotencyKey?: string } = {},
   ): Promise<TicketEntity> {
+    const idempotencyKey = this.normalizeIdempotencyKey(
+      options.idempotencyKey,
+    );
+    if (idempotencyKey) {
+      const existingTicket = await this.ticketRepository.findByExitIdempotencyKey(
+        idempotencyKey,
+      );
+      if (existingTicket) return existingTicket;
+    }
+
     const moduloId = await this.getModuloIdFromToken(moduleToken);
     const modulo = await this.moduloRepository.findById(moduloId);
 
@@ -96,27 +109,44 @@ export class TicketService {
       throw CustomError.badRequest("El proyecto asociado no existe");
     }
 
-    const ticket = await this.createTicket({
-      proyecto: proyecto.id,
-      entrada: modulo.id,
-      usuario: usuarioId,
-      idBoleto: this.createIdBoleto(
-        proyecto.identificador,
-        modulo.identificador,
-      ),
-      horaInicio: Date.now(),
-      horaConsulta: -1,
-      horaCobro: -1,
-      horaSalida: -1,
-      duracion: 0,
-      monto: 0,
-      pagado: false,
-      status: "ACTIVE",
-      barrierOpenedAt: -1,
-      barrierConfirmedAt: -1,
-      fraudDetectedAt: -1,
-      fraudReason: "",
-    });
+    let ticket: TicketEntity;
+    try {
+      ticket = await this.createTicket({
+        proyecto: proyecto.id,
+        entrada: modulo.id,
+        usuario: usuarioId,
+        idBoleto: this.createIdBoleto(
+          proyecto.identificador,
+          modulo.identificador,
+        ),
+        horaInicio: Date.now(),
+        horaConsulta: -1,
+        horaCobro: -1,
+        horaSalida: -1,
+        duracion: 0,
+        monto: 0,
+        pagado: false,
+        status: "ACTIVE",
+        barrierOpenedAt: -1,
+        barrierConfirmedAt: -1,
+        fraudDetectedAt: -1,
+        fraudReason: "",
+        idempotencyKey,
+      });
+    } catch (error) {
+      const duplicateKeyError =
+        idempotencyKey &&
+        typeof error === "object" &&
+        error !== null &&
+        (error as { code?: number }).code === 11000;
+      if (duplicateKeyError) {
+        const existingTicket = await this.ticketRepository.findByIdempotencyKey(
+          idempotencyKey,
+        );
+        if (existingTicket) return existingTicket;
+      }
+      throw error;
+    }
     await operationalLogsService.logEvent({
       scope: "access_flow",
       type: "ticket_created",
@@ -133,6 +163,7 @@ export class TicketService {
         idBoleto: ticket.idBoleto,
         usuarioId,
         moduleTokenUsed: true,
+        idempotencyKey,
       },
     });
 
@@ -174,7 +205,18 @@ export class TicketService {
   async killTicketFromModuleToken(
     usuarioId: string,
     moduleToken: string,
+    options: { idempotencyKey?: string } = {},
   ): Promise<TicketEntity> {
+    const idempotencyKey = this.normalizeIdempotencyKey(
+      options.idempotencyKey,
+    );
+    if (idempotencyKey) {
+      const existingTicket = await this.ticketRepository.findByIdempotencyKey(
+        idempotencyKey,
+      );
+      if (existingTicket) return existingTicket;
+    }
+
     const ticket = await this.ticketRepository.getActiveByUsuario(usuarioId);
 
     if (!ticket || !ticket.pagado) {
@@ -202,6 +244,7 @@ export class TicketService {
       metadata: {
         idBoleto: ticket.idBoleto,
         usuarioId,
+        idempotencyKey,
       },
     });
 
@@ -219,6 +262,7 @@ export class TicketService {
       salida: modulo.id,
       horaSalida: Date.now(),
       status: "COMPLETED",
+      exitIdempotencyKey: idempotencyKey,
     });
   }
 
@@ -366,6 +410,19 @@ export class TicketService {
     }
 
     return moduloId;
+  }
+
+  private normalizeIdempotencyKey(value?: string): string | undefined {
+    const idempotencyKey = typeof value === "string" ? value.trim() : "";
+    if (!idempotencyKey) return undefined;
+    if (!IDEMPOTENCY_KEY_PATTERN.test(idempotencyKey)) {
+      throw CustomError.badRequest(
+        "'idempotencyKey' debe tener entre 16 y 128 caracteres validos",
+        { idempotencyKey },
+        "INVALID_IDEMPOTENCY_KEY",
+      );
+    }
+    return idempotencyKey;
   }
 
   private createIdBoleto(
