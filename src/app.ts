@@ -4,6 +4,7 @@ import { buildMonthlyFlushScheduler } from "./presentation/dependencies/monthly-
 import { AppRoutes } from "./presentation/routes/routes";
 import { Server } from "./presentation/server";
 import { buildMobileCommandScheduler } from "./presentation/dependencies/mobile.dependencies";
+import { buildOutboxScheduler } from "./presentation/dependencies/outbox.dependencies";
 
 process.on("unhandledRejection", (reason) => {
     console.error("[UNHANDLED REJECTION]", reason);
@@ -19,6 +20,7 @@ const bootstrap = async () => {
 const configSyncScheduler = buildConfigSyncScheduler();
 const monthlyFlushScheduler = buildMonthlyFlushScheduler();
 const mobileCommandScheduler = buildMobileCommandScheduler();
+const outboxScheduler = buildOutboxScheduler();
 const server = new Server({
   host: envs.HOST,
   port: envs.PORT,
@@ -29,6 +31,7 @@ const server = new Server({
     await server.start();
     configSyncScheduler.start();
     mobileCommandScheduler.start();
+    outboxScheduler.start();
     await monthlyFlushScheduler.start();
 };
 

@@ -6,6 +6,7 @@ export * from "./payments.dependencies";
 export * from "./pension.dependencies";
 export * from "./installation.dependencies";
 export * from "./health.dependencies";
+export * from "./outbox.dependencies";
 export * from "./sync.dependencies";
 export * from "./local-reports.dependencies";
 export * from "./operational-logs.dependencies";

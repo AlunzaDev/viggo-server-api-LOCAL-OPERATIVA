@@ -285,6 +285,20 @@ export const envs = {
     0,
     300000,
   ),
+  // Delivery of the local outbox to ADMINISTRATIVO (offline-first).
+  OUTBOX_SYNC_ENABLED: env.get("OUTBOX_SYNC_ENABLED").default("false").asBool(),
+  OUTBOX_SYNC_INTERVAL_MS: parseBoundedInteger(
+    env.get("OUTBOX_SYNC_INTERVAL_MS").asString(),
+    5000,
+    1000,
+    300000,
+  ),
+  OUTBOX_RETENTION_DAYS: parseBoundedInteger(
+    env.get("OUTBOX_RETENTION_DAYS").asString(),
+    30,
+    1,
+    365,
+  ),
   MONTHLY_FLUSH_SCHEDULER_INTERVAL_MS: parseBoundedInteger(
     env.get("MONTHLY_FLUSH_SCHEDULER_INTERVAL_MS").asString(),
     300000,
