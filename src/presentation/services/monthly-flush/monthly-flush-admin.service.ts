@@ -11,6 +11,12 @@ import { normalizeFlushSummaryMessage } from "../operational-logs/operational-lo
 
 const CONFIG_KEY = "monthly-flush";
 const DAY_MS = 24 * 60 * 60 * 1000;
+/**
+ * A flush takes seconds; a job still `running` after this long was interrupted (the
+ * server went down mid-flush) and would block every later flush. The flush is
+ * idempotent, so it is safe to mark it failed and run again.
+ */
+export const STALE_RUNNING_FLUSH_MS = 30 * 60 * 1000;
 
 export type MonthlyFlushStatusResponse = {
   enabled: boolean;
@@ -225,6 +231,10 @@ export class MonthlyFlushAdminService {
       triggerType: MonthlyFlushTriggerType;
     },
   ) {
+    await this.repository.failStaleRunningJobs(
+      Date.now() - STALE_RUNNING_FLUSH_MS,
+      "Flush interrumpido: seguia en ejecucion despues del tiempo limite",
+    );
     const runningJob = await this.repository.findRunningJob();
     if (runningJob) {
       throw CustomError.badRequest("Ya hay un flush en ejecucion");

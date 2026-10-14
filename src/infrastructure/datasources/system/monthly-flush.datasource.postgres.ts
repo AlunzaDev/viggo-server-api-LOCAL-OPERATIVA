@@ -98,6 +98,14 @@ export class MonthlyFlushPostgresDatasource implements MonthlyFlushDatasource {
     return row ? toJobEntity(row) : null;
   }
 
+  async failStaleRunningJobs(startedBefore: number, error: string): Promise<number> {
+    const { count } = await this.db.monthlyFlushJob.updateMany({
+      where: { status: "running", startedAt: { lt: new Date(startedBefore) } },
+      data: { status: "failed", completedAt: new Date(), error },
+    });
+    return count;
+  }
+
   async listRecentJobs(limit: number): Promise<MonthlyFlushJobEntity[]> {
     const rows = await this.db.monthlyFlushJob.findMany({ orderBy: { startedAt: "desc" }, take: limit });
     return rows.map(toJobEntity);

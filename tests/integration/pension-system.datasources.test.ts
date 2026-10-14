@@ -10,7 +10,7 @@ import { OperationalLogPostgresDatasource } from "../../src/infrastructure/datas
 import { PostgresTransactionRunner } from "../../src/infrastructure/datasources/system/transaction-runner.postgres";
 import { MonthlyFlushRepositoryImpl } from "../../src/infrastructure/repositories/system/monthly-flush.repository.impl";
 import { OperationalLogRepositoryImpl } from "../../src/infrastructure/repositories/system/operational-log.repository.impl";
-import { MonthlyFlushAdminService } from "../../src/presentation/services/monthly-flush/monthly-flush-admin.service";
+import { MonthlyFlushAdminService, STALE_RUNNING_FLUSH_MS } from "../../src/presentation/services/monthly-flush/monthly-flush-admin.service";
 
 const db = () => PostgresDatabase.client;
 const moves = new PensionMovePostgresDatasource();
@@ -157,6 +157,24 @@ describe("pension passages, logs, flush and installation (Postgres)", () => {
       const running = await flush.createJob(job);
       await expect(flush.createJob(job)).rejects.toThrow("Ya hay un flush en ejecucion");
       await flush.updateJob({ ...running, status: "failed", completedAt: Date.now(), error: "test" });
+      expect(await flush.findRunningJob()).toBeNull();
+    });
+
+    it("does not let an interrupted flush block the next ones", async () => {
+      const service = new MonthlyFlushAdminService(new MonthlyFlushRepositoryImpl(flush), new OperationalLogRepositoryImpl(logs));
+      const job = { monthKey: MONTH, triggerType: "manual" as const, status: "running" as const, completedAt: null, error: null, summary: null };
+
+      // A flush that is still running (recent) blocks a new one.
+      const recent = await flush.createJob({ ...job, startedAt: Date.now() });
+      await expect(service.runManual({ monthKey: MONTH })).rejects.toThrow("Ya hay un flush en ejecucion");
+      await flush.updateJob({ ...recent, status: "failed", completedAt: Date.now(), error: "test" });
+
+      // One left `running` by a crash is marked failed and the new flush runs.
+      const stuck = await flush.createJob({ ...job, startedAt: Date.now() - STALE_RUNNING_FLUSH_MS - 60_000 });
+      expect(await service.runManual({ monthKey: MONTH })).toMatchObject({ ok: true });
+      const stored = await db().monthlyFlushJob.findUniqueOrThrow({ where: { id: stuck.id } });
+      expect(stored).toMatchObject({ status: "failed" });
+      expect(stored.error).toContain("interrumpido");
       expect(await flush.findRunningJob()).toBeNull();
     });
   });

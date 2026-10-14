@@ -27,6 +27,10 @@ export class MonthlyFlushRepositoryImpl implements MonthlyFlushRepository {
     return this.datasource.findRunningJob();
   }
 
+  failStaleRunningJobs(startedBefore: number, error: string): Promise<number> {
+    return this.datasource.failStaleRunningJobs(startedBefore, error);
+  }
+
   listRecentJobs(limit: number): Promise<MonthlyFlushJobEntity[]> {
     return this.datasource.listRecentJobs(limit);
   }

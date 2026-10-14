@@ -15,6 +15,8 @@ export abstract class MonthlyFlushDatasource {
   abstract createJob(job: Omit<MonthlyFlushJobEntity, "id">): Promise<MonthlyFlushJobEntity>;
   abstract updateJob(job: MonthlyFlushJobEntity): Promise<MonthlyFlushJobEntity>;
   abstract findRunningJob(): Promise<MonthlyFlushJobEntity | null>;
+  /** Marks as failed the running jobs started before `startedBefore`; returns how many. */
+  abstract failStaleRunningJobs(startedBefore: number, error: string): Promise<number>;
   abstract listRecentJobs(limit: number): Promise<MonthlyFlushJobEntity[]>;
   abstract bulkUpsertSummaries(
     summaries: Array<Omit<OperationalLogFlushSummaryEntity, "id">>,
