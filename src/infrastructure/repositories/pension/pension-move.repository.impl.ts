@@ -1,4 +1,8 @@
-import { PensionMoveDatasource } from "../../../domain/datasources/pension/pension-move.datasource";
+import {
+    PensionMoveDatasource,
+    type PensionPassageInput,
+} from "../../../domain/datasources/pension/pension-move.datasource";
+import type { TransactionContext } from "../../../domain/datasources/system/transaction";
 import { PensionMoveEntity } from "../../../domain/entities/pension/pension-move.entity";
 import { PensionMoveRepository } from "../../../domain/repositories/pension/pension-move.repository";
 
@@ -34,5 +38,9 @@ export class PensionMoveRepositoryImpl implements PensionMoveRepository {
 
     delete(id: string): Promise<PensionMoveEntity | null> {
         return this.pensionMoveDatasource.delete(id);
+    }
+
+    registerPassage(input: PensionPassageInput, tx?: TransactionContext): Promise<PensionMoveEntity> {
+        return this.pensionMoveDatasource.registerPassage(input, tx);
     }
 }

@@ -17,7 +17,7 @@ export class LocalReportsMongoDatasource implements LocalReportsDatasource {
     return LocalInstallationModel.findOne({ key: "default" }).lean();
   }
 
-  getHealth() {
+  async getHealth() {
     return MongoDatabase.getHealthSnapshot();
   }
 

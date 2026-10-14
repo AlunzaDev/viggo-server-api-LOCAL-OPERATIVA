@@ -1,3 +1,5 @@
+import type { PensionPassageInput } from "../../datasources/pension/pension-move.datasource";
+import type { TransactionContext } from "../../datasources/system/transaction";
 import { PensionMoveEntity } from "../../entities/pension/pension-move.entity";
 
 export abstract class PensionMoveRepository {
@@ -11,4 +13,5 @@ export abstract class PensionMoveRepository {
         pensionMove: Partial<Omit<PensionMoveEntity, "id">>,
     ): Promise<PensionMoveEntity | null>;
     abstract delete(id: string): Promise<PensionMoveEntity | null>;
+    abstract registerPassage(input: PensionPassageInput, tx?: TransactionContext): Promise<PensionMoveEntity>;
 }

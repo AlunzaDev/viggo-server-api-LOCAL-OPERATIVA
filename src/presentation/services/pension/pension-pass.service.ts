@@ -12,6 +12,7 @@ import {
   PaginationDateQuery,
 } from "../shared/pagination-query";
 import { PensionPassAccessService } from "./pension-pass-access.service";
+import { TransactionRunner } from "../../../domain/datasources/system/transaction";
 import {
   PensionMoveResponse,
   PensionPassCardResponse,
@@ -32,6 +33,7 @@ export class PensionPassService {
     proyectoRepository: ProyectoRepository,
     moduloRepository: ModuloRepository,
     private readonly pensionMoveRepository: PensionMoveRepository,
+    transactions: TransactionRunner,
   ) {
     this.responseMapper = new PensionPassResponseMapper(
       pensionRepository,
@@ -44,6 +46,7 @@ export class PensionPassService {
       moduloRepository,
       pensionMoveRepository,
       this.responseMapper,
+      transactions,
     );
   }
 

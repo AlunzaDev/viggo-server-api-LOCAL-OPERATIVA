@@ -2,6 +2,6 @@ import type { LocalReportsSnapshotPayload } from "../../datasources/local-report
 
 export abstract class LocalReportsRepository {
   abstract getInstallation(): Promise<any>;
-  abstract getHealth(): any;
+  abstract getHealth(): Promise<unknown>;
   abstract getSnapshotData(payload: LocalReportsSnapshotPayload): Promise<any>;
 }

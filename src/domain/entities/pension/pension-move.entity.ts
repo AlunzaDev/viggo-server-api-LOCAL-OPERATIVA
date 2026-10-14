@@ -6,6 +6,31 @@ export type PensionMoveTipo =
     | "ENTRADA-PENSION"
     | "SALIDA-PENSION";
 
+/** Direction of a pass through an entry or exit module. */
+export type PensionPassageTipo = "ENTRADA" | "SALIDA";
+
+/**
+ * Anti-passback: a pass can only enter when it is outside and only exit when it is inside.
+ * Throws the error shown to the user otherwise.
+ */
+export const assertPensionPassage = (inParking: boolean, tipo: PensionPassageTipo): void => {
+    if (inParking && tipo === "ENTRADA") {
+        throw CustomError.badRequest(
+            "La ultima vez uso su pension sin marcar salida, consulte al proveedor",
+            undefined,
+            "PENSION_PASSBACK_ENTRY",
+        );
+    }
+
+    if (!inParking && tipo === "SALIDA") {
+        throw CustomError.badRequest(
+            "No ha marcado entrada al estacionamiento, consulte al proveedor",
+            undefined,
+            "PENSION_PASSBACK_EXIT",
+        );
+    }
+};
+
 export interface PensionMoveEntityOptions {
     id: string;
     modulo: string;

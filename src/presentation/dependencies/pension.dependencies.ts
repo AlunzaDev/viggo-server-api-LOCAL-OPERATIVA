@@ -1,3 +1,4 @@
+import { MongoTransactionRunner } from "../../infrastructure/datasources/system/transaction-runner.mongo";
 import { ModuloMongoDatasource } from "../../infrastructure/datasources/parking/modulo.datasource.mongo";
 import { ProyectoMongoDatasource } from "../../infrastructure/datasources/parking/proyecto.datasource.mongo";
 import { PensionMoveMongoDatasource } from "../../infrastructure/datasources/pension/pension-move.datasource.mongo";
@@ -46,6 +47,7 @@ export const buildPensionPassController = (): PensionPassController => {
     buildProyectoRepository(),
     buildModuloRepository(),
     buildPensionMoveRepository(),
+    new MongoTransactionRunner(),
   );
 
   return new PensionPassController(service);

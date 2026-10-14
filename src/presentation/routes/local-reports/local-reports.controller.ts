@@ -39,7 +39,7 @@ export class LocalReportsController {
           proyectoIdentificador: installation?.proyectoIdentificador ?? null,
         },
         range: { from, to },
-        health: this.service.getHealth(),
+        health: await this.service.getHealth(),
         ...data,
         futureEventBridge: {
           enabled: false,

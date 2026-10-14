@@ -1,6 +1,10 @@
 import { JwtPlugin } from "../../../config/plugins/jwt.plugin";
 import { PensionEntity } from "../../../domain/entities/pension/pension.entity";
-import { PensionMoveTipo } from "../../../domain/entities/pension/pension-move.entity";
+import { TransactionRunner } from "../../../domain/datasources/system/transaction";
+import {
+  assertPensionPassage,
+  type PensionPassageTipo,
+} from "../../../domain/entities/pension/pension-move.entity";
 import { PensionPassEntity } from "../../../domain/entities/pension/pension-pass.entity";
 import { CustomError } from "../../../domain/errors/custom.error";
 import { ModuloRepository } from "../../../domain/repositories/parking/modulo.repository";
@@ -20,6 +24,7 @@ export class PensionPassAccessService {
     private readonly moduloRepository: ModuloRepository,
     private readonly pensionMoveRepository: PensionMoveRepository,
     private readonly responseMapper: PensionPassResponseMapper,
+    private readonly transactions: TransactionRunner,
   ) {}
 
   async openBarrierWithPensionPass(
@@ -31,21 +36,26 @@ export class PensionPassAccessService {
     const pension = await this.getValidPension(pensionPass.pension);
     const modulo = await this.getValidModulo(moduleToken, pension.proyecto);
 
-    this.validatePensionPassDirection(pensionPass, modulo.tipo);
+    const tipo = modulo.tipo as PensionPassageTipo;
+    // Fast feedback; registerPassage checks again against the locked, current state.
+    assertPensionPassage(pensionPass.inParking, tipo);
     this.validatePensionPassSchedule(pension);
 
-    await SocketServerPlugin.openBarrier(modulo.id);
-
-    await this.pensionPassRepository.update(pensionPass.id, {
-      inParking: !pensionPass.inParking,
-    });
-
-    const pensionMove = await this.pensionMoveRepository.create({
-      pensionPass: pensionPass.id,
-      modulo: modulo.id,
-      tipo: modulo.tipo as PensionMoveTipo,
-      fecha: Date.now(),
-      proyecto: pension.proyecto,
+    // The passage is recorded only if the barrier opens; a second simultaneous read of
+    // the same pass waits and then fails anti-passback instead of flipping the state back.
+    const pensionMove = await this.transactions.run(async (tx) => {
+      const move = await this.pensionMoveRepository.registerPassage(
+        {
+          pensionPassId: pensionPass.id,
+          moduloId: modulo.id,
+          proyectoId: pension.proyecto,
+          tipo,
+          fecha: Date.now(),
+        },
+        tx,
+      );
+      await SocketServerPlugin.openBarrier(modulo.id);
+      return move;
     });
 
     return this.responseMapper.toPensionMoveResponse(
@@ -142,23 +152,6 @@ export class PensionPassAccessService {
     }
 
     return moduloId;
-  }
-
-  private validatePensionPassDirection(
-    pensionPass: PensionPassEntity,
-    moduloTipo: string,
-  ): void {
-    if (pensionPass.inParking && moduloTipo === "ENTRADA") {
-      throw CustomError.badRequest(
-        "La ultima vez uso su pension sin marcar salida, consulte al proveedor",
-      );
-    }
-
-    if (!pensionPass.inParking && moduloTipo === "SALIDA") {
-      throw CustomError.badRequest(
-        "No ha marcado entrada al estacionamiento, consulte al proveedor",
-      );
-    }
   }
 
   private validatePensionPassSchedule(pension: PensionEntity): void {

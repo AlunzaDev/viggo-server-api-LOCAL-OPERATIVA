@@ -1,6 +1,13 @@
 import { PensionMoveModel } from "../../../data/mongo/models/pension/pension-move.schema";
-import { PensionMoveDatasource } from "../../../domain/datasources/pension/pension-move.datasource";
-import { PensionMoveEntity } from "../../../domain/entities/pension/pension-move.entity";
+import { PensionPassModel } from "../../../data/mongo/models/pension/pension-pass.schema";
+import {
+    PensionMoveDatasource,
+    type PensionPassageInput,
+} from "../../../domain/datasources/pension/pension-move.datasource";
+import type { TransactionContext } from "../../../domain/datasources/system/transaction";
+import { assertPensionPassage, PensionMoveEntity } from "../../../domain/entities/pension/pension-move.entity";
+import { CustomError } from "../../../domain/errors/custom.error";
+import { mongoSession } from "../system/transaction-runner.mongo";
 
 export class PensionMoveMongoDatasource extends PensionMoveDatasource {
     async create(pensionMove: Omit<PensionMoveEntity, "id">): Promise<PensionMoveEntity> {
@@ -47,6 +54,27 @@ export class PensionMoveMongoDatasource extends PensionMoveDatasource {
         if (!pensionMoveDocument) return null;
 
         return PensionMoveEntity.fromObject(pensionMoveDocument.toObject());
+    }
+
+    async registerPassage(input: PensionPassageInput, tx?: TransactionContext): Promise<PensionMoveEntity> {
+        const session = mongoSession(tx);
+        const entering = input.tipo === "ENTRADA";
+        // Conditional update: only one of two concurrent passages finds the expected state.
+        const updated = await PensionPassModel.findOneAndUpdate(
+            { _id: input.pensionPassId, inParking: !entering },
+            { $set: { inParking: entering } },
+            { new: true, session },
+        );
+        if (!updated) {
+            const current = await PensionPassModel.findById(input.pensionPassId).session(session ?? null);
+            if (!current) throw CustomError.notFound("PensionPass no encontrado");
+            assertPensionPassage(Boolean(current.inParking), input.tipo);
+        }
+        const [move] = await PensionMoveModel.create(
+            [{ pensionPass: input.pensionPassId, modulo: input.moduloId, proyecto: input.proyectoId, tipo: input.tipo, fecha: input.fecha }],
+            { session },
+        );
+        return PensionMoveEntity.fromObject(move.toObject());
     }
 
     async delete(id: string): Promise<PensionMoveEntity | null> {

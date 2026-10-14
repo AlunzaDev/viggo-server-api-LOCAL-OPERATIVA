@@ -2,7 +2,7 @@ import { Prisma } from "../../../generated/prisma/client";
 import type { PrismaDb } from "../system/transaction-runner.postgres";
 
 /** Tables whose rows are locked while a payment is applied. */
-type LockableTable = "tickets" | "cash_payment_sessions";
+type LockableTable = "tickets" | "cash_payment_sessions" | "pension_passes";
 
 /**
  * SELECT ... FOR UPDATE on one row: concurrent transactions that lock the same row wait
