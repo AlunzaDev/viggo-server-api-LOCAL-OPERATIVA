@@ -664,8 +664,9 @@ model Ticket {
   salida              Modulo?              @relation("TicketSalida", fields: [salidaId], references: [id], onDelete: Restrict)
   cashPaymentSessions CashPaymentSession[]
 
-  /// A user has at most one active ticket (was checked only in code).
-  @@unique([usuarioId], map: "tickets_active_usuario_key", where: raw("status = 'ACTIVE'::ticket_status"))
+  /// A user has at most one ticket without exit (the code's notion of "active": a ticket
+  /// flagged as FRAUD at the entry is still inside).
+  @@unique([usuarioId], map: "tickets_active_usuario_key", where: raw("hora_salida IS NULL"))
   @@index([usuarioId, horaInicio(sort: Desc)])
   @@index([proyectoId, horaInicio(sort: Desc)])
   @@index([status, horaInicio])

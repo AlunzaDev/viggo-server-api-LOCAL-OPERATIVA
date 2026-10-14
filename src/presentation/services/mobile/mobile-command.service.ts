@@ -108,11 +108,13 @@ export class MobileCommandService {
 
     // The payment record and the paid ticket commit together; providerReference makes it idempotent.
     await this.transactions.run(async (tx) => {
-      if (await this.commands.findPaymentIdByProviderReference(providerReference, tx)) return;
+      // Reading the ticket locks it: a concurrent delivery (or cash payment) waits here and
+      // then sees this payment, so a re-delivered command returns instead of failing.
       const ticket = await this.commands.findTicketById(ticketId, tx);
       if (!ticket || String(ticket.usuario) !== operation.userId) {
         throw CustomError.notFound("Ticket no encontrado");
       }
+      if (await this.commands.findPaymentIdByProviderReference(providerReference, tx)) return;
       if (ticket.pagado === true) {
         throw CustomError.conflict("El ticket ya fue pagado");
       }

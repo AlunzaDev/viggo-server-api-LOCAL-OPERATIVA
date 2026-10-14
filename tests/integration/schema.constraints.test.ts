@@ -45,16 +45,26 @@ describe("schema constraints", () => {
     await PostgresDatabase.disconnect();
   });
 
-  const newTicket = (usuarioId: string, status: "ACTIVE" | "COMPLETED" = "ACTIVE") =>
+  const newTicket = (usuarioId: string, exited = false) =>
     db.ticket.create({
-      data: { proyectoId, entradaId, usuarioId, idBoleto: `B-${randomUUID()}`, horaInicio: new Date(), status },
+      data: {
+        proyectoId,
+        entradaId,
+        usuarioId,
+        idBoleto: `B-${randomUUID()}`,
+        horaInicio: new Date(),
+        ...(exited ? { status: "COMPLETED" as const, horaSalida: new Date() } : {}),
+      },
     });
 
-  it("allows one active ticket per user", async () => {
+  it("allows one ticket without exit per user", async () => {
     const usuarioId = randomUUID();
-    await newTicket(usuarioId);
+    const inside = await newTicket(usuarioId);
     await expect(newTicket(usuarioId)).rejects.toThrow(uniqueViolation);
-    await expect(newTicket(usuarioId, "COMPLETED")).resolves.toBeDefined();
+    await expect(newTicket(usuarioId, true)).resolves.toBeDefined();
+    // Flagged as fraud at the entry: still inside, still blocks a second entry.
+    await db.ticket.update({ where: { id: inside.id }, data: { status: "FRAUD" } });
+    await expect(newTicket(usuarioId)).rejects.toThrow(uniqueViolation);
   });
 
   it("rejects a repeated idempotency key", async () => {
