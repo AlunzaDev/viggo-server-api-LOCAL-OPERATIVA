@@ -91,7 +91,8 @@ export class TicketService {
       options.idempotencyKey,
     );
     if (idempotencyKey) {
-      const existingTicket = await this.ticketRepository.findByExitIdempotencyKey(
+      // A retried entry (slow network, double tap) returns the ticket it already created.
+      const existingTicket = await this.ticketRepository.findByIdempotencyKey(
         idempotencyKey,
       );
       if (existingTicket) return existingTicket;
@@ -208,7 +209,8 @@ export class TicketService {
       options.idempotencyKey,
     );
     if (idempotencyKey) {
-      const existingTicket = await this.ticketRepository.findByIdempotencyKey(
+      // A retried exit returns the ticket it already completed.
+      const existingTicket = await this.ticketRepository.findByExitIdempotencyKey(
         idempotencyKey,
       );
       if (existingTicket) return existingTicket;
