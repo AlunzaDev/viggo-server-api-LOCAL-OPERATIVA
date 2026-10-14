@@ -13,6 +13,6 @@ export interface DeviceCounts {
 }
 
 export abstract class HealthDatasource {
-  abstract getDatabaseHealth(): DatabaseHealth;
+  abstract getDatabaseHealth(): Promise<DatabaseHealth>;
   abstract countDevices(staleBefore: Date): Promise<DeviceCounts>;
 }

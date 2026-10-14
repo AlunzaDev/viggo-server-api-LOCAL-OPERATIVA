@@ -28,6 +28,18 @@ if (!existsSync(tscBin)) {
   process.exit(1);
 }
 
+const prismaBin = resolve(projectRoot, "node_modules", "prisma", "build", "index.js");
+console.log("[DEV] Generando el cliente de Prisma...");
+const prismaGenerate = spawnSync(process.execPath, [prismaBin, "generate"], {
+  cwd: projectRoot,
+  stdio: "inherit",
+});
+
+if (prismaGenerate.status !== 0) {
+  console.error("[DEV] No se pudo generar el cliente de Prisma.");
+  process.exit(prismaGenerate.status ?? 1);
+}
+
 const runNode = (args, options = {}) =>
   spawn(process.execPath, args, {
     cwd: projectRoot,

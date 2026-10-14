@@ -3,6 +3,7 @@ import express, { Router } from "express";
 import { createServer, Server as HttpServer } from "http";
 import { envs } from "../config/plugins/envs.plugin";
 import { MongoDatabase } from "../data/mongo";
+import { PostgresDatabase } from "../data/postgres";
 import { requestLoggingMiddleware } from "./middlewares/request-logging.middleware";
 import { SocketServerPlugin } from "./sockets/socket-server";
 
@@ -21,6 +22,7 @@ export class Server {
   private readonly port: number;
   private readonly publicPath: string;
   private readonly routes: Router;
+  private shuttingDown = false;
 
   constructor({
     host = "0.0.0.0",
@@ -39,6 +41,10 @@ export class Server {
     await MongoDatabase.connect({
       mongoUrl: envs.MONGO_URL,
       dbName: envs.MONGO_DB_NAME,
+    });
+    await PostgresDatabase.connect({
+      databaseUrl: envs.DATABASE_URL,
+      poolMax: envs.DATABASE_POOL_MAX,
     });
 
     const corsOptions: CorsOptions = {
@@ -77,6 +83,34 @@ export class Server {
 
     SocketServerPlugin.init(this.httpServer);
     await this.listenWithFallback(this.port);
+
+    process.once("SIGTERM", () => void this.shutdown("SIGTERM"));
+    process.once("SIGINT", () => void this.shutdown("SIGINT"));
+  }
+
+  /** Stops accepting requests, lets in-flight ones finish, then closes the database pools. */
+  private async shutdown(signal: string): Promise<void> {
+    if (this.shuttingDown) return;
+    this.shuttingDown = true;
+    console.log(`[OPERATIVO] ${signal} received, shutting down`);
+
+    const forceExit = setTimeout(() => {
+      console.error("[OPERATIVO] Shutdown timed out, forcing exit");
+      process.exit(1);
+    }, 10_000);
+    forceExit.unref();
+
+    try {
+      await new Promise<void>((resolve) => {
+        this.httpServer.close(() => resolve());
+        this.httpServer.closeIdleConnections();
+      });
+      await Promise.allSettled([PostgresDatabase.disconnect(), MongoDatabase.disconnect()]);
+      process.exit(0);
+    } catch (error) {
+      console.error("[OPERATIVO] Error during shutdown", error);
+      process.exit(1);
+    }
   }
 
   private listenWithFallback(port: number): Promise<void> {

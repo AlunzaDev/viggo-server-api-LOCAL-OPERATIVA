@@ -11,7 +11,7 @@ export class HealthController {
   ) {}
 
   summary = async (_req: Request, res: Response) => {
-    const db = this.health.getDatabaseHealth();
+    const db = await this.health.getDatabaseHealth();
     const [localProject, devices] = await Promise.all([
       this.getLocalProjectSnapshot(),
       this.getDevicesSnapshot(),
@@ -31,7 +31,7 @@ export class HealthController {
   };
 
   db = async (_req: Request, res: Response) => {
-    const db = this.health.getDatabaseHealth();
+    const db = await this.health.getDatabaseHealth();
     return res.status(db.status === "ok" ? 200 : 503).json({
       service: "viggo-operativo",
       ...db,

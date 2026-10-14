@@ -9,11 +9,20 @@
     "preflight": "node scripts/preflight.mjs",
     "audit:app-permissions": "node scripts/audit-app-permissions.mjs",
     "repair:app-permissions": "node scripts/repair-app-permissions.mjs",
-    "build": "tsc",
+    "build": "prisma generate && tsc",
     "start": "node dist/app.js",
-    "check": "tsc --noEmit"
+    "check": "prisma generate && tsc --noEmit && tsc -p tests",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:seed": "prisma db seed",
+    "db:studio": "prisma studio"
   },
   "dependencies": {
+    "@prisma/adapter-pg": "7.10.0",
+    "@prisma/client": "7.10.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.2.1",
@@ -21,6 +30,7 @@
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.16.1",
+    "pg": "8.23.1",
     "socket.io": "^4.8.3"
   },
   "overrides": {
@@ -31,6 +41,15 @@
     "@types/express": "^5.0.3",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^24.0.10",
-    "typescript": "^6.0.3"
+    "@types/pg": "8.23.1",
+    "prisma": "7.10.0",
+    "tsx": "4.23.15",
+    "typescript": "^6.0.3",
+    "vitest": "5.0.4"
+  },
+  "allowScripts": {
+    "@prisma/engines@7.10.0": true,
+    "prisma@7.10.0": true,
+    "esbuild@0.28.2": true
   }
 }

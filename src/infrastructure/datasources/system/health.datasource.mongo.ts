@@ -1,4 +1,5 @@
 import { MongoDatabase } from "../../../data/mongo";
+import { PostgresDatabase } from "../../../data/postgres";
 import { ModuloModel } from "../../../data/mongo/models/parking/modulo.schema";
 import {
   HealthDatasource,
@@ -6,9 +7,16 @@ import {
 } from "../../../domain/datasources/system/health.datasource";
 
 export class HealthMongoDatasource implements HealthDatasource {
-  getDatabaseHealth(): DatabaseHealth {
-    const { status, ...details } = MongoDatabase.getHealthSnapshot();
-    return { status: status === "ok" ? "ok" : "error", ...details };
+  // While datasources move to Postgres both databases are required; the Mongo fields
+  // stay at the top level for compatibility until MongoDB is retired (#7).
+  async getDatabaseHealth(): Promise<DatabaseHealth> {
+    const mongo = MongoDatabase.getHealthSnapshot();
+    const postgres = await PostgresDatabase.getHealthSnapshot();
+    return {
+      ...mongo,
+      status: mongo.status === "ok" && postgres.status === "ok" ? "ok" : "error",
+      postgres,
+    };
   }
 
   async countDevices(staleBefore: Date) {

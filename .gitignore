@@ -1,4 +1,6 @@
 /mongo
+/postgres-data
+/backups
 /dist
 /logs
 /node_modules
@@ -10,6 +12,7 @@
 .env
 .env.*
 !.env.example
+!.env.test.example
 mongo-init.js
 
 # Local test seed scripts
@@ -21,3 +24,6 @@ mongo-init.js
 # parking-heartbeat-runner local artifacts
 /parking-heartbeat-runner/node_modules
 /parking-heartbeat-runner/.env
+
+# Prisma generated client (built by `prisma generate`)
+src/generated/
