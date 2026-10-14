@@ -59,6 +59,7 @@ export class OutboxPublisherService {
       return { ...result, stopped: true, reason: "NOT_LINKED" };
     }
     const headers = this.headers(installation);
+    if (!headers) return { ...result, stopped: true, reason: "NOT_LINKED" };
 
     for (const event of await this.outbox.nextBatch(this.batchSize)) {
       result.processed += 1;
@@ -92,7 +93,8 @@ export class OutboxPublisherService {
 
   private headers(installation: Record<string, unknown>) {
     const encrypted = String(installation.encryptedSyncToken ?? "").trim();
-    const token = encrypted ? InstallationTokenCryptoService.decrypt(encrypted) : envs.SYNC_SERVICE_TOKEN;
+    if (!encrypted) return null;
+    const token = InstallationTokenCryptoService.decrypt(encrypted);
     return {
       Authorization: `Bearer ${token}`,
       "X-Viggo-Installation-Id": String(installation.installationId ?? "").trim() || envs.INSTALLATION_ID,

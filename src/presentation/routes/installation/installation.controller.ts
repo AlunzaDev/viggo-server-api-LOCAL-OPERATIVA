@@ -8,11 +8,16 @@ import type { InstallationServices } from "../../services/installation/installat
 
 type PlainRecord = Record<string, unknown>;
 
-const cloudHeaders = async () => ({
-  Authorization: `Bearer ${envs.SYNC_SERVICE_TOKEN}`,
-  "Content-Type": "application/json",
-  "X-Viggo-Installation-Id": await InstallationIdentityService.getInstallationId(),
-});
+/**
+ * Linking calls authenticate with the project's installation link token typed by the
+ * operator; the cloud finds the project from it. Once approved, the cloud hands this
+ * installation its own sync token, which replaces the link token.
+ */
+const linkHeaders = async (installationLinkToken: string) =>
+  InstallationIdentityService.cloudHeaders({
+    token: installationLinkToken,
+    installationId: await InstallationIdentityService.getInstallationId(),
+  });
 
 const cloudUrl = (path: string) =>
   `${envs.ADMINISTRATIVO_API_URL.replace(/\/+$/, "")}${path}`;
@@ -68,30 +73,32 @@ export class InstallationController {
     }
   };
 
-  getCloudProjects = async (_req: Request, res: Response) => {
+  /** Project the link token belongs to, so the operator confirms it before linking. */
+  previewProjectLink = async (req: Request, res: Response) => {
+    const installationLinkToken = String(req.body?.installationLinkToken ?? "").trim();
+    if (!installationLinkToken) return res.status(400).json({ error: "Token de vinculacion requerido" });
+
     try {
-      const response = await fetch(cloudUrl("/api/sync/projects"), {
-        headers: await cloudHeaders(),
+      const response = await fetch(cloudUrl("/api/sync/installation-link/preview"), {
+        method: "POST",
+        headers: await linkHeaders(installationLinkToken),
       });
       const data = (await response.json().catch(() => ({}))) as PlainRecord;
-
       if (!response.ok) {
         return res.status(response.status).json({
-          error: data.error ?? "No se pudieron consultar proyectos en la nube",
+          error: data.error ?? "No se pudo validar el token de vinculacion",
         });
       }
-
-      return res.status(200).json({ proyectos: data.proyectos ?? [] });
+      return res.status(200).json({ proyecto: data.proyecto ?? null });
     } catch (_error) {
       return res.status(503).json({
-        error: "La nube no esta disponible para consultar proyectos",
+        error: "La nube no esta disponible para validar el token de vinculacion",
       });
     }
   };
 
   requestProjectLink = async (req: Request, res: Response) => {
     try {
-      const proyectoId = String(req.body?.proyectoId ?? "").trim();
       const installationLinkToken = String(req.body?.installationLinkToken ?? "").trim();
       const browserCoordinatesRaw = Array.isArray(req.body?.browserCoordinates)
         ? req.body.browserCoordinates
@@ -106,7 +113,6 @@ export class InstallationController {
           : undefined;
       const browserLocationAccuracy = Number(req.body?.browserLocationAccuracy);
       const browserLocationCapturedAt = Number(req.body?.browserLocationCapturedAt);
-      if (!proyectoId) return res.status(400).json({ error: "proyectoId es requerido" });
       if (!installationLinkToken) {
         return res.status(400).json({ error: "Token de vinculacion requerido" });
       }
@@ -119,10 +125,8 @@ export class InstallationController {
 
       const response = await fetch(cloudUrl("/api/sync/installation-requests"), {
         method: "POST",
-        headers: await cloudHeaders(),
+        headers: await linkHeaders(installationLinkToken),
         body: JSON.stringify({
-          proyectoId,
-          installationLinkToken,
           localApiBaseUrl: envs.WEB_SERVICE_URL,
           browserCoordinates,
           browserLocationAccuracy: Number.isFinite(browserLocationAccuracy)
@@ -144,6 +148,8 @@ export class InstallationController {
       }
 
       const request = (data.request ?? {}) as PlainRecord;
+      // Kept (encrypted) only to poll the request status; replaced by the installation's
+      // own sync token once the cloud approves the link.
       const encryptedSyncToken = InstallationTokenCryptoService.encrypt(
         installationLinkToken,
       );
@@ -245,11 +251,13 @@ export class InstallationController {
     proyecto?: PlainRecord;
     oneTimeSyncToken?: string | null;
   } | null> {
-    if (!envs.SYNC_SERVICE_TOKEN) return null;
+    const existing = await this.services.localInstallationService.findDefault();
+    const encrypted = String(existing?.encryptedSyncToken ?? "").trim();
+    if (!encrypted) return null;
 
     try {
       const response = await fetch(cloudUrl("/api/sync/installation-request/status"), {
-        headers: await cloudHeaders(),
+        headers: await linkHeaders(InstallationTokenCryptoService.decrypt(encrypted)),
       });
       if (!response.ok) return null;
       return (await response.json()) as {

@@ -11,22 +11,6 @@ type HeartbeatStatus = "online" | "offline" | "pending";
 const buildCloudUrl = (path: string) =>
   `${envs.ADMINISTRATIVO_API_URL.replace(/\/+$/, "")}${path}`;
 
-const getSyncToken = async (installations: LocalInstallationService): Promise<string> => {
-  const installation = await installations.findDefault();
-  const encryptedSyncToken = String(installation?.encryptedSyncToken ?? "").trim();
-
-  if (encryptedSyncToken) {
-    try {
-      return InstallationTokenCryptoService.decrypt(encryptedSyncToken);
-    } catch (error) {
-      console.warn("[OPERATIVO heartbeat] No se pudo descifrar token de instalacion:", {
-        reason: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
-
-  return envs.SYNC_SERVICE_TOKEN;
-};
 
 export class HeartbeatSnapshotService {
   constructor(
@@ -179,22 +163,17 @@ export class HeartbeatSnapshotService {
 
   async syncSnapshot(proyectoId: string) {
     try {
-      const installationId = await InstallationIdentityService.getInstallationId();
-      const syncToken = await getSyncToken(this.installations);
+      const credentials = await InstallationIdentityService.getCloudCredentials();
 
-      if (!syncToken) {
-        console.warn("[OPERATIVO heartbeat] Snapshot omitido: no hay token de sincronizacion");
+      if (!credentials) {
+        console.warn("[OPERATIVO heartbeat] Snapshot omitido: la instalacion no esta vinculada");
         return;
       }
 
       const { snapshot } = await this.buildSnapshot(proyectoId);
       const response = await fetch(buildCloudUrl("/api/sync/heartbeat-snapshot"), {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${syncToken}`,
-          "Content-Type": "application/json",
-          "X-Viggo-Installation-Id": installationId,
-        },
+        headers: InstallationIdentityService.cloudHeaders(credentials),
         body: JSON.stringify(snapshot),
       });
 

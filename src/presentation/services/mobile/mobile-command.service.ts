@@ -27,9 +27,9 @@ export class MobileCommandService {
   async processNext() {
     const installation = await this.installations.findDefault();
     if (installation?.status !== "linked" || !installation.proyectoId) return false;
-    this.syncToken = installation.encryptedSyncToken
-      ? InstallationTokenCryptoService.decrypt(installation.encryptedSyncToken)
-      : envs.SYNC_SERVICE_TOKEN;
+    const credentials = await InstallationIdentityService.getCloudCredentials();
+    if (!credentials) return false;
+    this.syncToken = credentials.token;
     const response = await this.cloudFetch("/api/sync/mobile-commands/next");
     if (response.status === 204) return false;
     const body = await response.json() as { operation?: CloudOperation };
@@ -143,7 +143,7 @@ export class MobileCommandService {
     return fetch(`${envs.ADMINISTRATIVO_API_URL.replace(/\/+$/, "")}${path}`, {
       ...init,
       headers: {
-        Authorization: `Bearer ${this.syncToken || envs.SYNC_SERVICE_TOKEN}`,
+        Authorization: `Bearer ${this.syncToken}`,
         "X-Viggo-Installation-Id": await InstallationIdentityService.getInstallationId(),
         "Content-Type": "application/json",
         ...(init.headers ?? {}),

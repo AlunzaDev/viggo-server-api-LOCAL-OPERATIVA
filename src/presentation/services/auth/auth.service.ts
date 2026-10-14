@@ -382,8 +382,12 @@ export class AuthService {
       );
     }
 
-    const installationId =
-      await InstallationIdentityService.getInstallationId();
+    const cloud = await InstallationIdentityService.getCloudCredentials();
+    if (!cloud) {
+      // Not linked yet: only the local copy of the users can be used.
+      throw new AdministrativoUnavailableError("La instalacion no esta vinculada a la nube");
+    }
+    const installationId = cloud.installationId;
 
     console.log(
       "[OPERATIVO auth] Requesting sync snapshot after remote login:",
@@ -410,11 +414,7 @@ export class AuthService {
 
       try {
         syncResponse = await fetch(`${baseUrl}${syncEndpoint}`, {
-          headers: {
-            Authorization: `Bearer ${envs.SYNC_SERVICE_TOKEN}`,
-
-            "X-Viggo-Installation-Id": installationId,
-          },
+          headers: InstallationIdentityService.cloudHeaders(cloud),
         });
 
         lastSyncError = null;

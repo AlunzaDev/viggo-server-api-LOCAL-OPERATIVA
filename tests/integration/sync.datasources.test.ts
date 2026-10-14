@@ -1,3 +1,4 @@
+import { InstallationTokenCryptoService } from "../../src/presentation/services/installation/installation-token-crypto.service";
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { PostgresDatabase } from "../../src/data/postgres";
@@ -215,8 +216,15 @@ describe("sync datasources (Postgres)", () => {
   });
 
   describe("ConfigSyncService.syncNow", () => {
-    const buildService = (snapshot: Snapshot) => {
-      const installation = { status: "linked", proyectoId: snapshot.proyectoId, proyectoNombre: "Plaza", installationId: "viggo-test-local-001" };
+    const INSTALLATION_TOKEN = "installation-sync-token-for-tests";
+    const buildService = (snapshot: Snapshot, { withToken = true } = {}) => {
+      const installation = {
+        status: "linked",
+        proyectoId: snapshot.proyectoId,
+        proyectoNombre: "Plaza",
+        installationId: "viggo-test-local-001",
+        encryptedSyncToken: withToken ? InstallationTokenCryptoService.encrypt(INSTALLATION_TOKEN) : "",
+      };
       const installations = {
         findDefault: async () => installation,
         upsertRequest: async () => installation,
@@ -232,7 +240,11 @@ describe("sync datasources (Postgres)", () => {
     };
 
     const stubCloud = (configurationBody: object, accessBody: object) =>
-      vi.stubGlobal("fetch", async (url: string) => {
+      vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
+        // The cloud only answers the installation's own token.
+        if ((init?.headers as Record<string, string> | undefined)?.Authorization !== `Bearer ${INSTALLATION_TOKEN}`) {
+          return new Response(JSON.stringify({ error: "Invalid installation token" }), { status: 401 });
+        }
         const body = url.includes("/configuration/") ? configurationBody : accessBody;
         return new Response(JSON.stringify({ version: Date.now(), ...body }), { status: 200 });
       });
@@ -247,6 +259,13 @@ describe("sync datasources (Postgres)", () => {
       const audit = await db().configSyncAudit.findFirstOrThrow({ where: { proyectoId: snapshot.proyectoId } });
       expect(audit.status).toBe("success");
       expect(audit.counts).toMatchObject({ proyecto: 1, users: 1 });
+    });
+
+    it("refuses to sync without the installation's own token", async () => {
+      const snapshot = newSnapshot();
+      stubCloud(configuration(snapshot), access(snapshot));
+      await expect(buildService(snapshot, { withToken: false }).syncNow()).rejects.toMatchObject({ code: "INSTALLATION_NOT_LINKED" });
+      expect(await db().proyecto.count({ where: { id: snapshot.proyectoId } })).toBe(0);
     });
 
     it("rolls everything back when the result is inconsistent", async () => {

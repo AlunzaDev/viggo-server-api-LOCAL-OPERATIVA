@@ -74,7 +74,7 @@ export class ConfigSyncService {
       lastSyncAt: installation?.lastSyncAt ?? null,
       lastSyncStatus: installation?.lastSyncStatus ?? null,
       lastSyncError: installation?.lastSyncError ?? "",
-      syncTokenConfigured: Boolean(envs.SYNC_SERVICE_TOKEN),
+      syncTokenConfigured: Boolean(await InstallationIdentityService.getCloudCredentials()),
     };
   }
 
@@ -94,9 +94,6 @@ export class ConfigSyncService {
         throw CustomError.badRequest(
           "La instalacion local aun no esta vinculada a un proyecto",
         );
-      }
-      if (!envs.SYNC_SERVICE_TOKEN) {
-        throw CustomError.badRequest("SYNC_SERVICE_TOKEN no esta configurado");
       }
 
       const [configuration, access] = await Promise.all([
@@ -235,15 +232,19 @@ export class ConfigSyncService {
   }
 
   private async fetchCloud(path: string): Promise<CloudResponse> {
+    const credentials = await InstallationIdentityService.getCloudCredentials();
+    if (!credentials) {
+      throw CustomError.badRequest(
+        "La instalacion no tiene credenciales de la nube; vinculala de nuevo",
+        undefined,
+        "INSTALLATION_NOT_LINKED",
+      );
+    }
     let response: Response;
 
     try {
       response = await fetch(cloudUrl(path), {
-        headers: {
-          Authorization: `Bearer ${envs.SYNC_SERVICE_TOKEN}`,
-          "X-Viggo-Installation-Id":
-            await InstallationIdentityService.getInstallationId(),
-        },
+        headers: InstallationIdentityService.cloudHeaders(credentials),
       });
     } catch {
       throw CustomError.internalServer(

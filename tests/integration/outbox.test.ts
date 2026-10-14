@@ -1,3 +1,4 @@
+import { InstallationTokenCryptoService } from "../../src/presentation/services/installation/installation-token-crypto.service";
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { PostgresDatabase } from "../../src/data/postgres";
@@ -16,8 +17,16 @@ const outbox = new OutboxRepositoryImpl(new OutboxPostgresDatasource());
 const proyectoId = randomUUID();
 const entradaId = randomUUID();
 
+// The installation's own sync token (issued by the cloud on approval), stored encrypted.
+const INSTALLATION_TOKEN = "installation-sync-token-for-tests";
+const linked = { linked: true };
 const installations = {
-  findDefault: async () => ({ status: "linked", proyectoId, installationId: "viggo-test-local-001", encryptedSyncToken: "" }),
+  findDefault: async () => ({
+    status: linked.linked ? "linked" : "requested",
+    proyectoId,
+    installationId: "viggo-test-local-001",
+    encryptedSyncToken: linked.linked ? InstallationTokenCryptoService.encrypt(INSTALLATION_TOKEN) : "",
+  }),
 } as unknown as LocalInstallationService;
 const publisher = new OutboxPublisherService(outbox, installations, { batchSize: 10, baseDelayMs: 1_000, maxDelayMs: 60_000 });
 
@@ -27,6 +36,7 @@ const cloud = {
   rejectEventIds: new Set<string>(),
   inbox: new Map<string, Record<string, unknown>>(),
   received: [] as string[],
+  authorizations: new Set<string>(),
 };
 
 const newTicket = () =>
@@ -68,8 +78,11 @@ describe("outbox (Postgres)", () => {
     cloud.rejectEventIds.clear();
     cloud.inbox.clear();
     cloud.received = [];
+    cloud.authorizations.clear();
+    linked.linked = true;
     vi.stubGlobal("fetch", async (_url: string, init: RequestInit) => {
       if (cloud.mode === "down") throw new TypeError("fetch failed");
+      cloud.authorizations.add(String((init.headers as Record<string, string>).Authorization));
       const event = JSON.parse(String(init.body)) as Record<string, unknown>;
       const eventId = String(event.eventId);
       if (cloud.rejectEventIds.has(eventId)) {
@@ -174,6 +187,18 @@ describe("outbox (Postgres)", () => {
     const refusedRow = await db().outboxEvent.findUniqueOrThrow({ where: { eventId: refused } });
     expect(refusedRow.sentAt).toBeNull();
     expect(refusedRow.lastError).toMatch(/^rejected: HTTP 400/);
+  });
+
+  it("authenticates with the installation's own token and sends nothing without it", async () => {
+    await newTicket();
+    expect(await publisher.publishPending()).toMatchObject({ sent: 1 });
+    expect([...cloud.authorizations]).toEqual([`Bearer ${INSTALLATION_TOKEN}`]);
+
+    // Not linked (no token): there is no shared token to fall back to.
+    linked.linked = false;
+    await newTicket();
+    expect(await publisher.publishPending()).toMatchObject({ sent: 0, stopped: true, reason: "NOT_LINKED" });
+    expect(await pendingIds()).toHaveLength(1);
   });
 
   it("purges delivered events after the retention period", async () => {
