@@ -1,6 +1,7 @@
 import { ConfigSyncMongoDatasource } from "../../infrastructure/datasources/config/config-sync.datasource.mongo";
 import { SyncMongoDatasource } from "../../infrastructure/datasources/sync/sync.datasource.mongo";
 import { ConfigSyncRepositoryImpl } from "../../infrastructure/repositories/config/config-sync.repository.impl";
+import { MongoTransactionRunner } from "../../infrastructure/datasources/system/transaction-runner.mongo";
 import { SyncRepositoryImpl } from "../../infrastructure/repositories/sync/sync.repository.impl";
 import { ConfigController } from "../routes/config/config.controller";
 import { ConfigSyncScheduler } from "../services/config/config-sync.scheduler";
@@ -18,6 +19,7 @@ const buildConfigSyncService = (): ConfigSyncService => {
     localInstallationService,
     syncService,
     new ConfigSyncRepositoryImpl(new ConfigSyncMongoDatasource()),
+    new MongoTransactionRunner(),
   );
 };
 

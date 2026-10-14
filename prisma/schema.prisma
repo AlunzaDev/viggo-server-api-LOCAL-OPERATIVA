@@ -911,8 +911,8 @@ model LocalInstallation {
   reviewedAt               DateTime?               @map("reviewed_at") @db.Timestamptz(3)
   assignedByUserId         String                  @default("") @map("assigned_by_user_id")
   assignedAt               DateTime?               @map("assigned_at") @db.Timestamptz(3)
-  lastConfigurationVersion Int?                    @map("last_configuration_version")
-  lastAccessVersion        Int?                    @map("last_access_version")
+  lastConfigurationVersion BigInt?                 @map("last_configuration_version")
+  lastAccessVersion        BigInt?                 @map("last_access_version")
   lastSyncAt               DateTime?               @map("last_sync_at") @db.Timestamptz(3)
   lastSyncStatus           ConfigSyncStatus?       @map("last_sync_status")
   lastSyncError            String                  @default("") @map("last_sync_error")
@@ -944,9 +944,10 @@ model ConfigSyncAudit {
   startedAt            DateTime          @map("started_at") @db.Timestamptz(3)
   finishedAt           DateTime          @map("finished_at") @db.Timestamptz(3)
   durationMs           Int               @map("duration_ms")
-  configurationVersion Int?              @map("configuration_version")
-  accessVersion        Int?              @map("access_version")
-  /// { proyecto, modulos, pensiones, pensionPasses, users, permissionProfiles }
+  configurationVersion BigInt?           @map("configuration_version")
+  accessVersion        BigInt?           @map("access_version")
+  /// Snapshot versions are 40-bit hashes computed by ADMINISTRATIVO (bigint).
+  /// counts: { proyecto, modulos, pensiones, pensionPasses, users, permissionProfiles }
   counts               Json              @default("{}")
   errorMessage         String            @default("") @map("error_message")
   errorCode            String            @default("") @map("error_code")

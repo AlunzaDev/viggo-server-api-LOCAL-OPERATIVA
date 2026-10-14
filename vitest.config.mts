@@ -11,6 +11,9 @@ const appDefaults = {
   PUBLIC_PATH: "public",
   JWT_SEED: "test-jwt-seed-not-a-real-secret-0000",
   MONGO_URL: "mongodb://127.0.0.1:1/unused_test",
+  SYNC_SERVICE_TOKEN: "test-sync-token-not-a-real-secret-000",
+  INSTALLATION_ID: "viggo-test-local-001",
+  ADMINISTRATIVO_API_URL: "http://cloud.test",
 };
 // globalSetup runs in this process, `test.env` only reaches the workers.
 Object.assign(process.env, appDefaults, testEnv);

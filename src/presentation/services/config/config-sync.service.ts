@@ -1,5 +1,10 @@
 import { envs } from "../../../config";
 import type { ConfigSyncStatus } from "../../../domain/datasources/config/config-sync.datasource";
+import type {
+  AccessSnapshotResult,
+  ConfigurationSnapshotResult,
+} from "../../../domain/datasources/sync/sync.datasource";
+import { TransactionRunner, type TransactionContext } from "../../../domain/datasources/system/transaction";
 import { ConfigSyncRepository } from "../../../domain/repositories/config/config-sync.repository";
 import { CustomError } from "../../../domain/errors/custom.error";
 import { InstallationIdentityService } from "../installation/installation-identity.service";
@@ -33,6 +38,8 @@ type IntegrityResult = {
     permissionProfiles: number;
   };
 };
+/** A snapshot whose version was already applied: zero counts, no details. */
+type Skipped<T> = Omit<T, "details"> & { skipped: true; reason: string };
 export type ConfigSyncActor = {
   userId?: string;
   userName?: string;
@@ -47,6 +54,7 @@ export class ConfigSyncService {
     private readonly localInstallationService: LocalInstallationService,
     private readonly syncService: SyncService,
     private readonly configSync: ConfigSyncRepository,
+    private readonly transactions: TransactionRunner,
   ) {}
 
   async getStatus() {
@@ -106,17 +114,19 @@ export class ConfigSyncService {
         accessVersion !== null &&
         Number(installation.lastAccessVersion ?? 0) === accessVersion;
 
-      const [configurationResult, accessResult] = await Promise.all([
-        configurationAlreadyApplied
-          ? Promise.resolve({
+      // Both snapshots and the integrity check run in one transaction: if the result is
+      // inconsistent nothing is kept and the previous configuration stays in place.
+      const { configurationResult, accessResult, integrity } = await this.transactions.run(async (tx) => {
+        const configurationResult: ConfigurationSnapshotResult | Skipped<ConfigurationSnapshotResult> = configurationAlreadyApplied
+          ? {
               proyecto: 0,
               modulos: 0,
               pensiones: 0,
               pensionPasses: 0,
               skipped: true,
               reason: "VERSION_ALREADY_APPLIED",
-            })
-          : this.syncService.applyConfigurationSnapshot({
+            }
+          : await this.syncService.applyConfigurationSnapshot({
               proyecto:
                 (configuration.proyecto as
                   | Record<string, unknown>
@@ -130,32 +140,33 @@ export class ConfigSyncService {
               pensionPasses: Array.isArray(configuration.pensionPasses)
                 ? (configuration.pensionPasses as Record<string, unknown>[])
                 : [],
-            }),
-        accessAlreadyApplied
-          ? Promise.resolve({
+            }, tx);
+        const accessResult: AccessSnapshotResult | Skipped<AccessSnapshotResult> = accessAlreadyApplied
+          ? {
               users: 0,
               permissionProfiles: 0,
               skipped: true,
               reason: "VERSION_ALREADY_APPLIED",
-            })
-          : this.syncService.applyAccessSnapshot({
+            }
+          : await this.syncService.applyAccessSnapshot({
               users: Array.isArray(access.users)
                 ? (access.users as Record<string, unknown>[])
                 : [],
               permissionProfiles: Array.isArray(access.permissionProfiles)
                 ? (access.permissionProfiles as Record<string, unknown>[])
                 : [],
-            }),
-      ]);
-      const integrity = await this.validateLocalIntegrity(proyectoId);
+            }, tx);
+        const integrity = await this.validateLocalIntegrity(proyectoId, tx);
 
-      if (integrity.errors.length > 0) {
-        throw CustomError.badRequest(
-          "La sincronizacion dejo inconsistencias locales",
-          { integrity },
-          "SYNC_INTEGRITY_FAILED",
-        );
-      }
+        if (integrity.errors.length > 0) {
+          throw CustomError.badRequest(
+            "La sincronizacion dejo inconsistencias locales",
+            { integrity },
+            "SYNC_INTEGRITY_FAILED",
+          );
+        }
+        return { configurationResult, accessResult, integrity };
+      });
 
       const syncStatus: SyncStatus =
         integrity.warnings.length > 0 ? "success_with_warnings" : "success";
@@ -187,12 +198,12 @@ export class ConfigSyncService {
         configurationVersion,
         accessVersion,
         counts: {
-          proyecto: Number(configurationResult.proyecto ?? 0),
-          modulos: Number(configurationResult.modulos ?? 0),
-          pensiones: Number(configurationResult.pensiones ?? 0),
-          pensionPasses: Number(configurationResult.pensionPasses ?? 0),
-          users: Number(accessResult.users ?? 0),
-          permissionProfiles: Number(accessResult.permissionProfiles ?? 0),
+          proyecto: configurationResult.proyecto,
+          modulos: configurationResult.modulos,
+          pensiones: configurationResult.pensiones,
+          pensionPasses: configurationResult.pensionPasses,
+          users: accessResult.users,
+          permissionProfiles: accessResult.permissionProfiles,
         },
         integrity,
       });
@@ -258,6 +269,7 @@ export class ConfigSyncService {
 
   private async validateLocalIntegrity(
     proyectoId: string,
+    tx?: TransactionContext,
   ): Promise<IntegrityResult> {
     const errors: IntegrityIssue[] = [];
     const warnings: IntegrityIssue[] = [];
@@ -274,7 +286,7 @@ export class ConfigSyncService {
     ]);
 
     const { proyectoExists, modulos, pensiones, pensionPasses, usuarios } =
-      await this.configSync.getIntegritySnapshot(proyectoId);
+      await this.configSync.getIntegritySnapshot(proyectoId, tx);
 
     const addIssue = (
       severity: IntegritySeverity,
@@ -388,6 +400,7 @@ export class ConfigSyncService {
     const existingProfileIds = await this.configSync.findExistingPermissionProfileIds(
       profileIds,
       USER_APPS.OPERATIVE_WEB,
+      tx,
     );
     const profileIdSet = new Set(existingProfileIds);
 

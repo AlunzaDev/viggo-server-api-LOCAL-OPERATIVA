@@ -5,15 +5,19 @@ import { ProyectoModel } from "../../../data/mongo/models/parking/proyecto.schem
 import { PensionPassModel } from "../../../data/mongo/models/pension/pension-pass.schema";
 import { PensionModel } from "../../../data/mongo/models/pension/pension.schema";
 import {
-  normalizeUserModules,
-  USER_APPS,
-} from "../../../domain/constants";
-import {
   SyncDatasource,
   type AccessSnapshotPayload,
   type ConfigurationSnapshotPayload,
   type SnapshotItem,
 } from "../../../domain/datasources/sync/sync.datasource";
+import {
+  getSnapshotId,
+  normalizeOperativeProfile,
+  normalizeOperativeUser,
+  normalizeSnapshotItem,
+  summarizeResults,
+  validSnapshotItems,
+} from "./sync.normalizers";
 
 type SyncModel = {
   findById(id: string): { lean(): Promise<Record<string, unknown> | null> };
@@ -24,104 +28,9 @@ type SyncModel = {
   ): Promise<unknown>;
 };
 
-const getSnapshotId = (item: SnapshotItem): string => {
-  const id = item.id ?? item._id;
-  if (typeof id === "string") return id.trim();
-  if (id && typeof id === "object") {
-    const source = id as Record<string, unknown>;
-    return String(source.$oid ?? source.id ?? source._id ?? "").trim();
-  }
-  return "";
-};
-
 const toObjectIdUpdate = (item: SnapshotItem) => {
   const { id, _id, ...rest } = item;
   return { _id: getSnapshotId(item), ...rest };
-};
-
-const parseCoordinatePair = (value: unknown): [number, number] | null => {
-  if (!Array.isArray(value) || value.length < 2) return null;
-  const longitude = Number(value[0]);
-  const latitude = Number(value[1]);
-  return Number.isFinite(longitude) && Number.isFinite(latitude)
-    ? [longitude, latitude]
-    : null;
-};
-
-const normalizeProjectCoordinates = (value: unknown): unknown => {
-  const directPair = parseCoordinatePair(value);
-  if (directPair) return directPair;
-
-  if (!Array.isArray(value)) return value;
-
-  const source =
-    Array.isArray(value[0]) && Array.isArray((value[0] as unknown[])[0])
-      ? (value[0] as unknown[])
-      : value;
-
-  const points = source
-    .map((point) => {
-      const pair = parseCoordinatePair(point);
-      if (pair) return pair;
-
-      if (point && typeof point === "object") {
-        const record = point as { longitude?: unknown; latitude?: unknown };
-        const longitude = Number(record.longitude);
-        const latitude = Number(record.latitude);
-        if (Number.isFinite(longitude) && Number.isFinite(latitude)) {
-          return [longitude, latitude] as [number, number];
-        }
-      }
-
-      return null;
-    })
-    .filter((point): point is [number, number] => Boolean(point));
-
-  return points.length >= 3 ? points : value;
-};
-
-const normalizeSnapshotItem = (item: SnapshotItem): SnapshotItem => {
-  const normalized = { ...item };
-
-  if ("coordinates" in normalized) {
-    normalized.coordinates = normalizeProjectCoordinates(normalized.coordinates);
-  }
-
-  return normalized;
-};
-
-const validSnapshotItems = (items: SnapshotItem[]) =>
-  items.filter((item) => getSnapshotId(item));
-
-const normalizeOperativeProfile = (item: SnapshotItem): SnapshotItem | null => {
-  if (item.app !== USER_APPS.OPERATIVE_WEB) return null;
-  const modules = normalizeUserModules(item.modules);
-  if (modules.length === 0) return null;
-  return {
-    ...item,
-    app: USER_APPS.OPERATIVE_WEB,
-    modules,
-  };
-};
-
-const normalizeOperativeUser = (item: SnapshotItem): SnapshotItem | null => {
-  const allowedApps = Array.isArray(item.allowedApps)
-    ? item.allowedApps.filter((app) => app === USER_APPS.OPERATIVE_WEB)
-    : [];
-  const appPermissions = Array.isArray(item.appPermissions)
-    ? item.appPermissions.filter((permission) => {
-        if (!permission || typeof permission !== "object") return false;
-        return (permission as Record<string, unknown>).app === USER_APPS.OPERATIVE_WEB;
-      })
-    : [];
-
-  if (allowedApps.length === 0 || appPermissions.length === 0) return null;
-
-  return {
-    ...item,
-    allowedApps,
-    appPermissions,
-  };
 };
 
 const normalizeComparable = (value: unknown): unknown => {
@@ -189,15 +98,6 @@ const applyChangedSnapshot = async (model: SyncModel, item: SnapshotItem) => {
 
   return { created: diff.created, updated: !diff.created, unchanged: false };
 };
-
-const summarizeResults = (
-  results: Array<{ created: boolean; updated: boolean; unchanged: boolean }>,
-) => ({
-  received: results.length,
-  created: results.filter((item) => item.created).length,
-  updated: results.filter((item) => item.updated).length,
-  unchanged: results.filter((item) => item.unchanged).length,
-});
 
 export class SyncMongoDatasource implements SyncDatasource {
   async applyAccessSnapshot(payload: AccessSnapshotPayload) {

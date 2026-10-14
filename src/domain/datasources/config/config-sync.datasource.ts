@@ -1,3 +1,5 @@
+import type { TransactionContext } from "../system/transaction";
+
 export type ConfigSyncStatus = "success" | "success_with_warnings" | "failed";
 
 /** Local copy of the configuration synced from ADMINISTRATIVO, as needed to check its integrity. */
@@ -35,9 +37,10 @@ export interface ConfigSyncAuditInput {
 }
 
 export abstract class ConfigSyncDatasource {
-  abstract getIntegritySnapshot(proyectoId: string): Promise<ConfigIntegritySnapshot>;
+  /** With `tx`, reads inside that transaction (sees the snapshot being applied). */
+  abstract getIntegritySnapshot(proyectoId: string, tx?: TransactionContext): Promise<ConfigIntegritySnapshot>;
   /** Which of the given ids exist as permission profiles of the app. */
-  abstract findExistingPermissionProfileIds(ids: string[], app: string): Promise<string[]>;
+  abstract findExistingPermissionProfileIds(ids: string[], app: string, tx?: TransactionContext): Promise<string[]>;
   abstract recordAudit(audit: ConfigSyncAuditInput): Promise<void>;
   /** Most recent audits first. */
   abstract getAuditHistory(limit: number): Promise<Record<string, unknown>[]>;
