@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { JwtPlugin } from "../../../config/plugins/jwt.plugin";
 import { UniqueConstraintError } from "../../../domain/errors/unique-constraint.error";
 import { TicketEntity } from "../../../domain/entities/parking/ticket.entity";
@@ -439,7 +440,11 @@ export class TicketService {
       pad(now.getSeconds()),
     ].join("");
 
-    return `00${datePart}${proyectoIdentificador}${moduloIdentificador}`;
+    // Milliseconds plus a random part: two entries in the same second at the same gate
+    // must not collide (the readable prefix stays the same).
+    const uniquePart = `${String(now.getMilliseconds()).padStart(3, "0")}${randomBytes(2).toString("hex").slice(0, 3).toUpperCase()}`;
+
+    return `00${datePart}${proyectoIdentificador}${moduloIdentificador}${uniquePart}`;
   }
 
   private calculateDurationInMinutes(

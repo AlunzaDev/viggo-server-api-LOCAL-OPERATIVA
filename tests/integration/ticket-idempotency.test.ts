@@ -32,13 +32,8 @@ const key = () => `key-${randomUUID()}`;
 let entryToken = "";
 let exitToken = "";
 
-// idBoleto has one-second resolution per gate (separate issue): move the clock
-// between entries so these tests only exercise idempotency.
-const nextSecond = () => vi.setSystemTime(Date.now() + 1000);
-
-describe("ticket entry and exit idempotency", () => {
+describe("ticket entry and exit", () => {
   beforeAll(async () => {
-    vi.useFakeTimers({ toFake: ["Date"] });
     await PostgresDatabase.connect({ databaseUrl: process.env.DATABASE_URL!, poolMax: 3 });
     await db().proyecto.create({
       data: { id: proyectoId, nombre: "Plaza", coordinates: [-103.3, 20.6], ciudad: "GDL", identificador: `P-${proyectoId}` },
@@ -58,7 +53,6 @@ describe("ticket entry and exit idempotency", () => {
     await db().modulo.deleteMany({ where: { proyectoId } });
     await db().proyecto.delete({ where: { id: proyectoId } });
     await PostgresDatabase.disconnect();
-    vi.useRealTimers();
   });
 
   it("returns the same ticket when an entry is retried with the same key", async () => {
@@ -73,15 +67,29 @@ describe("ticket entry and exit idempotency", () => {
     expect(openBarrier).toHaveBeenCalledTimes(1);
 
     // A different key is a new entry, rejected while the first ticket is active.
-    nextSecond();
     await expect(service.createTicketFromModuleToken(usuarioId, entryToken, { idempotencyKey: key() })).rejects.toThrow(
       "El usuario ya tiene un ticket activo",
     );
   });
 
+  it("issues distinct tickets for entries in the same second at the same gate", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date("2026-10-14T12:00:00.000Z"));
+      const first = await service.createTicketFromModuleToken(randomUUID(), entryToken);
+      vi.setSystemTime(new Date("2026-10-14T12:00:00.000Z"));
+      const second = await service.createTicketFromModuleToken(randomUUID(), entryToken);
+      expect(second.id).not.toBe(first.id);
+      expect(second.idBoleto).not.toBe(first.idBoleto);
+      // The readable prefix (00 + date and time to the second) is kept.
+      expect(first.idBoleto.slice(0, 14)).toBe(second.idBoleto.slice(0, 14));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("returns the completed ticket when an exit is retried with the same key", async () => {
     const usuarioId = randomUUID();
-    nextSecond();
     const ticket = await service.createTicketFromModuleToken(usuarioId, entryToken, { idempotencyKey: key() });
     await db().ticket.update({ where: { id: ticket.id }, data: { pagado: true } });
 
@@ -92,7 +100,6 @@ describe("ticket entry and exit idempotency", () => {
     expect(retried.id).toBe(ticket.id);
 
     // The entry key does not count as an exit.
-    nextSecond();
     const other = await service.createTicketFromModuleToken(randomUUID(), entryToken, { idempotencyKey: exitKey.replace("key-", "entry-") });
     await expect(service.killTicketFromModuleToken(other.usuario, exitToken, { idempotencyKey: key() })).rejects.toThrow(
       "No cuenta con un ticket pagado para salir",
