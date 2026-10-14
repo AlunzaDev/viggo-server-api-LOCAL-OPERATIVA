@@ -13,6 +13,7 @@
 .env.*
 !.env.example
 !.env.test.example
+!.env.docker.example
 mongo-init.js
 
 # Local test seed scripts

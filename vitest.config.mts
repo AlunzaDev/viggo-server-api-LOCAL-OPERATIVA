@@ -4,13 +4,12 @@ import { defineConfig } from "vitest/config";
 
 // Tests read their own env file so they can never point at the dev or prod database.
 const testEnv = existsSync(".env.test") ? parse(readFileSync(".env.test")) : {};
-// The app config (envs.plugin) requires these; tests never use real secrets or MongoDB.
+// The app config (envs.plugin) requires these; tests never use real secrets.
 const appDefaults = {
   APP_ENV: "test",
   PORT: "3999",
   PUBLIC_PATH: "public",
   JWT_SEED: "test-jwt-seed-not-a-real-secret-0000",
-  MONGO_URL: "mongodb://127.0.0.1:1/unused_test",
   SYNC_SERVICE_TOKEN: "test-sync-token-not-a-real-secret-000",
   INSTALLATION_ID: "viggo-test-local-001",
   ADMINISTRATIVO_API_URL: "http://cloud.test",

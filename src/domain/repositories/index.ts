@@ -12,7 +12,6 @@ export * from "./pension/pension-pass.repository";
 export * from "./pension/pension-move.repository";
 export * from "./auth/auth.repository";
 export * from "./auth/permission-profile.repository";
-export * from "./auth/usuario.repository";
 export * from "./cash-register/cash-register-shift.repository";
 export * from "./cash-register/cash-register-movement.repository";
 export * from "./cash-register/cash-register-count.repository";

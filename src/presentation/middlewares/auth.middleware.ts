@@ -1,8 +1,7 @@
+import { buildAuthRepository, buildPermissionProfileRepository } from "../dependencies/repositories.dependencies";
 import { NextFunction, Request, Response } from "express";
 
 import { JwtPlugin } from "../../config/plugins/jwt.plugin";
-import { PermissionProfileMongoDatasource } from "../../infrastructure/datasources/auth/permission-profile.datasource.mongo";
-import { PermissionProfileRepositoryImpl } from "../../infrastructure/repositories/auth/permission-profile.repository.impl";
 
 import {
   hasUserModuleAccess,
@@ -20,8 +19,6 @@ import {
 
 import { CustomError } from "../../domain/errors/custom.error";
 
-import { AuthMongoDatasource } from "../../infrastructure/datasources/auth/auth.datasource.mongo";
-import { AuthRepositoryImpl } from "../../infrastructure/repositories/auth/auth.repository.impl";
 
 type AuthenticatedUser = {
   id: string;
@@ -45,11 +42,9 @@ type AuthTokenPayload = {
   app: WebOperativeApp;
 };
 
-const authRepository = new AuthRepositoryImpl(new AuthMongoDatasource());
+const authRepository = buildAuthRepository();
 
-const permissionProfileRepository = new PermissionProfileRepositoryImpl(
-  new PermissionProfileMongoDatasource(),
-);
+const permissionProfileRepository = buildPermissionProfileRepository();
 
 const getRequestToken = (req: Request): string | undefined => {
   const authorization = req.header("Authorization");

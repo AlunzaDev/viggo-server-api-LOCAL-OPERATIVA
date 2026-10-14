@@ -6,7 +6,6 @@ export * from "./pension/pension-pass.datasource";
 export * from "./pension/pension-move.datasource";
 export * from "./auth/auth.datasource";
 export * from "./auth/permission-profile.datasource";
-export * from "./auth/usuario.datasource";
 export * from "./cash-register/cash-register-shift.datasource";
 export * from "./cash-register/cash-register-movement.datasource";
 export * from "./cash-register/cash-register-count.datasource";

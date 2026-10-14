@@ -7,8 +7,6 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "preflight": "node scripts/preflight.mjs",
-    "audit:app-permissions": "node scripts/audit-app-permissions.mjs",
-    "repair:app-permissions": "node scripts/repair-app-permissions.mjs",
     "build": "prisma generate && tsc",
     "start": "node dist/app.js",
     "check": "prisma generate && tsc --noEmit && tsc -p tests",
@@ -29,7 +27,6 @@
     "env-var": "^7.5.0",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.16.1",
     "pg": "8.23.1",
     "socket.io": "^4.8.3"
   },

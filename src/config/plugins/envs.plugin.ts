@@ -27,12 +27,6 @@ const corsAllowedOrigins = [
 ]
   .map((value) => String(value).trim())
   .filter(Boolean);
-const mongoUrl = getConfigValue("MONGO_URL") ?? "";
-
-if (!mongoUrl) {
-  throw new Error("MONGO_URL is required.");
-}
-
 const databaseUrl = getConfigValue("DATABASE_URL") ?? "";
 if (!databaseUrl) {
   throw new Error("DATABASE_URL is required.");
@@ -197,20 +191,12 @@ export const envs = {
   PROD: isProd,
   JWT_SEED: jwtSeed,
   INSTALLATION_SECRET_KEY: installationSecretKey,
-  MONGO_URL: mongoUrl,
   DATABASE_URL: databaseUrl,
   DATABASE_POOL_MAX: parseBoundedInteger(
     env.get("DATABASE_POOL_MAX").asString(),
     10,
     1,
     100,
-  ),
-  MONGO_DB_NAME: getConfigValue("MONGO_DB_NAME") ?? "cobro-cajas-wm",
-  MONGO_DISCONNECT_EXIT_DELAY_MS: parseBoundedInteger(
-    env.get("MONGO_DISCONNECT_EXIT_DELAY_MS").asString(),
-    30000,
-    1000,
-    300000,
   ),
   HOST: env.get("HOST").default("0.0.0.0").asString(),
   PORT: env.get("PORT").required().asPortNumber() ?? 8080,
@@ -286,7 +272,7 @@ export const envs = {
     300000,
   ),
   // Delivery of the local outbox to ADMINISTRATIVO (offline-first).
-  OUTBOX_SYNC_ENABLED: env.get("OUTBOX_SYNC_ENABLED").default("false").asBool(),
+  OUTBOX_SYNC_ENABLED: env.get("OUTBOX_SYNC_ENABLED").default("true").asBool(),
   OUTBOX_SYNC_INTERVAL_MS: parseBoundedInteger(
     env.get("OUTBOX_SYNC_INTERVAL_MS").asString(),
     5000,

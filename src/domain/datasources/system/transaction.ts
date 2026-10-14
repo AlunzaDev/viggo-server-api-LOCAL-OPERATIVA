@@ -2,7 +2,7 @@ declare const transactionBrand: unique symbol;
 
 /**
  * Opaque handle of an open database transaction. Services pass it through to datasources
- * without knowing what it is (a Mongo session today, a Prisma transaction client later).
+ * without knowing what it is (a Prisma interactive transaction).
  */
 export type TransactionContext = { readonly [transactionBrand]: true };
 

@@ -88,27 +88,33 @@ La aprobación, rechazo, reapertura y reinicio del **binding físico de disposit
 ## Preparación local
 
 ```powershell
-Copy-Item .env.example .env
+Copy-Item .env.example .env.dev      # ajustar DATABASE_URL y secretos
+docker compose up -d postgres        # Postgres 17 en 127.0.0.1:5435
 npm install
-npm run check
+npm run db:migrate:deploy            # aplica las migraciones
+npm run db:seed                      # estacionamiento demo vinculado (opcional)
 npm run dev
 ```
 
-El modo de desarrollo compila a `dist`, vigila cambios de TypeScript y reinicia Node automáticamente. No utiliza `--experimental-strip-types`.
+El modo de desarrollo genera el cliente de Prisma, compila a `dist`, vigila cambios de TypeScript y reinicia Node automáticamente.
+
+El seed carga "Demo Centro" (código 0001) pasando por el mismo sync que usa ADMINISTRATIVO, crea `admin@viggo.local` y `cajero@viggo.local` (contraseñas de `SEED_ADMIN_PASSWORD` / `SEED_USER_PASSWORD`, o generadas) y vincula la instalación. Se puede correr varias veces.
+
+### Base de datos y pruebas
+
+- `npm run db:migrate` crea una migración nueva en desarrollo; `npm run db:migrate:deploy` aplica las pendientes.
+- `npm run db:studio` abre Prisma Studio.
+- `npm test` corre las pruebas contra `viggo_operativo_test` (copiar `.env.test.example` a `.env.test`).
+- `npm run check` genera el cliente y revisa tipos de la app y de las pruebas.
 
 ## Docker
 
-```powershell
-Copy-Item .env.example .env
-docker compose up --build
-```
-
-MongoDB sólo se publica en `127.0.0.1:27017` para evitar exponerlo a la red del estacionamiento.
+Ver [docker-runbook.md](docker-runbook.md). Postgres sólo se publica en `127.0.0.1:5435` para no exponerlo a la red del estacionamiento.
 
 ## Variables principales
 
-- `MONGO_URL`
-- `MONGO_DB_NAME`
+- `DATABASE_URL`
+- `DATABASE_POOL_MAX`
 - `JWT_SEED`
 - `CORS_ALLOWED_ORIGINS`
 - `PAYMENT_CURRENCY`
@@ -120,7 +126,13 @@ No deben agregarse credenciales de Stripe ni correo a OPERATIVO.
 
 ## Sincronización
 
-Los modelos locales de usuarios, parkings, módulos, pensiones y Pension Pass se mantienen porque son necesarios para la operación offline. El transporte automático de configuración y eventos hacia/desde ADMINISTRATIVO es la siguiente frontera de integración; no debe reintroducir CRUD administrativo público en esta API.
+Los modelos locales de usuarios, parkings, módulos, pensiones y Pension Pass son copias de ADMINISTRATIVO necesarias para operar sin internet. El sync de configuración aplica los snapshots y valida la integridad en una sola transacción: si el resultado es inconsistente se revierte y se conserva la configuración anterior.
+
+### Outbox (OPERATIVO → ADMINISTRATIVO)
+
+Cada alta o cambio de tickets, pagos, sesiones de efectivo, turnos, movimientos, cortes y movimientos de pensionados queda registrado en `outbox_events` en la misma transacción (triggers de Postgres). El scheduler (`OUTBOX_SYNC_ENABLED`) los envía en orden a `POST /api/sync/events`; sin conexión espera con backoff y reintenta sin límite. La nube descarta los repetidos por `eventId`.
+
+No debe reintroducirse CRUD administrativo público en esta API.
  
 ### Recibir snapshot de accesos
 
@@ -157,11 +169,11 @@ Authorization: Bearer <SYNC_SERVICE_TOKEN>
 X-Viggo-Sync-Source: administrativo-direct-query
 ```
 
-Este endpoint devuelve salud local, resumen de tickets, cobros, turnos abiertos y movimientos recientes. No copia toda la BD local; entrega un snapshot operativo acotado. El patron outbox/inbox queda reservado para una fase posterior donde se requiera tolerancia total a desconexion.
+Este endpoint devuelve salud local, resumen de tickets, cobros, turnos abiertos y movimientos recientes. No copia toda la BD local; entrega un snapshot operativo acotado. Lo que pasa sin conexion llega a la nube por el outbox.
 
 # Nota: token de instalacion cifrado
 
-ADMINISTRATIVO genera un token de vinculacion al crear el proyecto. Al solicitar vinculacion, OPERATIVO pide ingresar ese token, lo manda a ADMINISTRATIVO para validar el proyecto y lo guarda cifrado en Mongo local dentro de `localinstallations.encryptedSyncToken` usando `INSTALLATION_SECRET_KEY` o, como respaldo de desarrollo, `JWT_SEED`.
+ADMINISTRATIVO genera un token de vinculacion al crear el proyecto. Al solicitar vinculacion, OPERATIVO pide ingresar ese token, lo manda a ADMINISTRATIVO para validar el proyecto y lo guarda cifrado en la base local dentro de `local_installation.encrypted_sync_token` usando `INSTALLATION_SECRET_KEY` o, como respaldo de desarrollo, `JWT_SEED`.
 
 En campo se recomienda configurar una llave dedicada:
 

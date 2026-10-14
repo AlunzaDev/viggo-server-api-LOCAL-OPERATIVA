@@ -1,7 +1,6 @@
+import { buildAuthRepository } from "../../dependencies/repositories.dependencies";
 import { Router } from "express";
 import { AUTH_ROLES } from "../../../domain/constants";
-import { AuthMongoDatasource } from "../../../infrastructure/datasources/auth/auth.datasource.mongo";
-import { AuthRepositoryImpl } from "../../../infrastructure/repositories/auth/auth.repository.impl";
 import { AuthMiddleware } from "../../middlewares";
 import { LocalUserController } from "./local-user.controller";
 
@@ -9,7 +8,7 @@ export class LocalUserRoutes {
   static get routes(): Router {
     const router = Router();
     const controller = new LocalUserController(
-      new AuthRepositoryImpl(new AuthMongoDatasource()),
+      buildAuthRepository(),
     );
     router.use(
       AuthMiddleware.requireAuth,

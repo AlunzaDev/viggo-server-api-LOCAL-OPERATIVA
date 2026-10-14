@@ -61,26 +61,6 @@ services:
         "while true; do now=$$(date +%Y%m%d-%H%M%S); file=/backups/$$PGDATABASE-$$now.dump; if pg_dump --format=custom --file=$$file.tmp; then mv $$file.tmp $$file; else rm -f $$file.tmp; echo \"pg_dump failed at $$now\" >&2; fi; find /backups -maxdepth 1 -name '*.dump' -mtime +$$BACKUP_RETENTION_DAYS -delete; sleep $$BACKUP_INTERVAL_SECONDS; done",
       ]
 
-  # MongoDB stays until every datasource runs on Postgres (#7).
-  mongo-db:
-    image: mongo:7.0
-    container_name: viggo-operativo-mongo
-    restart: unless-stopped
-    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
-    ports:
-      - "127.0.0.1:27017:27017"
-    volumes:
-      - ./mongo:/data/db
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "mongosh --quiet --eval \"try { rs.status().ok } catch (e) { rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo-db:27017'}]}).ok }\" | grep 1",
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
   backend:
     container_name: viggo-operativo-api
     image: ${BACKEND_IMAGE:-viggo-server-api-operativo:local}
@@ -94,15 +74,12 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
-      mongo-db:
-        condition: service_healthy
     env_file:
       - ${BACKEND_ENV_FILE:-.env.docker}
     environment:
       APP_ENV: ${APP_ENV:-prod}
       PROD: "true"
       DATABASE_URL: postgresql://${POSTGRES_USER:-viggo}:${POSTGRES_PASSWORD:-viggo-dev-password}@postgres:5432/${POSTGRES_DB:-viggo_operativo}
-      MONGO_URL: mongodb://mongo-db:27017/${MONGO_DB_NAME:-viggo-operativo}?replicaSet=rs0
     ports:
       - "${BACKEND_PORT:-8081}:8080"
     volumes:
@@ -120,26 +97,6 @@ services:
       timeout: 5s
       retries: 3
       start_period: 20s
-
-  mongo-backup:
-    image: mongo:7.0
-    container_name: viggo-operativo-mongo-backup
-    restart: unless-stopped
-    depends_on:
-      mongo-db:
-        condition: service_healthy
-    environment:
-      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-3600}
-      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
-      MONGO_DB_NAME: ${MONGO_DB_NAME:-viggo-operativo}
-    volumes:
-      - ./backups/mongo:/backups
-    command:
-      [
-        "sh",
-        "-c",
-        "while true; do now=$$(date +%Y%m%d-%H%M%S); mongodump --host mongo-db:27017 --db $$MONGO_DB_NAME --out /backups/$$now && find /backups -mindepth 1 -maxdepth 1 -type d -mtime +$$BACKUP_RETENTION_DAYS -exec rm -rf {} +; sleep $$BACKUP_INTERVAL_SECONDS; done",
-      ]
 
 volumes:
   postgres-data:

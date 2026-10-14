@@ -1,4 +1,4 @@
-// Normalization of the snapshots ADMINISTRATIVO sends, shared by the Mongo and Postgres datasources.
+// Normalization of the snapshots ADMINISTRATIVO sends before they are stored.
 import { normalizeUserModules, USER_APPS } from "../../../domain/constants";
 import type { SnapshotApplySummary, SnapshotItem } from "../../../domain/datasources/sync/sync.datasource";
 

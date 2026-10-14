@@ -1,15 +1,8 @@
+import { buildLocalInstallationRepository, buildModuloRepository, buildProyectoRepository, buildTicketRepository } from "../dependencies/repositories.dependencies";
 import { Server as HttpServer } from "http";
 import { Server as SocketServer, Socket } from "socket.io";
 import { JwtPlugin } from "../../config/plugins/jwt.plugin";
 import { envs } from "../../config/plugins/envs.plugin";
-import { TicketMongoDatasource } from "../../infrastructure/datasources/parking/ticket.datasource.mongo";
-import { ModuloMongoDatasource } from "../../infrastructure/datasources/parking/modulo.datasource.mongo";
-import { ProyectoMongoDatasource } from "../../infrastructure/datasources/parking/proyecto.datasource.mongo";
-import { LocalInstallationMongoDatasource } from "../../infrastructure/datasources/installation/local-installation.datasource.mongo";
-import { ModuloRepositoryImpl } from "../../infrastructure/repositories/parking/modulo.repository.impl";
-import { ProyectoRepositoryImpl } from "../../infrastructure/repositories/parking/proyecto.repository.impl";
-import { LocalInstallationRepositoryImpl } from "../../infrastructure/repositories/installation/local-installation.repository.impl";
-import { TicketRepositoryImpl } from "../../infrastructure/repositories/parking/ticket.repository.impl";
 import { ModuloService } from "../services/parking/modulo.service";
 import { LocalInstallationService } from "../services/installation/local-installation.service";
 import { DeviceSessionRegistry } from "./device-session-registry";
@@ -31,7 +24,7 @@ export class SocketServerPlugin {
   private static deviceSocketService = new DeviceSocketService(
     this.moduloService,
     this.registry,
-    new TicketRepositoryImpl(new TicketMongoDatasource()),
+    buildTicketRepository(),
   );
   private static staleSessionMonitorStarted = false;
 
@@ -168,14 +161,14 @@ export class SocketServerPlugin {
   }
 }
 
-// Built here instead of through presentation/dependencies: this runs in a static initializer,
-// while the dependency modules are still loading (circular import).
+// Built from the repository builders only (they import infrastructure, nothing else): this runs
+// in a static initializer, while the other dependency modules may still be loading.
 function createModuloService(): ModuloService {
   return new ModuloService(
-    new ModuloRepositoryImpl(new ModuloMongoDatasource()),
-    new ProyectoRepositoryImpl(new ProyectoMongoDatasource()),
+    buildModuloRepository(),
+    buildProyectoRepository(),
     new LocalInstallationService(
-      new LocalInstallationRepositoryImpl(new LocalInstallationMongoDatasource()),
+      buildLocalInstallationRepository(),
     ),
   );
 }
