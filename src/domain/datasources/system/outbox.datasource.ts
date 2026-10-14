@@ -8,6 +8,7 @@ export interface OutboxEvent {
   /** The row as stored when the change happened. */
   payload: Record<string, unknown>;
   occurredAt: number;
+  sourcePosition?: string;
   attempts: number;
   nextAttemptAt: number;
   lastError: string;

@@ -136,6 +136,10 @@ describe("outbox (Postgres)", () => {
     const result = await publisher.publishPending(start + 4 * DAY);
     expect(result).toMatchObject({ sent: 4, stopped: false });
     expect(cloud.received).toEqual(queued);
+    for (const eventId of queued) {
+      const stored = await db().outboxEvent.findUniqueOrThrow({ where: { eventId } });
+      expect(cloud.inbox.get(eventId)?.sourcePosition).toBe(stored.position.toString());
+    }
     expect(await pendingIds()).toEqual([]);
     expect((await publisher.stats()).pending).toBe(0);
   });

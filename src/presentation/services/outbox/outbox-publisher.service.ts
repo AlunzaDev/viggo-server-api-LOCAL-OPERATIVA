@@ -112,6 +112,7 @@ export class OutboxPublisherService {
           eventType: event.eventType,
           aggregateId: event.aggregateId,
           occurredAt: event.occurredAt,
+          sourcePosition: event.sourcePosition,
           payload: event.payload,
         }),
         signal: AbortSignal.timeout(10_000),

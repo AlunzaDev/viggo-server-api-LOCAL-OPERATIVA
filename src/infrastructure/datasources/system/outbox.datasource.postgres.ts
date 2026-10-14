@@ -9,6 +9,7 @@ import { isUuid } from "../postgres/prisma-errors";
 
 const toOutboxEvent = (row: OutboxEventRow): OutboxEvent => ({
   eventId: row.eventId,
+  sourcePosition: row.position.toString(),
   eventType: row.eventType,
   aggregateType: row.aggregateType,
   aggregateId: row.aggregateId,
