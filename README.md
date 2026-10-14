@@ -106,6 +106,7 @@ El seed carga "Demo Centro" (código 0001) pasando por el mismo sync que usa ADM
 - `npm run db:studio` abre Prisma Studio.
 - `npm test` corre las pruebas contra `viggo_operativo_test` (copiar `.env.test.example` a `.env.test`).
 - `npm run check` genera el cliente y revisa tipos de la app y de las pruebas.
+- `pg` va fijado en 8.x (versión exacta en `package.json`). Dentro de una transacción, Prisma 7 lanza en paralelo las consultas de un `include` con varias relaciones sobre la misma conexión; `pg@8` las encola con un aviso y `pg@9` las rechazará. Por eso, dentro de una transacción (o en una escritura anidada) no se usa `include` con varias relaciones: se escribe primero y se lee después, o se cargan las relaciones una por una. Los tests fallan si aparece el aviso. `relationLoadStrategy: "join"` lo resolvería, pero en Prisma 7.10 sigue siendo preview (`relationJoins`); revisar al subir a Prisma 8 antes de pasar a `pg@9`.
 
 ## Docker
 

@@ -20,7 +20,6 @@ import { permissionProfileColumns, toPermissionProfileEntity } from "../auth/per
 import { toUsuarioEntity, usuarioInclude, writeUsuario } from "../auth/usuario.prisma-mapper";
 import {
   MODULO_CLOUD_KEYS,
-  moduloInclude,
   PROYECTO_KEYS,
   proyectoInclude,
   toModuloEntity,
@@ -110,8 +109,25 @@ const moduloSpec: ProjectionSpec<ModuloEntity> = {
   kind: "modulo",
   // The cloud sends the configuration only; the device state stays as stored here.
   parse: (item) => ModuloEntity.fromObject(item),
-  findExisting: async (db, ids) =>
-    (await db.modulo.findMany({ where: { id: { in: ids } }, include: moduloInclude })).map(toModuloEntity),
+  // Only the cloud fields are compared, loaded one query at a time: inside the sync
+  // transaction an `include` of several relations runs them in parallel on its single
+  // connection, which pg@9 will reject (#12).
+  findExisting: async (db, ids) => {
+    const rows = await db.modulo.findMany({ where: { id: { in: ids } } });
+    const submodulos = await db.submodulo.findMany({ where: { moduloId: { in: ids } }, orderBy: { position: "asc" } });
+    const remoteSupports = await db.moduloRemoteSupport.findMany({ where: { moduloId: { in: ids } } });
+    return rows.map((row) =>
+      toModuloEntity({
+        ...row,
+        submodulos: submodulos.filter((submodulo) => submodulo.moduloId === row.id),
+        remoteSupport: remoteSupports.find((support) => support.moduloId === row.id) ?? null,
+        deviceBinding: null,
+        bindingRequests: [],
+        connectionAudit: null,
+        deviceRuntime: null,
+      }),
+    );
+  },
   cloudView: (modulo) => pick(modulo, MODULO_CLOUD_KEYS),
   write: (db, modulo, create) =>
     writeModulo(db, modulo.id, pick(modulo, MODULO_CLOUD_KEYS), { create, replace: MODULO_CLOUD_KEYS }),
