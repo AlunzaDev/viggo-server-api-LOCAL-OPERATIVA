@@ -1,20 +1,18 @@
 import { envs } from "../../../config";
-import { LocalInstallationModel } from "../../../data/mongo/models/system/local-installation.schema";
 import { ModuloRepository } from "../../../domain/repositories/parking/modulo.repository";
 import { ProyectoRepository } from "../../../domain/repositories/parking/proyecto.repository";
 import { DEVICE_HEARTBEAT_TIMEOUT_MS } from "../../sockets/device-socket.types";
 import { InstallationIdentityService } from "../installation/installation-identity.service";
 import { InstallationTokenCryptoService } from "../installation/installation-token-crypto.service";
+import { LocalInstallationService } from "../installation/local-installation.service";
 
 type HeartbeatStatus = "online" | "offline" | "pending";
 
 const buildCloudUrl = (path: string) =>
   `${envs.ADMINISTRATIVO_API_URL.replace(/\/+$/, "")}${path}`;
 
-const getSyncToken = async (): Promise<string> => {
-  const installation = await LocalInstallationModel.findOne({ key: "default" })
-    .select("encryptedSyncToken")
-    .lean();
+const getSyncToken = async (installations: LocalInstallationService): Promise<string> => {
+  const installation = await installations.findDefault();
   const encryptedSyncToken = String(installation?.encryptedSyncToken ?? "").trim();
 
   if (encryptedSyncToken) {
@@ -34,6 +32,7 @@ export class HeartbeatSnapshotService {
   constructor(
     private readonly moduloRepository: ModuloRepository,
     private readonly proyectoRepository: ProyectoRepository,
+    private readonly installations: LocalInstallationService,
   ) {}
 
   async buildSnapshot(proyectoId: string) {
@@ -181,7 +180,7 @@ export class HeartbeatSnapshotService {
   async syncSnapshot(proyectoId: string) {
     try {
       const installationId = await InstallationIdentityService.getInstallationId();
-      const syncToken = await getSyncToken();
+      const syncToken = await getSyncToken(this.installations);
 
       if (!syncToken) {
         console.warn("[OPERATIVO heartbeat] Snapshot omitido: no hay token de sincronizacion");

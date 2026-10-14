@@ -1,4 +1,3 @@
-import { startSession as startMongoSession } from "mongoose";
 import { CashRegisterMovementModel } from "../../../data/mongo/models/cash-register/cash-register-movement.schema";
 import { CashRegisterShiftModel } from "../../../data/mongo/models/cash-register/cash-register-shift.schema";
 import { ModuloModel } from "../../../data/mongo/models/parking/modulo.schema";
@@ -6,68 +5,114 @@ import { ProyectoModel } from "../../../data/mongo/models/parking/proyecto.schem
 import { TicketModel } from "../../../data/mongo/models/parking/ticket.schema";
 import { CashPaymentSessionModel } from "../../../data/mongo/models/payments/cash-payment-session.schema";
 import { PaymentModel } from "../../../data/mongo/models/payments/payment.schema";
-import { CashTicketPaymentDatasource } from "../../../domain/datasources/payments/cash-ticket-payment.datasource";
+import {
+  CashTicketPaymentDatasource,
+  type CashPaymentMovementInput,
+  type CashPaymentRecordInput,
+  type CashSessionInsertionUpdate,
+} from "../../../domain/datasources/payments/cash-ticket-payment.datasource";
+import type { TransactionContext } from "../../../domain/datasources/system/transaction";
+import { CashRegisterShiftEntity } from "../../../domain/entities/cash-register/cash-register-shift.entity";
+import { ModuloEntity } from "../../../domain/entities/parking/modulo.entity";
+import { TicketEntity } from "../../../domain/entities/parking/ticket.entity";
+import { CashPaymentSessionEntity } from "../../../domain/entities/payments/cash-payment-session.entity";
+import { mongoSession } from "../system/transaction-runner.mongo";
 
 export class CashTicketPaymentMongoDatasource implements CashTicketPaymentDatasource {
-  startSession() {
-    return startMongoSession();
+  async findModuloById(id: string) {
+    const document = await ModuloModel.findById(id);
+    return document ? ModuloEntity.fromObject(document.toObject()) : null;
   }
 
-  findModuloById(id: string) {
-    return ModuloModel.findById(id);
+  async findSessionById(id: string, tx: TransactionContext) {
+    const document = await CashPaymentSessionModel.findById(id).session(mongoSession(tx) ?? null);
+    return document ? CashPaymentSessionEntity.fromObject(document.toObject()) : null;
   }
 
-  findSessionById(id: string, session: unknown) {
-    return CashPaymentSessionModel.findById(id).session(session as never);
+  async findTicketById(id: string, tx: TransactionContext) {
+    const document = await TicketModel.findById(id).session(mongoSession(tx) ?? null);
+    return document ? TicketEntity.fromObject(document.toObject()) : null;
   }
 
-  findTicketById(id: string, session: unknown) {
-    return TicketModel.findById(id).session(session as never);
+  async findShiftById(id: string, tx: TransactionContext) {
+    const document = await CashRegisterShiftModel.findById(id).session(mongoSession(tx) ?? null);
+    return document ? CashRegisterShiftEntity.fromObject(document.toObject()) : null;
   }
 
-  findShiftById(id: string, session: unknown) {
-    return CashRegisterShiftModel.findById(id).session(session as never);
-  }
-
-  updateSession(id: string, update: object, session: unknown) {
-    return CashPaymentSessionModel.findByIdAndUpdate(id, update, {
-      new: true,
-      session: session as never,
-    });
-  }
-
-  markTicketPaid(id: string, paidAt: number, session: unknown) {
-    return TicketModel.findByIdAndUpdate(
+  async applySessionInsertion(id: string, update: CashSessionInsertionUpdate, tx: TransactionContext) {
+    const document = await CashPaymentSessionModel.findByIdAndUpdate(
       id,
-      { pagado: true, horaCobro: paidAt },
-      { session: session as never },
+      {
+        $set: {
+          amountReceived: update.amountReceived,
+          changeAmount: update.changeAmount,
+          status: update.status,
+          completedAt: update.completedAt,
+        },
+        $push: { events: { $each: update.events } },
+      },
+      { new: true, session: mongoSession(tx) },
     );
+    return document ? CashPaymentSessionEntity.fromObject(document.toObject()) : null;
   }
 
-  findPaymentByProviderReference(providerReference: string, session: unknown) {
-    return PaymentModel.findOne({ providerReference }).session(session as never);
+  async markTicketPaid(id: string, paidAt: number, tx: TransactionContext) {
+    await TicketModel.findByIdAndUpdate(id, { pagado: true, horaCobro: paidAt }, { session: mongoSession(tx) });
   }
 
-  findProjectById(id: unknown, session: unknown) {
-    return ProyectoModel.findById(id).session(session as never);
+  async findPaymentIdByProviderReference(providerReference: string, tx: TransactionContext) {
+    const document = await PaymentModel.findOne({ providerReference }).session(mongoSession(tx) ?? null);
+    return document ? String(document._id) : null;
   }
 
-  async createPayment(payload: object, session: unknown) {
-    const [paymentDocument] = await PaymentModel.create([payload], {
-      session: session as never,
-    });
-    return paymentDocument;
+  async findProjectById(id: string, tx: TransactionContext) {
+    const document = await ProyectoModel.findById(id).session(mongoSession(tx) ?? null);
+    return document
+      ? { id: String(document._id), nombre: String(document.get("nombre") ?? ""), ciudad: String(document.get("ciudad") ?? "") }
+      : null;
   }
 
-  findMovementByCashPaymentSessionId(sessionId: string, session: unknown) {
-    return CashRegisterMovementModel.findOne({
-      relatedCashPaymentSessionId: sessionId,
-    }).session(session as never);
+  async createPayment(payment: CashPaymentRecordInput, tx: TransactionContext) {
+    const [document] = await PaymentModel.create(
+      [
+        {
+          user: payment.user,
+          type: "ticket",
+          concept: "Pago de ticket en POS",
+          amount: payment.amount,
+          currency: payment.currency,
+          status: "succeeded",
+          paidAt: payment.paidAt,
+          providerReference: payment.providerReference,
+          paymentMethod: undefined,
+          reference: { type: "ticket", id: payment.ticketId },
+          parking: payment.parking,
+          rawProviderStatus: "pos_succeeded",
+        },
+      ],
+      { session: mongoSession(tx) },
+    );
+    return String(document._id);
   }
 
-  createMovement(payload: object, session: unknown) {
-    return CashRegisterMovementModel.create([payload], {
-      session: session as never,
-    });
+  async hasMovementForCashPaymentSession(sessionId: string, tx: TransactionContext) {
+    const document = await CashRegisterMovementModel.findOne({ relatedCashPaymentSessionId: sessionId }).session(
+      mongoSession(tx) ?? null,
+    );
+    return Boolean(document);
+  }
+
+  async createIncomeMovement(movement: CashPaymentMovementInput, tx: TransactionContext) {
+    await CashRegisterMovementModel.create(
+      [
+        {
+          ...movement,
+          type: "ticket_payment_income",
+          direction: "in",
+          concept: "Cobro de boleto en efectivo",
+        },
+      ],
+      { session: mongoSession(tx) },
+    );
   }
 }

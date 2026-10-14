@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 
-import { LocalInstallationModel } from "../../data/mongo/models/system/local-installation.schema";
+import { LocalInstallationService } from "../services/installation/local-installation.service";
 
 export type LocalProjectScopedRequest = Request & {
   localProjectId?: string;
@@ -26,15 +26,15 @@ const getExplicitProjectIds = (req: Request): string[] => {
 };
 
 export class LocalProjectScopeMiddleware {
-  static requireLinkedProject = async (
+  constructor(private readonly installations: LocalInstallationService) {}
+
+  requireLinkedProject = async (
     req: Request,
     res: Response,
     next: NextFunction,
   ) => {
     try {
-      const installation = await LocalInstallationModel.findOne({ key: "default" })
-        .select({ proyectoId: 1, status: 1 })
-        .lean();
+      const installation = await this.installations.findDefault();
       const localProjectId = String(installation?.proyectoId ?? "").trim();
 
       if (installation?.status !== "linked" || !localProjectId) {

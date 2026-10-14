@@ -1,54 +1,56 @@
-import type { CashTicketPaymentDatasource } from "../../../domain/datasources/payments/cash-ticket-payment.datasource";
+import type {
+  CashPaymentMovementInput,
+  CashPaymentRecordInput,
+  CashSessionInsertionUpdate,
+  CashTicketPaymentDatasource,
+} from "../../../domain/datasources/payments/cash-ticket-payment.datasource";
+import type { TransactionContext } from "../../../domain/datasources/system/transaction";
 import { CashTicketPaymentRepository } from "../../../domain/repositories/payments/cash-ticket-payment.repository";
 
 export class CashTicketPaymentRepositoryImpl implements CashTicketPaymentRepository {
   constructor(private readonly datasource: CashTicketPaymentDatasource) {}
 
-  startSession() {
-    return this.datasource.startSession();
-  }
-
   findModuloById(id: string) {
     return this.datasource.findModuloById(id);
   }
 
-  findSessionById(id: string, session: unknown) {
-    return this.datasource.findSessionById(id, session);
+  findSessionById(id: string, tx: TransactionContext) {
+    return this.datasource.findSessionById(id, tx);
   }
 
-  findTicketById(id: string, session: unknown) {
-    return this.datasource.findTicketById(id, session);
+  findTicketById(id: string, tx: TransactionContext) {
+    return this.datasource.findTicketById(id, tx);
   }
 
-  findShiftById(id: string, session: unknown) {
-    return this.datasource.findShiftById(id, session);
+  findShiftById(id: string, tx: TransactionContext) {
+    return this.datasource.findShiftById(id, tx);
   }
 
-  updateSession(id: string, update: object, session: unknown) {
-    return this.datasource.updateSession(id, update, session);
+  applySessionInsertion(id: string, update: CashSessionInsertionUpdate, tx: TransactionContext) {
+    return this.datasource.applySessionInsertion(id, update, tx);
   }
 
-  markTicketPaid(id: string, paidAt: number, session: unknown) {
-    return this.datasource.markTicketPaid(id, paidAt, session);
+  markTicketPaid(id: string, paidAt: number, tx: TransactionContext) {
+    return this.datasource.markTicketPaid(id, paidAt, tx);
   }
 
-  findPaymentByProviderReference(providerReference: string, session: unknown) {
-    return this.datasource.findPaymentByProviderReference(providerReference, session);
+  findPaymentIdByProviderReference(providerReference: string, tx: TransactionContext) {
+    return this.datasource.findPaymentIdByProviderReference(providerReference, tx);
   }
 
-  findProjectById(id: unknown, session: unknown) {
-    return this.datasource.findProjectById(id, session);
+  findProjectById(id: string, tx: TransactionContext) {
+    return this.datasource.findProjectById(id, tx);
   }
 
-  createPayment(payload: object, session: unknown) {
-    return this.datasource.createPayment(payload, session);
+  createPayment(payment: CashPaymentRecordInput, tx: TransactionContext) {
+    return this.datasource.createPayment(payment, tx);
   }
 
-  findMovementByCashPaymentSessionId(sessionId: string, session: unknown) {
-    return this.datasource.findMovementByCashPaymentSessionId(sessionId, session);
+  hasMovementForCashPaymentSession(sessionId: string, tx: TransactionContext) {
+    return this.datasource.hasMovementForCashPaymentSession(sessionId, tx);
   }
 
-  createMovement(payload: object, session: unknown) {
-    return this.datasource.createMovement(payload, session);
+  createIncomeMovement(movement: CashPaymentMovementInput, tx: TransactionContext) {
+    return this.datasource.createIncomeMovement(movement, tx);
   }
 }

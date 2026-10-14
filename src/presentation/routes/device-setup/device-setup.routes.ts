@@ -1,47 +1,49 @@
 import { Router } from "express";
-import { ModuloModel } from "../../../data/mongo/models/parking/modulo.schema";
-import { ProyectoModel } from "../../../data/mongo/models/parking/proyecto.schema";
 import { getModuloTypesRequiringDeviceBinding } from "../../../domain/entities/parking/module-type-capabilities.entity";
+import { ModuloRepository } from "../../../domain/repositories/parking/modulo.repository";
+import { ProyectoRepository } from "../../../domain/repositories/parking/proyecto.repository";
+import { buildModuloRepository, buildProyectoRepository } from "../../dependencies";
 
-const serializeDocument = (document: unknown): Record<string, unknown> => {
-  if (!document || typeof document !== "object") return {};
+// The device setup app (expendedora) reads the ids from `_id`, so both keys are sent.
+const serializeEntity = (entity: { id: string }): Record<string, unknown> => ({
+  ...entity,
+  _id: entity.id,
+});
 
-  const source =
-    "toObject" in document && typeof document.toObject === "function"
-      ? document.toObject()
-      : document;
-
-  const serialized = { ...(source as Record<string, unknown>) };
-  if (serialized._id) {
-    serialized.id = String(serialized._id);
-    serialized._id = String(serialized._id);
-  }
-
-  return serialized;
+const byText = (a: string | undefined, b: string | undefined) => {
+  const left = a ?? "";
+  const right = b ?? "";
+  return left < right ? -1 : left > right ? 1 : 0;
 };
 
-const getProjectModules = (projectId: string) =>
-  ModuloModel.find({
-    proyecto: projectId,
-    estado: { $ne: false },
-    tipo: { $in: getModuloTypesRequiringDeviceBinding() },
-  }).sort({ identificador: 1, nombre: 1 });
+const getProjectModules = async (modulos: ModuloRepository, projectId: string) => {
+  const bindableTypes = new Set<string>(getModuloTypesRequiringDeviceBinding());
+  const projectModules = await modulos.getByProyecto(projectId);
+  return projectModules
+    .filter((modulo) => modulo.estado !== false && bindableTypes.has(modulo.tipo))
+    .sort((a, b) => byText(a.identificador, b.identificador) || byText(a.nombre, b.nombre));
+};
+
+const getActiveProjects = async (proyectos: ProyectoRepository) => {
+  const all = await proyectos.getAll();
+  return all.filter((proyecto) => proyecto.estado !== false).sort((a, b) => byText(a.nombre, b.nombre));
+};
 
 export class DeviceSetupRoutes {
   static get routes(): Router {
     const router = Router();
+    const modulos = buildModuloRepository();
+    const proyectos = buildProyectoRepository();
 
     router.get("/catalogs", async (_req, res) => {
       try {
-        const proyectos = await ProyectoModel.find({ estado: { $ne: false } }).sort({
-          nombre: 1,
-        });
-        const firstProjectId = proyectos[0]?._id ? String(proyectos[0]._id) : "";
-        const modulos = firstProjectId ? await getProjectModules(firstProjectId) : [];
+        const activeProjects = await getActiveProjects(proyectos);
+        const firstProjectId = activeProjects[0]?.id ?? "";
+        const projectModules = firstProjectId ? await getProjectModules(modulos, firstProjectId) : [];
 
         return res.status(200).json({
-          proyectos: proyectos.map(serializeDocument),
-          modulos: modulos.map(serializeDocument),
+          proyectos: activeProjects.map(serializeEntity),
+          modulos: projectModules.map(serializeEntity),
         });
       } catch (error) {
         return res.status(500).json({
@@ -60,8 +62,8 @@ export class DeviceSetupRoutes {
           return res.status(400).json({ error: "'projectId' es requerido" });
         }
 
-        const modulos = await getProjectModules(projectId);
-        return res.status(200).json({ modulos: modulos.map(serializeDocument) });
+        const projectModules = await getProjectModules(modulos, projectId);
+        return res.status(200).json({ modulos: projectModules.map(serializeEntity) });
       } catch (error) {
         return res.status(500).json({
           error:

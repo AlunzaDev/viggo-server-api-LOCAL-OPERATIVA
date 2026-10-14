@@ -1,4 +1,5 @@
 import { JwtPlugin } from "../../../config/plugins/jwt.plugin";
+import { UniqueConstraintError } from "../../../domain/errors/unique-constraint.error";
 import { TicketEntity } from "../../../domain/entities/parking/ticket.entity";
 import { CustomError } from "../../../domain/errors/custom.error";
 import { ModuloRepository } from "../../../domain/repositories/parking/modulo.repository";
@@ -134,11 +135,7 @@ export class TicketService {
         idempotencyKey,
       });
     } catch (error) {
-      const duplicateKeyError =
-        idempotencyKey &&
-        typeof error === "object" &&
-        error !== null &&
-        (error as { code?: number }).code === 11000;
+      const duplicateKeyError = idempotencyKey && error instanceof UniqueConstraintError;
       if (duplicateKeyError) {
         const existingTicket = await this.ticketRepository.findByIdempotencyKey(
           idempotencyKey,

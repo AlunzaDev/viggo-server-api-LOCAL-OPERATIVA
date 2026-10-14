@@ -1,4 +1,5 @@
 import { CustomError } from "../../../domain/errors/custom.error";
+import { UniqueConstraintError } from "../../../domain/errors/unique-constraint.error";
 import type { CashRegisterModuloProjection } from "../../../domain/datasources/cash-register/cash-register-module.datasource";
 import {
   CashRegisterCountEntity,
@@ -286,7 +287,7 @@ export class CashRegisterService {
         metadata: input.metadata,
       });
     } catch (error) {
-      if (!this.isDuplicateKeyError(error)) throw error;
+      if (!(error instanceof UniqueConstraintError)) throw error;
       const concurrentMovement = await this.movementRepository.findByIdempotencyKey(
         input.idempotencyKey,
       );
@@ -551,13 +552,6 @@ export class CashRegisterService {
     }
   }
 
-  private isDuplicateKeyError(error: unknown) {
-    return Boolean(
-      error &&
-      typeof error === "object" &&
-      (error as { code?: unknown }).code === 11000,
-    );
-  }
 
   private normalizeCountLine(line: {
     label: string;

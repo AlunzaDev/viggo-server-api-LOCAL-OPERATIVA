@@ -1,4 +1,5 @@
 import { CashPaymentSessionModel } from "../../../data/mongo/models/payments/cash-payment-session.schema";
+import { UniqueConstraintError } from "../../../domain/errors/unique-constraint.error";
 import { CashPaymentSessionDatasource } from "../../../domain/datasources/payments/cash-payment-session.datasource";
 import { CashPaymentSessionEntity } from "../../../domain/entities/payments/cash-payment-session.entity";
 
@@ -12,8 +13,12 @@ export class CashPaymentSessionMongoDatasource extends CashPaymentSessionDatasou
   async create(
     session: Omit<CashPaymentSessionEntity, "id">,
   ): Promise<CashPaymentSessionEntity> {
-    const sessionDocument = await CashPaymentSessionModel.create(session);
-    return CashPaymentSessionEntity.fromObject(sessionDocument.toObject());
+    try {
+      const sessionDocument = await CashPaymentSessionModel.create(session);
+      return CashPaymentSessionEntity.fromObject(sessionDocument.toObject());
+    } catch (error) {
+      throw UniqueConstraintError.fromMongo(error) ?? error;
+    }
   }
 
   async findById(id: string): Promise<CashPaymentSessionEntity | null> {

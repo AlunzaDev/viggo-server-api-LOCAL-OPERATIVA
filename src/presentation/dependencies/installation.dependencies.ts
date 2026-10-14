@@ -2,12 +2,16 @@ import { LocalInstallationMongoDatasource } from "../../infrastructure/datasourc
 import { LocalInstallationRepositoryImpl } from "../../infrastructure/repositories/installation/local-installation.repository.impl";
 import { InstallationController } from "../routes/installation/installation.controller";
 import { InstallationServiceFactory } from "../services/installation/installation-service.factory";
+import { LocalInstallationService } from "../services/installation/local-installation.service";
+
+export const buildLocalInstallationRepository = () =>
+  new LocalInstallationRepositoryImpl(new LocalInstallationMongoDatasource());
+
+export const buildLocalInstallationService = (): LocalInstallationService =>
+  new LocalInstallationService(buildLocalInstallationRepository());
 
 export const buildInstallationController = (): InstallationController => {
-  const localInstallationRepository = new LocalInstallationRepositoryImpl(
-    new LocalInstallationMongoDatasource(),
-  );
   return new InstallationController(
-    InstallationServiceFactory.create(localInstallationRepository),
+    InstallationServiceFactory.create(buildLocalInstallationRepository()),
   );
 };

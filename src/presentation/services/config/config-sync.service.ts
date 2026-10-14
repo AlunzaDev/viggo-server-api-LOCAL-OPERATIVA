@@ -1,13 +1,6 @@
 import { envs } from "../../../config";
-import {
-  ConfigSyncAuditModel,
-  ModuloModel,
-  PensionModel,
-  PensionPassModel,
-  PermissionProfileModel,
-  ProyectoModel,
-  UsuarioModel,
-} from "../../../data/mongo";
+import type { ConfigSyncStatus } from "../../../domain/datasources/config/config-sync.datasource";
+import { ConfigSyncRepository } from "../../../domain/repositories/config/config-sync.repository";
 import { CustomError } from "../../../domain/errors/custom.error";
 import { InstallationIdentityService } from "../installation/installation-identity.service";
 import { LocalInstallationService } from "../installation/local-installation.service";
@@ -16,7 +9,7 @@ import { USER_APPS } from "../../../domain/constants";
 import { parseModuloTipo } from "../../../domain/entities/parking/module-type.entity";
 
 type CloudResponse = Record<string, unknown>;
-type SyncStatus = "success" | "success_with_warnings" | "failed";
+type SyncStatus = ConfigSyncStatus;
 type IntegritySeverity = "error" | "warning";
 type IntegrityIssue = {
   severity: IntegritySeverity;
@@ -53,6 +46,7 @@ export class ConfigSyncService {
   constructor(
     private readonly localInstallationService: LocalInstallationService,
     private readonly syncService: SyncService,
+    private readonly configSync: ConfigSyncRepository,
   ) {}
 
   async getStatus() {
@@ -226,10 +220,7 @@ export class ConfigSyncService {
 
   getAuditHistory(limit = 20) {
     const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);
-    return ConfigSyncAuditModel.find()
-      .sort({ startedAt: -1 })
-      .limit(safeLimit)
-      .lean();
+    return this.configSync.getAuditHistory(safeLimit);
   }
 
   private async fetchCloud(path: string): Promise<CloudResponse> {
@@ -282,16 +273,8 @@ export class ConfigSyncService {
       "OTHER",
     ]);
 
-    const [proyecto, modulos, pensiones, pensionPasses, usuarios] =
-      await Promise.all([
-        ProyectoModel.findById(proyectoId).lean(),
-        ModuloModel.find({ proyecto: proyectoId }).lean(),
-        PensionModel.find({ proyecto: proyectoId }).lean(),
-        PensionPassModel.find().lean(),
-        UsuarioModel.find({
-          $or: [{ parkings: proyectoId }, { rol: "SUPER_ROLE" }],
-        }).lean(),
-      ]);
+    const { proyectoExists, modulos, pensiones, pensionPasses, usuarios } =
+      await this.configSync.getIntegritySnapshot(proyectoId);
 
     const addIssue = (
       severity: IntegritySeverity,
@@ -305,7 +288,7 @@ export class ConfigSyncService {
       else warnings.push(issue);
     };
 
-    if (!proyecto) {
+    if (!proyectoExists) {
       addIssue(
         "error",
         "proyecto",
@@ -326,9 +309,8 @@ export class ConfigSyncService {
     }
 
     modulos.forEach((modulo) => {
-      const moduloId = String(modulo._id);
-      const tipo = String(modulo.tipo ?? "").trim();
-      const identificador = String(modulo.identificador ?? "").trim();
+      const moduloId = modulo.id;
+      const { tipo, identificador } = modulo;
 
       if (!parseModuloTipo(tipo)) {
         addIssue(
@@ -349,16 +331,10 @@ export class ConfigSyncService {
         );
       }
 
-      const submodulos = Array.isArray(modulo.submodulos)
-        ? modulo.submodulos
-        : [];
-      submodulos.forEach((submodulo, index) => {
-        const source = submodulo as unknown as Record<string, unknown>;
-        const submoduloId = String(
-          source.submoduloId ?? `${moduloId}:${index}`,
-        );
-        const submoduloTipo = String(source.tipo ?? "").trim();
-        const submoduloNombre = String(source.nombre ?? "").trim();
+      modulo.submodulos.forEach((submodulo, index) => {
+        const submoduloId = submodulo.submoduloId ?? `${moduloId}:${index}`;
+        const submoduloTipo = submodulo.tipo;
+        const submoduloNombre = submodulo.nombre;
 
         if (!submoduloNombre) {
           addIssue(
@@ -381,74 +357,42 @@ export class ConfigSyncService {
       });
     });
 
-    const pensionIds = new Set(pensiones.map((pension) => String(pension._id)));
+    const pensionIds = new Set(pensiones.map((pension) => pension.id));
     pensiones.forEach((pension) => {
-      const validez = Array.isArray(pension.validez) ? pension.validez : [];
-      if (validez.length !== 7) {
+      if (pension.validezDays !== 7) {
         addIssue(
           "error",
           "pensiones",
           "INVALID_PENSION_VALIDITY",
           "La pension no tiene validez para los 7 dias de la semana",
-          String(pension._id),
+          pension.id,
         );
       }
     });
 
     pensionPasses.forEach((pensionPass) => {
-      const pensionId = String(pensionPass.pension ?? "");
-      if (!pensionIds.has(pensionId)) {
+      if (!pensionIds.has(pensionPass.pensionId)) {
         addIssue(
           "error",
           "pensionPasses",
           "ORPHAN_PENSION_PASS",
           "El pension pass apunta a una pension que no existe en esta instalacion",
-          String(pensionPass._id),
+          pensionPass.id,
         );
       }
     });
 
     const profileIds = Array.from(
-      new Set(
-        usuarios.flatMap((usuario) => {
-          const appPermissions = Array.isArray(usuario.appPermissions)
-            ? usuario.appPermissions
-            : [];
-
-          return appPermissions
-            .filter((permission) => permission.app === USER_APPS.OPERATIVE_WEB)
-            .map((permission) =>
-              String(permission.permissionProfileId ?? "").trim(),
-            )
-            .filter(Boolean);
-        }),
-      ),
+      new Set(usuarios.map((usuario) => usuario.operativeProfileId).filter(Boolean)),
     );
-
-    const profiles =
-      profileIds.length > 0
-        ? await PermissionProfileModel.find({
-            _id: {
-              $in: profileIds,
-            },
-            app: USER_APPS.OPERATIVE_WEB,
-          }).lean()
-        : [];
-
-    const profileIdSet = new Set(
-      profiles.map((profile) => String(profile._id)),
+    const existingProfileIds = await this.configSync.findExistingPermissionProfileIds(
+      profileIds,
+      USER_APPS.OPERATIVE_WEB,
     );
+    const profileIdSet = new Set(existingProfileIds);
 
     usuarios.forEach((usuario) => {
-      const appPermissions = Array.isArray(usuario.appPermissions)
-        ? usuario.appPermissions
-        : [];
-
-      const assignment = appPermissions.find(
-        (permission) => permission.app === USER_APPS.OPERATIVE_WEB,
-      );
-
-      const profileId = String(assignment?.permissionProfileId ?? "").trim();
+      const profileId = usuario.operativeProfileId;
 
       if (profileId && !profileIdSet.has(profileId)) {
         addIssue(
@@ -456,7 +400,7 @@ export class ConfigSyncService {
           "usuarios",
           "MISSING_PERMISSION_PROFILE",
           "Un usuario apunta a un perfil de permisos operativo que no existe localmente",
-          String(usuario._id),
+          usuario.id,
         );
       }
     });
@@ -467,18 +411,16 @@ export class ConfigSyncService {
       errors,
       warnings,
       counts: {
-        proyecto: proyecto ? 1 : 0,
+        proyecto: proyectoExists ? 1 : 0,
         modulos: modulos.length,
         submodulos: modulos.reduce(
-          (total, modulo) =>
-            total +
-            (Array.isArray(modulo.submodulos) ? modulo.submodulos.length : 0),
+          (total, modulo) => total + modulo.submodulos.length,
           0,
         ),
         pensiones: pensiones.length,
         pensionPasses: pensionPasses.length,
         usuarios: usuarios.length,
-        permissionProfiles: profiles.length,
+        permissionProfiles: existingProfileIds.length,
       },
     };
   }
@@ -501,7 +443,7 @@ export class ConfigSyncService {
       | { message?: string; code?: string; details?: unknown }
       | undefined;
 
-    await ConfigSyncAuditModel.create({
+    await this.configSync.recordAudit({
       installationId: payload.installationId,
       proyectoId: payload.proyectoId,
       proyectoNombre: payload.proyectoNombre,

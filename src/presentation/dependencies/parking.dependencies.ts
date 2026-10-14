@@ -13,23 +13,32 @@ import { TicketController } from "../routes/parking/ticket.controller";
 import { ModuloService } from "../services/parking/modulo.service";
 import { ProyectoService } from "../services/parking/proyecto.service";
 import { TicketService } from "../services/parking/ticket.service";
+import { buildLocalInstallationService } from "./installation.dependencies";
 
-const buildModuloRepository = () =>
+export const buildModuloRepository = () =>
   new ModuloRepositoryImpl(new ModuloMongoDatasource());
 
-const buildProyectoRepository = () =>
+export const buildProyectoRepository = () =>
   new ProyectoRepositoryImpl(new ProyectoMongoDatasource());
 
 const buildTicketRepository = () =>
   new TicketRepositoryImpl(new TicketMongoDatasource());
 
 export const buildModuloService = (): ModuloService =>
-  new ModuloService(buildModuloRepository(), buildProyectoRepository());
+  new ModuloService(
+    buildModuloRepository(),
+    buildProyectoRepository(),
+    buildLocalInstallationService(),
+  );
 
 export const buildModuloController = (): ModuloController => {
   const moduloRepository = buildModuloRepository();
   const proyectoRepository = buildProyectoRepository();
-  const service = new ModuloService(moduloRepository, proyectoRepository);
+  const service = new ModuloService(
+    moduloRepository,
+    proyectoRepository,
+    buildLocalInstallationService(),
+  );
   const remoteSupportService = new RemoteSupportService(
     moduloRepository,
     proyectoRepository,

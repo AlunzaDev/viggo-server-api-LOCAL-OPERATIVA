@@ -5,10 +5,13 @@ import { envs } from "../../config/plugins/envs.plugin";
 import { TicketMongoDatasource } from "../../infrastructure/datasources/parking/ticket.datasource.mongo";
 import { ModuloMongoDatasource } from "../../infrastructure/datasources/parking/modulo.datasource.mongo";
 import { ProyectoMongoDatasource } from "../../infrastructure/datasources/parking/proyecto.datasource.mongo";
+import { LocalInstallationMongoDatasource } from "../../infrastructure/datasources/installation/local-installation.datasource.mongo";
 import { ModuloRepositoryImpl } from "../../infrastructure/repositories/parking/modulo.repository.impl";
 import { ProyectoRepositoryImpl } from "../../infrastructure/repositories/parking/proyecto.repository.impl";
+import { LocalInstallationRepositoryImpl } from "../../infrastructure/repositories/installation/local-installation.repository.impl";
 import { TicketRepositoryImpl } from "../../infrastructure/repositories/parking/ticket.repository.impl";
 import { ModuloService } from "../services/parking/modulo.service";
+import { LocalInstallationService } from "../services/installation/local-installation.service";
 import { DeviceSessionRegistry } from "./device-session-registry";
 import { DeviceSocketService } from "./device-socket.service";
 import {
@@ -165,9 +168,14 @@ export class SocketServerPlugin {
   }
 }
 
+// Built here instead of through presentation/dependencies: this runs in a static initializer,
+// while the dependency modules are still loading (circular import).
 function createModuloService(): ModuloService {
   return new ModuloService(
     new ModuloRepositoryImpl(new ModuloMongoDatasource()),
     new ProyectoRepositoryImpl(new ProyectoMongoDatasource()),
+    new LocalInstallationService(
+      new LocalInstallationRepositoryImpl(new LocalInstallationMongoDatasource()),
+    ),
   );
 }

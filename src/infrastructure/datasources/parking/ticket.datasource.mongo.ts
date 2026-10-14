@@ -1,10 +1,16 @@
 import { TicketModel } from "../../../data/mongo/models/parking/ticket.schema";
+import { UniqueConstraintError } from "../../../domain/errors/unique-constraint.error";
 import { TicketDatasource } from "../../../domain/datasources/parking/ticket.datasource";
 import { TicketEntity } from "../../../domain/entities/parking/ticket.entity";
 
 export class TicketMongoDatasource extends TicketDatasource {
     async create(ticket: Omit<TicketEntity, "id">): Promise<TicketEntity> {
-        const ticketDocument = await TicketModel.create(ticket);
+        let ticketDocument;
+        try {
+            ticketDocument = await TicketModel.create(ticket);
+        } catch (error) {
+            throw UniqueConstraintError.fromMongo(error) ?? error;
+        }
         return TicketEntity.fromObject(ticketDocument.toObject());
     }
 

@@ -9,6 +9,7 @@ import {
   ResolveDeviceBindingRequestPayload,
 } from "./modulo-device-binding.types";
 import { HeartbeatSnapshotService } from "../heartbeat/heartbeat-snapshot.service";
+import { LocalInstallationService } from "../installation/local-installation.service";
 import { ModuloCrudService } from "./modulo-crud.service";
 import { ModuloDeviceLifecycleService } from "./modulo-device-lifecycle.service";
 
@@ -20,6 +21,7 @@ export class ModuloService {
   constructor(
     moduloRepository: ModuloRepository,
     proyectoRepository: ProyectoRepository,
+    installations: LocalInstallationService,
   ) {
     this.queryService = new ModuloCrudService(
       moduloRepository,
@@ -31,6 +33,7 @@ export class ModuloService {
     this.heartbeatSnapshotService = new HeartbeatSnapshotService(
       moduloRepository,
       proyectoRepository,
+      installations,
     );
   }
 

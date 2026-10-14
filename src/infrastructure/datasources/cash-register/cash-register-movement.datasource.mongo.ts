@@ -1,4 +1,5 @@
 import { CashRegisterMovementModel } from "../../../data/mongo/models/cash-register/cash-register-movement.schema";
+import { UniqueConstraintError } from "../../../domain/errors/unique-constraint.error";
 import { CashRegisterMovementDatasource } from "../../../domain/datasources/cash-register/cash-register-movement.datasource";
 import { CashRegisterMovementEntity } from "../../../domain/entities/cash-register/cash-register-movement.entity";
 
@@ -8,7 +9,12 @@ export class CashRegisterMovementMongoDatasource
   async create(
     movement: Omit<CashRegisterMovementEntity, "id">,
   ): Promise<CashRegisterMovementEntity> {
-    const created = await CashRegisterMovementModel.create(movement);
+    let created;
+    try {
+      created = await CashRegisterMovementModel.create(movement);
+    } catch (error) {
+      throw UniqueConstraintError.fromMongo(error) ?? error;
+    }
     return CashRegisterMovementEntity.fromObject(created.toJSON());
   }
 

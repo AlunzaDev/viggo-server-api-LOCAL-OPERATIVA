@@ -1,13 +1,17 @@
 import { Request, Response } from "express";
-import { MongoDatabase } from "../../../data/mongo";
-import { ModuloModel } from "../../../data/mongo/models/parking/modulo.schema";
-import { LocalInstallationModel } from "../../../data/mongo/models/system/local-installation.schema";
+import { HealthRepository } from "../../../domain/repositories/system/health.repository";
+import { LocalInstallationService } from "../../services/installation/local-installation.service";
 
 const deviceHeartbeatThresholdMs = 30_000;
 
 export class HealthController {
+  constructor(
+    private readonly health: HealthRepository,
+    private readonly installations: LocalInstallationService,
+  ) {}
+
   summary = async (_req: Request, res: Response) => {
-    const db = MongoDatabase.getHealthSnapshot();
+    const db = this.health.getDatabaseHealth();
     const [localProject, devices] = await Promise.all([
       this.getLocalProjectSnapshot(),
       this.getDevicesSnapshot(),
@@ -27,7 +31,7 @@ export class HealthController {
   };
 
   db = async (_req: Request, res: Response) => {
-    const db = MongoDatabase.getHealthSnapshot();
+    const db = this.health.getDatabaseHealth();
     return res.status(db.status === "ok" ? 200 : 503).json({
       service: "viggo-operativo",
       ...db,
@@ -45,7 +49,7 @@ export class HealthController {
   };
 
   private async getLocalProjectSnapshot() {
-    const installation = await LocalInstallationModel.findOne({ key: "default" }).lean();
+    const installation = await this.installations.findDefault();
     const linked = installation?.status === "linked" && Boolean(installation.proyectoId);
     return {
       status: linked ? "ok" : "down",
@@ -61,23 +65,9 @@ export class HealthController {
 
   private async getDevicesSnapshot() {
     const now = Date.now();
-    const [total, connected, stale] = await Promise.all([
-      ModuloModel.countDocuments({ estado: true, deviceBinding: { $ne: null } }),
-      ModuloModel.countDocuments({
-        estado: true,
-        "deviceRuntime.isConnected": true,
-        "deviceRuntime.lastHeartbeatAt": { $gte: new Date(now - deviceHeartbeatThresholdMs) },
-      }),
-      ModuloModel.countDocuments({
-        estado: true,
-        deviceBinding: { $ne: null },
-        $or: [
-          { "deviceRuntime.isConnected": { $ne: true } },
-          { "deviceRuntime.lastHeartbeatAt": { $lt: new Date(now - deviceHeartbeatThresholdMs) } },
-          { deviceRuntime: null },
-        ],
-      }),
-    ]);
+    const { total, connected, stale } = await this.health.countDevices(
+      new Date(now - deviceHeartbeatThresholdMs),
+    );
     return {
       status: total === 0 ? "degraded" : connected > 0 ? "ok" : "down",
       totalBoundDevices: total,

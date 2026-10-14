@@ -1,12 +1,10 @@
 import { envs } from "../../../config";
-import { MobileCommandReceiptModel } from "../../../data/mongo";
 import { CustomError } from "../../../domain/errors/custom.error";
 import { buildTicketService } from "../../dependencies/parking.dependencies";
 import { InstallationIdentityService } from "../installation/installation-identity.service";
 import { LocalInstallationService } from "../installation/local-installation.service";
-import mongoose from "mongoose";
-import { TicketModel } from "../../../data/mongo";
-import { PaymentModel } from "../../../data/mongo/models/payments/payment.schema";
+import type { TransactionRunner } from "../../../domain/datasources/system/transaction";
+import type { MobileCommandRepository } from "../../../domain/repositories/mobile/mobile-command.repository";
 import { InstallationTokenCryptoService } from "../installation/installation-token-crypto.service";
 
 type CloudOperation = {
@@ -20,7 +18,11 @@ type CloudOperation = {
 export class MobileCommandService {
   private readonly ticketService = buildTicketService();
   private syncToken = "";
-  constructor(private readonly installations: LocalInstallationService) {}
+  constructor(
+    private readonly installations: LocalInstallationService,
+    private readonly commands: MobileCommandRepository,
+    private readonly transactions: TransactionRunner,
+  ) {}
 
   async processNext() {
     const installation = await this.installations.findDefault();
@@ -38,14 +40,11 @@ export class MobileCommandService {
       if (operation.proyectoId !== installation.proyectoId) {
         throw CustomError.forbidden("El comando pertenece a otro proyecto");
       }
-      let receipt = await MobileCommandReceiptModel.findOne({ operationId: operation.operationId }).lean();
+      // A re-delivered command returns the stored result instead of running again.
+      let receipt = await this.commands.findReceipt(operation.operationId);
       if (!receipt) {
         const result = await this.execute(operation);
-        receipt = await MobileCommandReceiptModel.findOneAndUpdate(
-          { operationId: operation.operationId },
-          { $setOnInsert: { operationId: operation.operationId, type: operation.type, result, processedAt: Date.now() } },
-          { upsert: true, new: true },
-        ).lean();
+        receipt = await this.commands.saveReceipt(operation.operationId, operation.type, result);
       }
       await this.complete(operation.operationId, { success: true, result: receipt?.result ?? {} });
     } catch (error) {
@@ -107,41 +106,26 @@ export class MobileCommandService {
       throw CustomError.badRequest("Pago cloud invalido");
     }
 
-    const session = await mongoose.startSession();
-    try {
-      await session.withTransaction(async () => {
-        const existingPayment = await PaymentModel.findOne({ providerReference }).session(session);
-        if (existingPayment) return;
-        const ticket = await TicketModel.findById(ticketId).session(session);
-        if (!ticket || String(ticket.get("usuario")) !== operation.userId) {
-          throw CustomError.notFound("Ticket no encontrado");
-        }
-        if (ticket.get("pagado") === true) {
-          throw CustomError.conflict("El ticket ya fue pagado");
-        }
-        if (Number(ticket.get("monto")) !== amount) {
-          throw CustomError.conflict("El monto confirmado no coincide con la cotizacion local");
-        }
-        const paidAt = Number(operation.payload.paidAt) || Date.now();
-        await PaymentModel.create([{
-          user: operation.userId,
-          type: "ticket",
-          concept: "Pago de ticket desde Viggo App",
-          amount,
-          currency,
-          status: "succeeded",
-          paidAt,
-          providerReference,
-          reference: { type: "ticket", id: ticketId },
-          parking: { id: operation.proyectoId },
-          rawProviderStatus: "succeeded",
-        }], { session });
-        ticket.set({ pagado: true, horaCobro: paidAt });
-        await ticket.save({ session });
-      });
-    } finally {
-      await session.endSession();
-    }
+    // The payment record and the paid ticket commit together; providerReference makes it idempotent.
+    await this.transactions.run(async (tx) => {
+      if (await this.commands.findPaymentIdByProviderReference(providerReference, tx)) return;
+      const ticket = await this.commands.findTicketById(ticketId, tx);
+      if (!ticket || String(ticket.usuario) !== operation.userId) {
+        throw CustomError.notFound("Ticket no encontrado");
+      }
+      if (ticket.pagado === true) {
+        throw CustomError.conflict("El ticket ya fue pagado");
+      }
+      if (Number(ticket.monto) !== amount) {
+        throw CustomError.conflict("El monto confirmado no coincide con la cotizacion local");
+      }
+      const paidAt = Number(operation.payload.paidAt) || Date.now();
+      await this.commands.createCloudTicketPayment(
+        { user: operation.userId, ticketId, proyectoId: operation.proyectoId, amount, currency, paidAt, providerReference },
+        tx,
+      );
+      await this.commands.markTicketPaid(ticketId, paidAt, tx);
+    });
     const ticket = await this.ticketService.getTicketById(ticketId);
     return { ticket: await this.ticketService.toLegacyTicketResponse(ticket) };
   }

@@ -17,6 +17,7 @@ import { LocalReportsRoutes } from "./local-reports/local-reports.routes";
 import { OperationalLogsRoutes } from "./operational-logs/operational-logs.routes";
 import { MonthlyFlushRoutes } from "./monthly-flush/monthly-flush.routes";
 import { LocalProjectScopeMiddleware } from "../middlewares";
+import { buildLocalInstallationService } from "../dependencies";
 import { HealthRoutes } from "./health/health.routes";
 import { DeviceSetupRoutes } from "./device-setup/device-setup.routes";
 
@@ -39,7 +40,9 @@ export class AppRoutes {
     router.use("/api/usuarios", LocalUserRoutes.routes);
     router.use("/api/installation", InstallationRoutes.routes);
 
-    const requireLocalProject = LocalProjectScopeMiddleware.requireLinkedProject;
+    const requireLocalProject = new LocalProjectScopeMiddleware(
+      buildLocalInstallationService(),
+    ).requireLinkedProject;
 
     router.use("/api/device-setup", requireLocalProject, DeviceSetupRoutes.routes);
 
