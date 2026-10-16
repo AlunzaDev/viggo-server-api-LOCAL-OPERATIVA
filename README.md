@@ -119,6 +119,7 @@ Ver [docker-runbook.md](docker-runbook.md). Postgres sólo se publica en `127.0.
 - `JWT_SEED`
 - `CORS_ALLOWED_ORIGINS`
 - `PAYMENT_CURRENCY`
+- `PROJECT_ID` (sólo con `APP_ENV=dev` o `test`: vincula sin credenciales de la nube, así que no hay login en línea, sincronización ni envío de eventos; en otros ambientes se ignora y hay que vincular con el token del proyecto)
 - `SYNC_SERVICE_TOKEN` (sólo autentica las llamadas ADMINISTRATIVO → OPERATIVO; hacia la nube se usa el token propio que la instalación recibe al ser aprobada)
 - `BARRIER_SOCKET_REQUIRED`
 - `BARRIER_SOCKET_TIMEOUT_MS`

@@ -19,6 +19,16 @@ const linkHeaders = async (installationLinkToken: string) =>
     installationId: await InstallationIdentityService.getInstallationId(),
   });
 
+const ENV_LINK_ALLOWED = new Set(["dev", "test"]);
+let envLinkWarned = false;
+const warnEnvLinkIgnored = () => {
+  if (envLinkWarned) return;
+  envLinkWarned = true;
+  console.warn(
+    `[OPERATIVO installation] PROJECT_ID ignorado con APP_ENV=${envs.APP_ENV}: vincula la instalacion con el token del proyecto.`,
+  );
+};
+
 const cloudUrl = (path: string) =>
   `${envs.ADMINISTRATIVO_API_URL.replace(/\/+$/, "")}${path}`;
 
@@ -42,6 +52,10 @@ const serializeInstallation = async (value: PlainRecord | null) => {
     assignedByUserId: String(value?.assignedByUserId ?? "").trim() || null,
     assignedAt: value?.assignedAt ?? null,
     hasEncryptedSyncToken: Boolean(String(value?.encryptedSyncToken ?? "").trim()),
+    // Linked by PROJECT_ID or the seed, or with a token that no longer decrypts: the cloud
+    // cannot be reached (no online login, sync or outbox) until it is linked again.
+    cloudCredentials:
+      status === "linked" && Boolean(await InstallationIdentityService.getCloudCredentials()),
     syncTokenIssuedAt: value?.syncTokenIssuedAt ?? null,
     updatedAt: value?.updatedAt ?? null,
   };
@@ -183,7 +197,9 @@ export class InstallationController {
 
     const envProjectId = envs.PROJECT_ID.trim();
     if (!existing && envProjectId) {
-      return this.linkLocalProject(envProjectId, "env", "");
+      // PROJECT_ID links without cloud credentials: only for local development and tests.
+      if (ENV_LINK_ALLOWED.has(envs.APP_ENV)) return this.linkLocalProject(envProjectId, "env", "");
+      warnEnvLinkIgnored();
     }
 
     const cloudStatus = await this.getCloudRequestStatus();
