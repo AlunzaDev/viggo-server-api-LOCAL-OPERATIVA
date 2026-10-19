@@ -5,6 +5,7 @@ import { ErrorService } from "../../services/error.service";
 import { InstallationIdentityService } from "../../services/installation/installation-identity.service";
 import { InstallationTokenCryptoService } from "../../services/installation/installation-token-crypto.service";
 import type { InstallationServices } from "../../services/installation/installation-service.factory";
+import type { OutboxRepository } from "../../../domain/repositories/system/outbox.repository";
 
 type PlainRecord = Record<string, unknown>;
 
@@ -76,7 +77,43 @@ const normalizeProject = (value: PlainRecord) => ({
 });
 
 export class InstallationController {
-  constructor(private readonly services: InstallationServices) {}
+  constructor(
+    private readonly services: InstallationServices,
+    private readonly outbox: OutboxRepository,
+  ) {}
+
+  /**
+   * Unlinks this installation so it can be linked again (another project, a replaced
+   * server). Refused while local changes are still waiting to reach the cloud, so none is
+   * lost; the operator types the installation id to confirm.
+   */
+  resetInstallation = async (req: Request, res: Response) => {
+    try {
+      const installationId = await InstallationIdentityService.getInstallationId();
+      if (String(req.body?.installationId ?? "").trim() !== installationId) {
+        return res.status(400).json({ error: "Confirma con el ID de esta instalacion", code: "INSTALLATION_ID_MISMATCH" });
+      }
+      const { pending } = await this.outbox.stats();
+      if (pending > 0) {
+        return res.status(409).json({
+          error: `Hay ${pending} cambios locales sin enviar a la nube. Conecta la instalacion y espera a que se envien antes de reiniciarla.`,
+          code: "OUTBOX_PENDING",
+          pending,
+        });
+      }
+      const previous = await this.services.localInstallationService.findDefault();
+      const user = getAuthenticatedRequestUser(req);
+      console.warn("[OPERATIVO installation] Instalacion reiniciada", {
+        installationId,
+        previousProyectoId: previous?.proyectoId ?? "",
+        userId: user?.id ?? "",
+      });
+      const installation = await this.services.localInstallationService.resetLink();
+      return res.status(200).json({ installation: await serializeInstallation(installation) });
+    } catch (error) {
+      return ErrorService.handleApiError(error, res);
+    }
+  };
 
   getStatus = async (_req: Request, res: Response) => {
     try {

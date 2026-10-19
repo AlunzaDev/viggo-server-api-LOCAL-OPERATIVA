@@ -27,6 +27,35 @@ export class LocalInstallationService {
     return this.repository.linkProject(payload);
   }
 
+  /**
+   * Back to "not linked" so it can be linked again (to the same or another project). The
+   * installation id is kept; the project and the cloud token are dropped. Local data of the
+   * previous project (tickets, payments, cash) stays as history.
+   */
+  resetLink() {
+    return this.repository.upsertRequest({
+      status: "pending",
+      source: "manual",
+      proyectoId: "",
+      proyectoNombre: "",
+      proyectoIdentificador: "",
+      cloudRequestId: "",
+      encryptedSyncToken: "",
+      reviewNote: "",
+      assignedByUserId: "",
+      requestedAt: 0,
+      reviewedAt: 0,
+      assignedAt: 0,
+      syncTokenIssuedAt: 0,
+      syncTokenRotatedAt: 0,
+      lastSyncAt: 0,
+      lastSyncStatus: "",
+      lastSyncError: "",
+      lastConfigurationVersion: null,
+      lastAccessVersion: null,
+    });
+  }
+
   updateSyncState(payload: LocalInstallationSyncStatePayload) {
     return this.repository.updateSyncState(payload);
   }

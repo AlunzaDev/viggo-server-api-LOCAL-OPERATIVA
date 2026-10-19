@@ -126,6 +126,20 @@ Ver [docker-runbook.md](docker-runbook.md). Postgres sólo se publica en `127.0.
 
 No deben agregarse credenciales de Stripe ni correo a OPERATIVO.
 
+## Vinculación de la instalación
+
+1. En ADMINISTRATIVO, en los módulos del proyecto, copiar el **token de vinculación** (botón *Token*).
+2. Abrir la web operativa: sin vinculación muestra la pantalla para pegar el token, antes del login. Validar el token, confirmar el proyecto y solicitar la vinculación.
+3. Aprobar la solicitud en ADMINISTRATIVO (*Instalaciones*). La pantalla detecta la aprobación sola y pasa al login; la instalación recibe su propio token de la nube.
+
+### Reiniciar o cambiar de proyecto
+
+Para reasignar el equipo a otro proyecto o recuperar una instalación cuyo token ya no sirve: en la web operativa, *Configuración → Reiniciar instalación* (solo `SUPER_ROLE`), escribir el ID de la instalación para confirmar y vincular de nuevo con el token del proyecto.
+
+- Se rechaza mientras haya cambios locales sin enviar a la nube (`OUTBOX_PENDING`): conectar la instalación y esperar a que se envíen.
+- Se conserva el ID de la instalación y **los datos locales** del proyecto anterior (tickets, pagos, caja) como historial; solo se quitan el proyecto y el token.
+- El token anterior deja de servir en cuanto ADMINISTRATIVO recibe la nueva solicitud.
+
 ## Sincronización
 
 Los modelos locales de usuarios, parkings, módulos, pensiones y Pension Pass son copias de ADMINISTRATIVO necesarias para operar sin internet. El sync de configuración aplica los snapshots y valida la integridad en una sola transacción: si el resultado es inconsistente se revierte y se conserva la configuración anterior.

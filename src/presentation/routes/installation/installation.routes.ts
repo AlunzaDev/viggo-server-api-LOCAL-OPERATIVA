@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response, Router } from "express";
 import { buildInstallationController, buildLocalInstallationService } from "../../dependencies";
+import { AUTH_ROLES } from "../../../domain/constants";
 import { AuthMiddleware } from "../../middlewares";
 import { InstallationIdentityService } from "../../services/installation/installation-identity.service";
 
@@ -29,6 +30,14 @@ export class InstallationRoutes {
     router.get("/status", controller.getStatus);
     router.post("/link-preview", requireAuthOnceLinked, controller.previewProjectLink);
     router.post("/project-request", requireAuthOnceLinked, controller.requestProjectLink);
+    // Unlinking leaves the parking without the cloud until a new approval, and cashiers are
+    // ADMIN_ROLE too: only Viggo staff (SUPER_ROLE) may do it.
+    router.post(
+      "/reset",
+      AuthMiddleware.requireAuth,
+      AuthMiddleware.requireRoles(AUTH_ROLES.SUPER),
+      controller.resetInstallation,
+    );
 
     return router;
   }

@@ -4,6 +4,7 @@ import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { envs } from "../../src/config";
+import { JwtPlugin } from "../../src/config/plugins/jwt.plugin";
 import { PostgresDatabase } from "../../src/data/postgres";
 import { InstallationRoutes } from "../../src/presentation/routes/installation/installation.routes";
 import { InstallationTokenCryptoService } from "../../src/presentation/services/installation/installation-token-crypto.service";
@@ -13,11 +14,19 @@ const proyectoId = randomUUID();
 let server: Server;
 let baseUrl = "";
 const original = { appEnv: envs.APP_ENV, projectId: envs.PROJECT_ID };
+const profileId = randomUUID();
+const staff: Record<"SUPER_ROLE" | "ADMIN_ROLE", { id: string; token: string }> = {
+  SUPER_ROLE: { id: randomUUID(), token: "" },
+  ADMIN_ROLE: { id: randomUUID(), token: "" },
+};
 
-const call = async (method: string, path: string, body?: unknown) => {
+const call = async (method: string, path: string, body?: unknown, token?: string) => {
   const response = await fetch(`${baseUrl}${path}`, {
     method,
-    headers: body ? { "Content-Type": "application/json" } : {},
+    headers: {
+      ...(body ? { "Content-Type": "application/json" } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: body ? JSON.stringify(body) : undefined,
   });
   return { status: response.status, body: (await response.json().catch(() => null)) as Record<string, any> };
@@ -55,6 +64,18 @@ describe("installation routes", () => {
     server = app.listen(0);
     await new Promise((resolve) => server.once("listening", resolve));
     baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+
+    await db().permissionProfile.create({ data: { id: profileId, app: "OPERATIVE_WEB", nombre: `reset-${profileId}` } });
+    for (const [rol, user] of Object.entries(staff)) {
+      await db().usuario.create({
+        data: {
+          id: user.id, nombre: "Staff", apellido: rol, correo: `${user.id}@viggo.test`, telefono: user.id.slice(0, 10),
+          password: "hash", rol, emailValidated: true, allowedApps: ["OPERATIVE_WEB"],
+          appPermissions: { create: { app: "OPERATIVE_WEB", permissionProfileId: profileId } },
+        },
+      });
+      user.token = String(await JwtPlugin.generateToken({ id: user.id, app: "OPERATIVE_WEB" }));
+    }
   });
 
   beforeEach(async () => {
@@ -70,6 +91,8 @@ describe("installation routes", () => {
     vi.unstubAllGlobals();
     await new Promise((resolve) => server.close(resolve));
     await db().localInstallation.deleteMany({});
+    await db().usuario.deleteMany({ where: { id: { in: Object.values(staff).map((user) => user.id) } } });
+    await db().permissionProfile.deleteMany({ where: { id: profileId } });
     await PostgresDatabase.disconnect();
   });
 
@@ -109,5 +132,37 @@ describe("installation routes", () => {
     } finally {
       warn.mockRestore();
     }
+  });
+
+  it("resets a linked installation only for Viggo staff, with confirmation and nothing left to send", async () => {
+    await linkedRow(InstallationTokenCryptoService.encrypt("installation-token"));
+    const installationId = "viggo-test-local-001";
+    // Earlier tests may leave undelivered events: start from an empty queue.
+    await db().outboxEvent.updateMany({ where: { sentAt: null }, data: { sentAt: new Date() } });
+
+    expect((await call("POST", "/api/installation/reset", { installationId })).status).toBe(401);
+    // Cashiers are ADMIN_ROLE too: they cannot unlink the parking.
+    expect((await call("POST", "/api/installation/reset", { installationId }, staff.ADMIN_ROLE.token)).status).toBe(403);
+    const wrongId = await call("POST", "/api/installation/reset", { installationId: "otra" }, staff.SUPER_ROLE.token);
+    expect(wrongId).toMatchObject({ status: 400, body: { code: "INSTALLATION_ID_MISMATCH" } });
+
+    // A local change not yet delivered to the cloud blocks the reset.
+    const pending = await db().outboxEvent.create({
+      data: { eventType: "ticket.created", aggregateType: "ticket", aggregateId: randomUUID(), payload: {} },
+    });
+    const blocked = await call("POST", "/api/installation/reset", { installationId }, staff.SUPER_ROLE.token);
+    expect(blocked).toMatchObject({ status: 409, body: { code: "OUTBOX_PENDING", pending: 1 } });
+    expect((await db().localInstallation.findUniqueOrThrow({ where: { key: "default" } })).status).toBe("linked");
+
+    await db().outboxEvent.update({ where: { eventId: pending.eventId }, data: { sentAt: new Date() } });
+    const reset = await call("POST", "/api/installation/reset", { installationId }, staff.SUPER_ROLE.token);
+    expect(reset.status).toBe(200);
+    expect(reset.body.installation).toMatchObject({ configured: false, status: "pending", proyectoId: null, installationId, cloudCredentials: false });
+    const row = await db().localInstallation.findUniqueOrThrow({ where: { key: "default" } });
+    expect(row).toMatchObject({ encryptedSyncToken: "", proyectoId: "", installationId });
+
+    // Unlinked again: the linking screen works without a session.
+    expect((await call("POST", "/api/installation/link-preview", { installationLinkToken: "link-token" })).status).toBe(200);
+    await db().outboxEvent.delete({ where: { eventId: pending.eventId } });
   });
 });
