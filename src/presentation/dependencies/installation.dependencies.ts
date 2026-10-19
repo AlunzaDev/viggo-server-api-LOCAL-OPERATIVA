@@ -6,9 +6,11 @@ import { LocalInstallationService } from "../services/installation/local-install
 export const buildLocalInstallationService = (): LocalInstallationService =>
   new LocalInstallationService(buildLocalInstallationRepository());
 
-export const buildInstallationController = (): InstallationController => {
+/** `onCloudLinked` runs once the cloud approved the link (e.g. to sync the configuration). */
+export const buildInstallationController = (onCloudLinked?: () => void): InstallationController => {
   return new InstallationController(
     InstallationServiceFactory.create(buildLocalInstallationRepository()),
     buildOutboxRepository(),
+    onCloudLinked,
   );
 };

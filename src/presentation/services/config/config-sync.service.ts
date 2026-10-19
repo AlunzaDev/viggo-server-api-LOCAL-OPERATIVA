@@ -246,6 +246,7 @@ export class ConfigSyncService {
       response = await fetch(cloudUrl(path), {
         headers: InstallationIdentityService.cloudHeaders(credentials),
       });
+      InstallationIdentityService.handleCloudResponse(response);
     } catch {
       throw CustomError.internalServer(
         "La nube no esta disponible",

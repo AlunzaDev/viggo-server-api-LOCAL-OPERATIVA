@@ -176,6 +176,7 @@ export class HeartbeatSnapshotService {
         headers: InstallationIdentityService.cloudHeaders(credentials),
         body: JSON.stringify(snapshot),
       });
+      InstallationIdentityService.handleCloudResponse(response);
 
       if (!response.ok) {
         console.warn("[OPERATIVO heartbeat] No se pudo sincronizar snapshot:", {

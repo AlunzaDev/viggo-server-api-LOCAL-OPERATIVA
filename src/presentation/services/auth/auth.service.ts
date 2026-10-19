@@ -416,6 +416,7 @@ export class AuthService {
         syncResponse = await fetch(`${baseUrl}${syncEndpoint}`, {
           headers: InstallationIdentityService.cloudHeaders(cloud),
         });
+        InstallationIdentityService.handleCloudResponse(syncResponse);
 
         lastSyncError = null;
         break;

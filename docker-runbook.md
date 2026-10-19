@@ -30,7 +30,6 @@ Valores obligatorios:
 - `JWT_SEED`
 - `INSTALLATION_SECRET_KEY`
 - `ADMINISTRATIVO_API_URL`
-- `SYNC_SERVICE_TOKEN`
 
 ## Levantar API
 

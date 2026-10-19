@@ -1,5 +1,5 @@
 import express from "express";
-import { randomUUID } from "node:crypto";
+import { createHmac, randomUUID } from "node:crypto";
 import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -8,6 +8,8 @@ import { JwtPlugin } from "../../src/config/plugins/jwt.plugin";
 import { PostgresDatabase } from "../../src/data/postgres";
 import { InstallationRoutes } from "../../src/presentation/routes/installation/installation.routes";
 import { InstallationTokenCryptoService } from "../../src/presentation/services/installation/installation-token-crypto.service";
+import { InstallationIdentityService } from "../../src/presentation/services/installation/installation-identity.service";
+import { requireSyncAuth } from "../../src/presentation/middlewares/sync-auth.middleware";
 
 const db = () => PostgresDatabase.client;
 const proyectoId = randomUUID();
@@ -51,11 +53,18 @@ describe("installation routes", () => {
     const app = express();
     app.use(express.json());
     app.use("/api/installation", InstallationRoutes.routes);
+    app.get("/sync-probe", requireSyncAuth, (_req, res) => res.json({ ok: true }));
     // Only the local server is real; the cloud is stubbed below.
     const realFetch = globalThis.fetch;
     vi.stubGlobal("fetch", async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input);
       if (url.startsWith(baseUrl)) return realFetch(input, init);
+      if (url.includes("/sync-token/rotate")) {
+        const authorization = new Headers(init?.headers).get("Authorization");
+        return authorization === "Bearer installation-token"
+          ? new Response(JSON.stringify({ syncToken: "rotated-token" }), { status: 200 })
+          : new Response(JSON.stringify({ error: "Invalid installation token" }), { status: 401 });
+      }
       if (url.includes("/installation-link/preview")) {
         return new Response(JSON.stringify({ proyecto: { id: proyectoId, nombre: "Plaza" } }), { status: 200 });
       }
@@ -164,5 +173,34 @@ describe("installation routes", () => {
     // Unlinked again: the linking screen works without a session.
     expect((await call("POST", "/api/installation/link-preview", { installationLinkToken: "link-token" })).status).toBe(200);
     await db().outboxEvent.delete({ where: { eventId: pending.eventId } });
+  });
+
+  it("accepts calls from ADMINISTRATIVO only with the token derived from its own sync token", async () => {
+    const probe = (token?: string) =>
+      fetch(`${baseUrl}/sync-probe`, { headers: token ? { Authorization: `Bearer ${token}` } : {} }).then((res) => res.status);
+    // Not linked: no token is accepted, there is no shared one.
+    await linkedRow("");
+    expect(await probe("anything")).toBe(503);
+
+    await db().localInstallation.deleteMany({});
+    await linkedRow(InstallationTokenCryptoService.encrypt("installation-token"));
+    const derived = createHmac("sha256", "installation-token").update("viggo:administrativo->operativo").digest("base64url");
+    expect(await probe(derived)).toBe(200);
+    expect(await probe("installation-token")).toBe(401);
+    expect(await probe("test-sync-token-not-a-real-secret-000")).toBe(401);
+    expect(await probe()).toBe(401);
+  });
+
+  it("rotates its cloud token when asked, keeping the current one if the cloud refuses", async () => {
+    await linkedRow(InstallationTokenCryptoService.encrypt("installation-token"));
+    // A response without the header changes nothing.
+    InstallationIdentityService.handleCloudResponse(new Response("{}"));
+    expect((await InstallationIdentityService.getCloudCredentials())?.token).toBe("installation-token");
+
+    expect(await InstallationIdentityService.rotateSyncToken()).toBe(true);
+    expect((await InstallationIdentityService.getCloudCredentials())?.token).toBe("rotated-token");
+    // The cloud no longer accepts the token used to ask: keep the stored one.
+    expect(await InstallationIdentityService.rotateSyncToken()).toBe(false);
+    expect((await InstallationIdentityService.getCloudCredentials())?.token).toBe("rotated-token");
   });
 });

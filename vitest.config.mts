@@ -10,7 +10,6 @@ const appDefaults = {
   PORT: "3999",
   PUBLIC_PATH: "public",
   JWT_SEED: "test-jwt-seed-not-a-real-secret-0000",
-  SYNC_SERVICE_TOKEN: "test-sync-token-not-a-real-secret-000",
   INSTALLATION_ID: "viggo-test-local-001",
   ADMINISTRATIVO_API_URL: "http://cloud.test",
 };

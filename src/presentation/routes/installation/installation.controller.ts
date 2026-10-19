@@ -80,6 +80,8 @@ export class InstallationController {
   constructor(
     private readonly services: InstallationServices,
     private readonly outbox: OutboxRepository,
+    /** Called once the cloud approved the link and handed over the sync token. */
+    private readonly onCloudLinked: () => void = () => undefined,
   ) {}
 
   /**
@@ -252,7 +254,7 @@ export class InstallationController {
         normalizeProject(project),
       );
 
-      return this.linkLocalProject(
+      const linked = await this.linkLocalProject(
         String(project._id ?? project.id),
         "cloudApproval",
         String(request._id ?? request.id ?? ""),
@@ -260,6 +262,10 @@ export class InstallationController {
           ? cloudStatus.oneTimeSyncToken
           : "",
       );
+      // Configuration (modules, users, pensions) right away, instead of waiting for the
+      // scheduled sync; the cloud cannot trigger it, there is no shared token anymore.
+      this.onCloudLinked();
+      return linked;
     }
 
     return this.services.localInstallationService.upsertRequest(

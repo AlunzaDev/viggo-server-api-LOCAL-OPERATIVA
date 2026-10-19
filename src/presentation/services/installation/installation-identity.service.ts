@@ -1,6 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { envs } from "../../../config";
+import { createHmac } from "node:crypto";
 import { InstallationTokenCryptoService } from "./installation-token-crypto.service";
+
+/** Must match ADMINISTRATIVO (installation-sync-token.util). */
+const ADMIN_CALL_TOKEN_LABEL = "viggo:administrativo->operativo";
+/** Sent by the cloud on a sync call when an administrator asked for a new token. */
+export const SYNC_TOKEN_ROTATION_HEADER = "x-viggo-sync-token-rotation";
 import { LocalInstallationService } from "./local-installation.service";
 
 /** What this server needs to call ADMINISTRATIVO's sync API. */
@@ -80,6 +86,61 @@ export class InstallationIdentityService {
       });
       return null;
     }
+  }
+
+  /**
+   * Token ADMINISTRATIVO uses to call this server: an HMAC of the installation's own sync
+   * token, so each installation has a different one and there is no shared secret.
+   */
+  static adminCallToken(credentials: Pick<CloudCredentials, "token">) {
+    return createHmac("sha256", credentials.token).update(ADMIN_CALL_TOKEN_LABEL).digest("base64url");
+  }
+
+  private static rotation: Promise<boolean> | null = null;
+
+  /**
+   * Looks at a response from the cloud: when it asks for a new token, gets one (once, even if
+   * several calls see the header at the same time).
+   */
+  static handleCloudResponse(response: Response | undefined) {
+    if (response?.headers.get(SYNC_TOKEN_ROTATION_HEADER) !== "required") return;
+    void this.rotateSyncToken();
+  }
+
+  /**
+   * Asks the cloud for a new sync token and stores it. The current token keeps working in
+   * the cloud until the new one is used, so a failure here is simply retried later.
+   */
+  static rotateSyncToken(): Promise<boolean> {
+    this.rotation ??= (async () => {
+      try {
+        const credentials = await this.getCloudCredentials();
+        if (!credentials || !this.localInstallationService) return false;
+        const response = await fetch(
+          `${envs.ADMINISTRATIVO_API_URL.replace(/\/+$/, "")}/api/sync/sync-token/rotate`,
+          { method: "POST", headers: this.cloudHeaders(credentials) },
+        );
+        const data = (await response.json().catch(() => ({}))) as { syncToken?: unknown };
+        if (!response.ok || typeof data.syncToken !== "string" || !data.syncToken) {
+          console.warn("[OPERATIVO installation] No se pudo rotar el token de la nube", { status: response.status });
+          return false;
+        }
+        await this.localInstallationService.upsertRequest({
+          encryptedSyncToken: InstallationTokenCryptoService.encrypt(data.syncToken),
+          syncTokenRotatedAt: Date.now(),
+        });
+        console.info("[OPERATIVO installation] Token de la nube rotado");
+        return true;
+      } catch (error) {
+        console.warn("[OPERATIVO installation] No se pudo rotar el token de la nube", {
+          reason: error instanceof Error ? error.message : String(error),
+        });
+        return false;
+      } finally {
+        this.rotation = null;
+      }
+    })();
+    return this.rotation;
   }
 
   static cloudHeaders(credentials: Pick<CloudCredentials, "installationId" | "token">) {

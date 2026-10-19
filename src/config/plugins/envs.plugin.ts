@@ -84,11 +84,6 @@ const installationSecretKey = env
   .default("")
   .asString()
   .trim();
-const syncServiceToken = env
-  .get("SYNC_SERVICE_TOKEN")
-  .default("")
-  .asString()
-  .trim();
 const administrativoApiUrl = env
   .get("ADMINISTRATIVO_API_URL")
   .default("http://localhost:3000")
@@ -183,7 +178,6 @@ if (isProd) {
   }
   requireProductionSecret("JWT_SEED", jwtSeed);
   requireProductionSecret("INSTALLATION_SECRET_KEY", installationSecretKey);
-  requireProductionSecret("SYNC_SERVICE_TOKEN", syncServiceToken);
 }
 
 export const envs = {
@@ -222,7 +216,6 @@ export const envs = {
     30,
   ),
   PAYMENT_CURRENCY: env.get("PAYMENT_CURRENCY").default("mxn").asString(),
-  SYNC_SERVICE_TOKEN: syncServiceToken,
 
   MESHCENTRAL_LOGIN_USER: meshCentralLoginUser,
   MESHCENTRAL_LOGIN_PASS: meshCentralLoginPass,

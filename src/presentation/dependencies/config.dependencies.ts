@@ -5,7 +5,7 @@ import { ConfigSyncService } from "../services/config/config-sync.service";
 import { SyncService } from "../services/sync/sync.service";
 import { buildLocalInstallationService } from "./installation.dependencies";
 
-const buildConfigSyncService = (): ConfigSyncService => {
+export const buildConfigSyncService = (): ConfigSyncService => {
   const localInstallationService = buildLocalInstallationService();
   const syncService = new SyncService(
     buildSyncRepository(),

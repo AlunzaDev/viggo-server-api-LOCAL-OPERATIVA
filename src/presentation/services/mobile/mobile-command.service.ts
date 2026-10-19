@@ -140,7 +140,7 @@ export class MobileCommandService {
   }
 
   private async cloudFetch(path: string, init: RequestInit = {}) {
-    return fetch(`${envs.ADMINISTRATIVO_API_URL.replace(/\/+$/, "")}${path}`, {
+    const response = await fetch(`${envs.ADMINISTRATIVO_API_URL.replace(/\/+$/, "")}${path}`, {
       ...init,
       headers: {
         Authorization: `Bearer ${this.syncToken}`,
@@ -149,5 +149,7 @@ export class MobileCommandService {
         ...(init.headers ?? {}),
       },
     });
+    InstallationIdentityService.handleCloudResponse(response);
+    return response;
   }
 }

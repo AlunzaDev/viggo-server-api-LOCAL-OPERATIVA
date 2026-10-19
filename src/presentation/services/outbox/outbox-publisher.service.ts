@@ -1,3 +1,4 @@
+import { InstallationIdentityService } from "../installation/installation-identity.service";
 import { envs } from "../../../config";
 import type { OutboxEvent } from "../../../domain/datasources/system/outbox.datasource";
 import { OutboxRepository } from "../../../domain/repositories/system/outbox.repository";
@@ -119,6 +120,7 @@ export class OutboxPublisherService {
         }),
         signal: AbortSignal.timeout(10_000),
       });
+      InstallationIdentityService.handleCloudResponse(response);
     } catch (error) {
       return { outcome: "retry", error: error instanceof Error ? error.message : "Sin conexion con la nube" };
     }

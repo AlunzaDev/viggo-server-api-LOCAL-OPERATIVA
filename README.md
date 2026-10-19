@@ -120,7 +120,6 @@ Ver [docker-runbook.md](docker-runbook.md). Postgres sólo se publica en `127.0.
 - `CORS_ALLOWED_ORIGINS`
 - `PAYMENT_CURRENCY`
 - `PROJECT_ID` (sólo con `APP_ENV=dev` o `test`: vincula sin credenciales de la nube, así que no hay login en línea, sincronización ni envío de eventos; en otros ambientes se ignora y hay que vincular con el token del proyecto)
-- `SYNC_SERVICE_TOKEN` (sólo autentica las llamadas ADMINISTRATIVO → OPERATIVO; hacia la nube se usa el token propio que la instalación recibe al ser aprobada)
 - `BARRIER_SOCKET_REQUIRED`
 - `BARRIER_SOCKET_TIMEOUT_MS`
 
@@ -154,7 +153,7 @@ No debe reintroducirse CRUD administrativo público en esta API.
 
 ```http
 PUT /api/sync/snapshots/access
-Authorization: Bearer <SYNC_SERVICE_TOKEN>
+Authorization: Bearer <token de llamada de la instalacion>
 X-Viggo-Sync-Source: administrativo
 Content-Type: application/json
 ```
@@ -177,11 +176,13 @@ Este endpoint hace upsert de usuarios y perfiles enviados por `ADMINISTRATIVO`. 
 
 # Nota: consulta directa desde ADMINISTRATIVO
 
+Las llamadas de `ADMINISTRATIVO` a este servidor llevan un token de llamada derivado del token de sincronizacion de esta instalacion (`HMAC(token, "viggo:administrativo->operativo")`). No hay token compartido: una instalacion sin vincular no acepta ninguna, y cada instalacion tiene el suyo. Si `ADMINISTRATIVO` pide rotar el token (encabezado `X-Viggo-Sync-Token-Rotation: required` en una respuesta de sync), este servidor pide uno nuevo y lo guarda cifrado.
+
 Modo actual para monitoreo: `ADMINISTRATIVO` consulta a `OPERATIVO` cuando el parking esta alcanzable.
 
 ```http
 GET /api/local-reports/snapshot?proyectoId=<id>&from=<epoch>&to=<epoch>
-Authorization: Bearer <SYNC_SERVICE_TOKEN>
+Authorization: Bearer <token de llamada de la instalacion>
 X-Viggo-Sync-Source: administrativo-direct-query
 ```
 

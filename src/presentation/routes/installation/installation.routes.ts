@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response, Router } from "express";
-import { buildInstallationController, buildLocalInstallationService } from "../../dependencies";
+import { buildConfigSyncService, buildInstallationController, buildLocalInstallationService } from "../../dependencies";
 import { AUTH_ROLES } from "../../../domain/constants";
 import { AuthMiddleware } from "../../middlewares";
 import { InstallationIdentityService } from "../../services/installation/installation-identity.service";
@@ -7,7 +7,16 @@ import { InstallationIdentityService } from "../../services/installation/install
 export class InstallationRoutes {
   static get routes(): Router {
     const router = Router();
-    const controller = buildInstallationController();
+    // Once linked, bring the configuration (modules, users, pensions) right away.
+    const controller = buildInstallationController(() => {
+      buildConfigSyncService()
+        .syncNow({ triggerSource: "system" })
+        .catch((error) =>
+          console.warn("[OPERATIVO installation] No se pudo sincronizar al vincular", {
+            reason: error instanceof Error ? error.message : String(error),
+          }),
+        );
+    });
     const installations = buildLocalInstallationService();
 
     // Until the installation is linked nobody can log in (users come from the cloud with
