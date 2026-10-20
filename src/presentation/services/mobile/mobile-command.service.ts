@@ -1,6 +1,7 @@
 import { envs } from "../../../config";
 import { CustomError } from "../../../domain/errors/custom.error";
 import { buildTicketService } from "../../dependencies/parking.dependencies";
+import { buildPensionPassService } from "../../dependencies/pension.dependencies";
 import { InstallationIdentityService } from "../installation/installation-identity.service";
 import { LocalInstallationService } from "../installation/local-installation.service";
 import type { TransactionRunner } from "../../../domain/datasources/system/transaction";
@@ -17,6 +18,7 @@ type CloudOperation = {
 
 export class MobileCommandService {
   private readonly ticketService = buildTicketService();
+  private readonly pensionPassService = buildPensionPassService();
   private syncToken = "";
   constructor(
     private readonly installations: LocalInstallationService,
@@ -92,6 +94,18 @@ export class MobileCommandService {
         { idempotencyKey: `mobile:${operation.operationId}` },
       );
       return { ticket: await this.ticketService.toLegacyTicketResponse(ticket) };
+    }
+
+    if (operation.type === "PENSION_PASS_ACCESS") {
+      const pensionPassId = String(operation.payload.pensionPassId ?? "").trim();
+      const moduleToken = String(operation.payload.moduleToken ?? "").trim();
+      if (!pensionPassId || !moduleToken) throw CustomError.badRequest("pensionPassId y moduleToken son requeridos");
+      // The receipt commits with the passage: a re-delivery after a crash returns this result
+      // instead of failing anti-passback for a barrier that did open.
+      const pensionMove = await this.pensionPassService.openBarrierWithPensionPass(operation.userId, pensionPassId, moduleToken, {
+        beforeOpen: async (move, tx) => { await this.commands.saveReceipt(operation.operationId, operation.type, { pensionMove: move }, tx); },
+      });
+      return { pensionMove };
     }
 
     throw CustomError.badRequest("Tipo de comando movil no soportado");

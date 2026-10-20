@@ -4,7 +4,8 @@ import type { TicketEntity } from "../../entities/parking/ticket.entity";
 
 export abstract class MobileCommandRepository {
   abstract findReceipt(operationId: string): Promise<{ result: unknown } | null>;
-  abstract saveReceipt(operationId: string, type: string, result: unknown): Promise<{ result: unknown }>;
+  /** With `tx`, the receipt commits (or rolls back) with the command's own changes. */
+  abstract saveReceipt(operationId: string, type: string, result: unknown, tx?: TransactionContext): Promise<{ result: unknown }>;
   abstract findPaymentIdByProviderReference(providerReference: string, tx: TransactionContext): Promise<string | null>;
   abstract findTicketById(id: string, tx: TransactionContext): Promise<TicketEntity | null>;
   abstract createCloudTicketPayment(payment: CloudTicketPaymentInput, tx: TransactionContext): Promise<void>;

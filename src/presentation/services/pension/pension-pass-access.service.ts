@@ -1,6 +1,6 @@
 import { JwtPlugin } from "../../../config/plugins/jwt.plugin";
 import { PensionEntity } from "../../../domain/entities/pension/pension.entity";
-import { TransactionRunner } from "../../../domain/datasources/system/transaction";
+import { TransactionRunner, type TransactionContext } from "../../../domain/datasources/system/transaction";
 import {
   assertPensionPassage,
   type PensionPassageTipo,
@@ -27,10 +27,15 @@ export class PensionPassAccessService {
     private readonly transactions: TransactionRunner,
   ) {}
 
+  /**
+   * `beforeOpen` runs inside the passage transaction, after the move is recorded and before the
+   * barrier opens: whatever it stores commits only if the barrier opened (e.g. a command receipt).
+   */
   async openBarrierWithPensionPass(
     usuarioId: string,
     pensionPassId: string,
     moduleToken: string,
+    options: { beforeOpen?: (move: PensionMoveResponse, tx: TransactionContext) => Promise<void> } = {},
   ): Promise<PensionMoveResponse> {
     const pensionPass = await this.getValidPensionPass(pensionPassId, usuarioId);
     const pension = await this.getValidPension(pensionPass.pension);
@@ -43,7 +48,7 @@ export class PensionPassAccessService {
 
     // The passage is recorded only if the barrier opens; a second simultaneous read of
     // the same pass waits and then fails anti-passback instead of flipping the state back.
-    const pensionMove = await this.transactions.run(async (tx) => {
+    return this.transactions.run(async (tx) => {
       const move = await this.pensionMoveRepository.registerPassage(
         {
           pensionPassId: pensionPass.id,
@@ -54,14 +59,11 @@ export class PensionPassAccessService {
         },
         tx,
       );
+      const response = await this.responseMapper.toPensionMoveResponse(move, modulo.nombre);
+      await options.beforeOpen?.(response, tx);
       await SocketServerPlugin.openBarrier(modulo.id);
-      return move;
+      return response;
     });
-
-    return this.responseMapper.toPensionMoveResponse(
-      pensionMove,
-      modulo.nombre,
-    );
   }
 
   private async getValidPensionPass(

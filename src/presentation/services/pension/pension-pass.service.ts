@@ -126,11 +126,13 @@ export class PensionPassService {
     usuarioId: string,
     pensionPassId: string,
     moduleToken: string,
+    options?: Parameters<PensionPassAccessService["openBarrierWithPensionPass"]>[3],
   ): Promise<PensionMoveResponse> {
     return this.accessService.openBarrierWithPensionPass(
       usuarioId,
       pensionPassId,
       moduleToken,
+      options,
     );
   }
 }

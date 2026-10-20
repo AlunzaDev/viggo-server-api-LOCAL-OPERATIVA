@@ -15,8 +15,8 @@ export const buildPensionController = (): PensionController => {
   return new PensionController(service);
 };
 
-export const buildPensionPassController = (): PensionPassController => {
-  const service = new PensionPassService(
+export const buildPensionPassService = (): PensionPassService =>
+  new PensionPassService(
     buildPensionPassRepository(),
     buildPensionRepository(),
     buildProyectoRepository(),
@@ -24,6 +24,9 @@ export const buildPensionPassController = (): PensionPassController => {
     buildPensionMoveRepository(),
     buildTransactionRunner(),
   );
+
+export const buildPensionPassController = (): PensionPassController => {
+  const service = buildPensionPassService();
 
   return new PensionPassController(service);
 };

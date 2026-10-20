@@ -12,8 +12,8 @@ export class MobileCommandRepositoryImpl implements MobileCommandRepository {
     return this.datasource.findReceipt(operationId);
   }
 
-  saveReceipt(operationId: string, type: string, result: unknown) {
-    return this.datasource.saveReceipt(operationId, type, result);
+  saveReceipt(operationId: string, type: string, result: unknown, tx?: TransactionContext) {
+    return this.datasource.saveReceipt(operationId, type, result, tx);
   }
 
   findPaymentIdByProviderReference(providerReference: string, tx: TransactionContext) {

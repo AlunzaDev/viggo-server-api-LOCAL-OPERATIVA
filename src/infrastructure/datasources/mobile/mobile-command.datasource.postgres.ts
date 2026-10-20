@@ -17,8 +17,8 @@ export class MobileCommandPostgresDatasource implements MobileCommandDatasource 
   }
 
   /** Insert-if-absent: when another delivery stored its result first, that one is returned. */
-  async saveReceipt(operationId: string, type: string, result: unknown) {
-    const db = prismaDb();
+  async saveReceipt(operationId: string, type: string, result: unknown, tx?: TransactionContext) {
+    const db = prismaDb(tx);
     // ON CONFLICT DO NOTHING: safe even when two deliveries finish at the same time.
     await db.mobileCommandReceipt.createMany({
       data: [{ operationId, type, result: (result ?? {}) as Prisma.InputJsonValue }],
