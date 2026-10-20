@@ -17,12 +17,14 @@ import { ModuloRepositoryImpl } from "../../src/infrastructure/repositories/park
 import { ProyectoRepositoryImpl } from "../../src/infrastructure/repositories/parking/proyecto.repository.impl";
 import { TicketRepositoryImpl } from "../../src/infrastructure/repositories/parking/ticket.repository.impl";
 import { TicketService } from "../../src/presentation/services/parking/ticket.service";
+import { buildParkingFeeService } from "../../src/presentation/dependencies/parking.dependencies";
 
 const db = () => PostgresDatabase.client;
 const service = new TicketService(
   new TicketRepositoryImpl(new TicketPostgresDatasource()),
   new ProyectoRepositoryImpl(new ProyectoPostgresDatasource()),
   new ModuloRepositoryImpl(new ModuloPostgresDatasource()),
+  buildParkingFeeService(),
 );
 
 const proyectoId = randomUUID();

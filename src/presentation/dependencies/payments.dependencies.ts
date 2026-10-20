@@ -1,5 +1,6 @@
 import { buildCashPaymentSessionRepository, buildCashRegisterCountRepository, buildCashRegisterCutRepository, buildCashRegisterModuleRepository, buildCashRegisterMovementRepository, buildCashRegisterShiftRepository, buildCashTicketPaymentRepository, buildPaymentRepository, buildTicketRepository, buildTransactionRunner } from "./repositories.dependencies";
 import { PaymentHistoryController } from "../routes/payments/payment-history.controller";
+import { buildParkingFeeService } from "./parking.dependencies";
 import { PaymentHistoryService } from "../services/payments/payment-history.service";
 import { CashTicketPaymentController } from "../routes/payments/cash-ticket-payment.controller";
 import { CashRegisterService } from "../services/cash-register/cash-register.service";
@@ -42,6 +43,7 @@ export const buildCashTicketPaymentController =
       cashTicketPaymentRepository,
       operationalLogsService,
       buildTransactionRunner(),
+      buildParkingFeeService(),
     );
 
     return new CashTicketPaymentController(service);

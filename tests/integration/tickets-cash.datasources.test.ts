@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { buildParkingFeeService } from "../../src/presentation/dependencies/parking.dependencies";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PostgresDatabase } from "../../src/data/postgres";
 import { UniqueConstraintError } from "../../src/domain/errors/unique-constraint.error";
@@ -53,6 +54,7 @@ const cashPayments = new CashTicketPaymentService(
   new CashTicketPaymentRepositoryImpl(new CashTicketPaymentPostgresDatasource()),
   noLogs,
   transactions,
+  buildParkingFeeService(),
 );
 
 const proyectoId = randomUUID();

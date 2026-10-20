@@ -11,6 +11,8 @@ import {
   CashRegisterShiftPostgresDatasource,
 } from "../../infrastructure/datasources/cash-register/cash-register.datasources.postgres";
 import { ConfigSyncPostgresDatasource } from "../../infrastructure/datasources/config/config-sync.datasource.postgres";
+import { ParkingRatePostgresDatasource } from "../../infrastructure/datasources/parking/parking-rate.datasource.postgres";
+import { ParkingRateRepositoryImpl } from "../../infrastructure/repositories/parking/parking-rate.repository.impl";
 import { LocalInstallationPostgresDatasource } from "../../infrastructure/datasources/installation/local-installation.datasource.postgres";
 import { LocalReportsPostgresDatasource } from "../../infrastructure/datasources/local-reports/local-reports.datasource.postgres";
 import { MobileCommandPostgresDatasource } from "../../infrastructure/datasources/mobile/mobile-command.datasource.postgres";
@@ -67,6 +69,7 @@ export const buildPermissionProfileRepository = () =>
 export const buildProyectoRepository = () => new ProyectoRepositoryImpl(new ProyectoPostgresDatasource());
 export const buildModuloRepository = () => new ModuloRepositoryImpl(new ModuloPostgresDatasource());
 export const buildTicketRepository = () => new TicketRepositoryImpl(new TicketPostgresDatasource());
+export const buildParkingRateRepository = () => new ParkingRateRepositoryImpl(new ParkingRatePostgresDatasource());
 
 export const buildPensionRepository = () => new PensionRepositoryImpl(new PensionPostgresDatasource());
 export const buildPensionPassRepository = () => new PensionPassRepositoryImpl(new PensionPassPostgresDatasource());

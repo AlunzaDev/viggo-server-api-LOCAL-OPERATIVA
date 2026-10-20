@@ -1,4 +1,5 @@
 import { envs } from "../../../config";
+import type { ParkingFeeService } from "../parking/parking-fee.service";
 import { CashPaymentSessionEntity } from "../../../domain/entities/payments/cash-payment-session.entity";
 import { CustomError } from "../../../domain/errors/custom.error";
 import { CashRegisterShiftRepository } from "../../../domain/repositories/cash-register/cash-register-shift.repository";
@@ -30,6 +31,7 @@ export class CashTicketPaymentService {
     private readonly cashPayments: CashTicketPaymentRepository,
     private readonly operationalLogsService: OperationalLogsService,
     private readonly transactions: TransactionRunner,
+    private readonly fees: ParkingFeeService,
   ) {}
 
   async resolveTicketFromQr(qrValue: string, allowedProjectIds: string[] = []) {
@@ -81,13 +83,14 @@ export class CashTicketPaymentService {
 
     if (ticket.horaConsulta <= 0 || ticket.monto <= 0) {
       const now = Date.now();
-      const duration = Math.round((now - ticket.horaInicio) / 1000 / 60);
-      const amount = duration < 60 ? 10 : 20;
+      // Same pricing as the app: the project's rate, or the legacy one while none is set.
+      const quote = await this.fees.quote(ticket.proyecto, ticket.horaInicio, now);
 
       const updatedTicket = await this.ticketRepository.update(ticket.id, {
         horaConsulta: now,
-        duracion: duration,
-        monto: amount,
+        duracion: quote.duracion,
+        monto: quote.monto,
+        tarifaVersion: quote.tarifaVersion,
       });
 
       if (!updatedTicket) {

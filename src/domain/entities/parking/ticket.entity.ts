@@ -22,6 +22,8 @@ export interface TicketEntityOptions {
     idempotencyKey?: string;
     exitIdempotencyKey?: string;
     runtimeEventIds?: string[];
+    /** Rate version the amount was quoted with (null: legacy fixed rate). */
+    tarifaVersion?: number | null;
 }
 
 export class TicketEntity {
@@ -46,6 +48,7 @@ export class TicketEntity {
     public idempotencyKey?: string;
     public exitIdempotencyKey?: string;
     public runtimeEventIds?: string[];
+    public tarifaVersion?: number | null;
 
     constructor(options: TicketEntityOptions) {
         const {
@@ -70,6 +73,7 @@ export class TicketEntity {
             idempotencyKey,
             exitIdempotencyKey,
             runtimeEventIds,
+            tarifaVersion,
         } = options;
 
         this.id = id;
@@ -95,6 +99,7 @@ export class TicketEntity {
         this.runtimeEventIds = Array.isArray(runtimeEventIds)
             ? runtimeEventIds.map((value) => String(value).trim()).filter(Boolean)
             : [];
+        this.tarifaVersion = tarifaVersion ?? null;
     }
 
     static fromObject(object: { [key: string]: unknown }): TicketEntity {
@@ -121,6 +126,7 @@ export class TicketEntity {
             idempotencyKey,
             exitIdempotencyKey,
             runtimeEventIds,
+            tarifaVersion,
         } = object;
 
         const ticketId = id || (_id ? String(_id) : undefined);
@@ -194,6 +200,7 @@ export class TicketEntity {
             runtimeEventIds: Array.isArray(runtimeEventIds)
                 ? runtimeEventIds.map((value) => String(value).trim()).filter(Boolean)
                 : [],
+            tarifaVersion: typeof tarifaVersion === "number" ? tarifaVersion : null,
         });
     }
 }

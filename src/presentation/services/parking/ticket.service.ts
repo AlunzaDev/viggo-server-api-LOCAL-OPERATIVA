@@ -13,6 +13,7 @@ import {
   PaginationDateQuery,
 } from "../shared/pagination-query";
 import { SocketServerPlugin } from "../../sockets/socket-server";
+import { ParkingFeeService } from "./parking-fee.service";
 import { buildOperationalLogsService } from "../../dependencies/operational-logs.dependencies";
 
 const operationalLogsService = buildOperationalLogsService();
@@ -47,6 +48,7 @@ export class TicketService {
     private readonly ticketRepository: TicketRepository,
     private readonly proyectoRepository: ProyectoRepository,
     private readonly moduloRepository: ModuloRepository,
+    private readonly fees: ParkingFeeService,
   ) {}
 
   async createTicket(ticket: Omit<TicketEntity, "id">): Promise<TicketEntity> {
@@ -217,7 +219,19 @@ export class TicketService {
       if (existingTicket) return existingTicket;
     }
 
-    const ticket = await this.ticketRepository.getActiveByUsuario(usuarioId);
+    let ticket = await this.ticketRepository.getActiveByUsuario(usuarioId);
+
+    // Inside the tolerance the stay costs $0: nothing to pay, so the exit settles it.
+    if (ticket && !ticket.pagado) {
+      const now = Date.now();
+      const quote = await this.fees.quote(ticket.proyecto, ticket.horaInicio, now);
+      if (quote.monto === 0) {
+        ticket = await this.updateTicket(ticket.id, {
+          horaConsulta: now, horaCobro: now, duracion: quote.duracion, monto: 0,
+          tarifaVersion: quote.tarifaVersion, pagado: true,
+        });
+      }
+    }
 
     if (!ticket || !ticket.pagado) {
       throw CustomError.badRequest("No cuenta con un ticket pagado para salir");
@@ -315,16 +329,13 @@ export class TicketService {
     }
 
     const horaConsulta = Date.now();
-    const duracion = this.calculateDurationInMinutes(
-      ticket.horaInicio,
-      horaConsulta,
-    );
-    const monto = this.calculateTicketAmount(duracion);
+    const quote = await this.fees.quote(ticket.proyecto, ticket.horaInicio, horaConsulta);
 
     return this.updateTicket(ticket.id, {
       horaConsulta,
-      duracion,
-      monto,
+      duracion: quote.duracion,
+      monto: quote.monto,
+      tarifaVersion: quote.tarifaVersion,
     });
   }
 
@@ -445,18 +456,6 @@ export class TicketService {
     const uniquePart = `${String(now.getMilliseconds()).padStart(3, "0")}${randomBytes(2).toString("hex").slice(0, 3).toUpperCase()}`;
 
     return `00${datePart}${proyectoIdentificador}${moduloIdentificador}${uniquePart}`;
-  }
-
-  private calculateDurationInMinutes(
-    horaInicio: number,
-    horaFinal: number,
-  ): number {
-    const difference = horaFinal - horaInicio;
-    return Math.round(difference / 1000 / 60);
-  }
-
-  private calculateTicketAmount(minutes: number): number {
-    return minutes < 60 ? 10 : 20;
   }
 
   private isInDateRange(value: number, from?: number, to?: number): boolean {

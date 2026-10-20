@@ -383,6 +383,7 @@ model Proyecto {
   modulos       Modulo[]
   pensiones     Pension[]
   tickets       Ticket[]
+  parkingRates  ParkingRate[]
   pensionMoves  PensionMove[]
 
   @@index([identificador])
@@ -631,6 +632,29 @@ model PensionPass {
 
 // ───────────────────────── Local: parking operation ─────────────────────────
 
+/// Parking rate of a project, owned by OPERATIVO (it is not part of the project snapshot the
+/// cloud overwrites). Rows are immutable versions: the highest one is the current rate.
+model ParkingRate {
+  id                String   @id @default(uuid(7)) @db.Uuid
+  proyectoId        String   @map("proyecto_id") @db.Uuid
+  version           Int
+  toleranceMinutes  Int      @map("tolerance_minutes")
+  firstBlockMinutes Int      @map("first_block_minutes")
+  firstBlockPrice   Decimal  @map("first_block_price") @db.Decimal(12, 2)
+  fractionMinutes   Int      @map("fraction_minutes")
+  fractionPrice     Decimal  @map("fraction_price") @db.Decimal(12, 2)
+  /// Null: no daily cap.
+  dailyMax          Decimal? @map("daily_max") @db.Decimal(12, 2)
+  /// User who saved this version.
+  createdBy         String   @default("") @map("created_by")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  proyecto Proyecto @relation(fields: [proyectoId], references: [id], onDelete: Restrict)
+
+  @@unique([proyectoId, version])
+  @@map("parking_rates")
+}
+
 model Ticket {
   id                 String       @id @default(uuid(7)) @db.Uuid
   proyectoId         String       @map("proyecto_id") @db.Uuid
@@ -656,6 +680,8 @@ model Ticket {
   exitIdempotencyKey String?      @unique @map("exit_idempotency_key")
   /// Device runtime events already applied to this ticket (dedupe).
   runtimeEventIds    String[]     @default([]) @map("runtime_event_ids")
+  /// Version of the parking rate the amount was last quoted with (null: the legacy fixed rate).
+  tarifaVersion      Int?         @map("tarifa_version")
   createdAt          DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
 

@@ -25,6 +25,7 @@ export const toTicketEntity = (row: TicketRow): TicketEntity =>
     idempotencyKey: row.idempotencyKey ?? undefined,
     exitIdempotencyKey: row.exitIdempotencyKey ?? undefined,
     runtimeEventIds: row.runtimeEventIds,
+    tarifaVersion: row.tarifaVersion,
   });
 
 export type TicketValues = Partial<Omit<TicketEntity, "id">>;
@@ -52,5 +53,6 @@ export const ticketColumns = (ticket: TicketValues) => {
   if (ticket.idempotencyKey !== undefined) data.idempotencyKey = ticket.idempotencyKey || null;
   if (ticket.exitIdempotencyKey !== undefined) data.exitIdempotencyKey = ticket.exitIdempotencyKey || null;
   if (ticket.runtimeEventIds !== undefined) data.runtimeEventIds = ticket.runtimeEventIds;
+  if (ticket.tarifaVersion !== undefined) data.tarifaVersion = ticket.tarifaVersion;
   return data;
 };
