@@ -375,6 +375,8 @@ model Proyecto {
   localApiBaseUrl String   @default("") @map("local_api_base_url")
   img             String   @default("")
   descripcion     String   @default("")
+  /// IANA time zone of the parking (from ADMINISTRATIVO): pension schedules use its local time.
+  zonaHoraria     String   @default("America/Mexico_City") @map("zona_horaria")
   estado          Boolean  @default(true)
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)

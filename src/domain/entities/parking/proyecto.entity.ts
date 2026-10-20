@@ -1,4 +1,5 @@
 import { CustomError } from "../../errors/custom.error";
+import { DEFAULT_TIME_ZONE, isValidTimeZone } from "./time-zone";
 import {
     parseRemoteSupportProvider,
     RemoteSupportProvider,
@@ -27,6 +28,8 @@ export interface ProyectoEntityOptions {
     remoteSupport?: ProyectoRemoteSupport | null;
     img?: string;
     descripcion?: string;
+    /** IANA zone; schedules are checked in the parking's local time. */
+    zonaHoraria?: string;
     estado: boolean;
 }
 
@@ -44,10 +47,11 @@ export class ProyectoEntity {
     public remoteSupport?: ProyectoRemoteSupport | null;
     public img?: string;
     public descripcion?: string;
+    public zonaHoraria?: string;
     public estado: boolean;
 
     constructor(options: ProyectoEntityOptions) {
-        const { id, nombre, coordinates, ciudad, direccion, identificador, codigoProyecto, serverIp, serverMac, localApiBaseUrl, remoteSupport, img, descripcion, estado } =
+        const { id, nombre, coordinates, ciudad, direccion, identificador, codigoProyecto, serverIp, serverMac, localApiBaseUrl, remoteSupport, img, descripcion, zonaHoraria, estado } =
             options;
 
         this.id = id;
@@ -63,11 +67,12 @@ export class ProyectoEntity {
         this.remoteSupport = remoteSupport;
         this.img = img;
         this.descripcion = descripcion;
+        this.zonaHoraria = zonaHoraria ?? DEFAULT_TIME_ZONE;
         this.estado = estado;
     }
 
     static fromObject(object: { [key: string]: unknown }): ProyectoEntity {
-        const { _id, id, nombre, coordinates, ciudad, direccion, identificador, codigoProyecto, serverIp, serverMac, localApiBaseUrl, remoteSupport, img, descripcion, estado } =
+        const { _id, id, nombre, coordinates, ciudad, direccion, identificador, codigoProyecto, serverIp, serverMac, localApiBaseUrl, remoteSupport, img, descripcion, zonaHoraria, estado } =
             object;
 
         const proyectoId = id || (_id ? String(_id) : undefined);
@@ -108,6 +113,8 @@ export class ProyectoEntity {
                     ? localApiBaseUrl.trim()
                     : undefined,
             remoteSupport: ProyectoEntity.parseRemoteSupport(remoteSupport),
+            // An unknown or missing zone (older cloud) keeps the one every parking used.
+            zonaHoraria: isValidTimeZone(zonaHoraria) ? zonaHoraria : DEFAULT_TIME_ZONE,
             img: typeof img === "string" ? img : undefined,
             descripcion: typeof descripcion === "string" ? descripcion : undefined,
             estado: Boolean(estado),

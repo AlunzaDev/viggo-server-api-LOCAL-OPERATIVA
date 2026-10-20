@@ -47,6 +47,7 @@ export class PensionPassService {
       pensionMoveRepository,
       this.responseMapper,
       transactions,
+      proyectoRepository,
     );
   }
 

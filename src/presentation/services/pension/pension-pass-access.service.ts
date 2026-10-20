@@ -1,4 +1,6 @@
 import { JwtPlugin } from "../../../config/plugins/jwt.plugin";
+import { DEFAULT_TIME_ZONE, localClock } from "../../../domain/entities/parking/time-zone";
+import { ProyectoRepository } from "../../../domain/repositories/parking/proyecto.repository";
 import { PensionEntity } from "../../../domain/entities/pension/pension.entity";
 import { TransactionRunner, type TransactionContext } from "../../../domain/datasources/system/transaction";
 import {
@@ -25,6 +27,7 @@ export class PensionPassAccessService {
     private readonly pensionMoveRepository: PensionMoveRepository,
     private readonly responseMapper: PensionPassResponseMapper,
     private readonly transactions: TransactionRunner,
+    private readonly proyectoRepository: ProyectoRepository,
   ) {}
 
   /**
@@ -44,7 +47,8 @@ export class PensionPassAccessService {
     const tipo = modulo.tipo as PensionPassageTipo;
     // Fast feedback; registerPassage checks again against the locked, current state.
     assertPensionPassage(pensionPass.inParking, tipo);
-    this.validatePensionPassSchedule(pension);
+    const proyecto = await this.proyectoRepository.findById(pension.proyecto);
+    this.validatePensionPassSchedule(pension, proyecto?.zonaHoraria ?? DEFAULT_TIME_ZONE);
 
     // The passage is recorded only if the barrier opens; a second simultaneous read of
     // the same pass waits and then fails anti-passback instead of flipping the state back.
@@ -156,15 +160,16 @@ export class PensionPassAccessService {
     return moduloId;
   }
 
-  private validatePensionPassSchedule(pension: PensionEntity): void {
-    const now = new Date();
-    const validez = pension.validez.find((item) => item.weekDay === now.getDay());
+  /** The schedule is in the parking's local time, not the server's. */
+  private validatePensionPassSchedule(pension: PensionEntity, timeZone: string): void {
+    const clock = localClock(Date.now(), timeZone);
+    const validez = pension.validez.find((item) => item.weekDay === clock.weekDay);
 
     if (!validez) {
       throw CustomError.badRequest("No hay horario configurado para este dia");
     }
 
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    const currentMinutes = clock.minutes;
     const fromMinutes = (validez.from[0] ?? 0) * 60 + (validez.from[1] ?? 0);
     const toMinutes = (validez.to[0] ?? 0) * 60 + (validez.to[1] ?? 0);
 

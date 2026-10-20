@@ -1,3 +1,4 @@
+import { DEFAULT_TIME_ZONE } from "../../../domain/entities/parking/time-zone";
 import type {
   DeviceApprovalStatus,
   DeviceConnectionStatus,
@@ -52,6 +53,7 @@ export const toProyectoEntity = (row: ProyectoRow): ProyectoEntity =>
     remoteSupport: row.remoteSupport,
     img: row.img,
     descripcion: row.descripcion,
+    zonaHoraria: row.zonaHoraria,
     estado: row.estado,
   });
 
@@ -61,7 +63,7 @@ export type ProyectoKey = keyof ProyectoValues;
 /** Every key of a project, for writes that store the whole record. */
 export const PROYECTO_KEYS: readonly ProyectoKey[] = [
   "nombre", "coordinates", "ciudad", "direccion", "identificador", "codigoProyecto", "serverIp",
-  "serverMac", "localApiBaseUrl", "remoteSupport", "img", "descripcion", "estado",
+  "serverMac", "localApiBaseUrl", "remoteSupport", "img", "descripcion", "zonaHoraria", "estado",
 ];
 
 const proyectoColumns = (proyecto: ProyectoValues, has: (key: ProyectoKey) => boolean) => {
@@ -77,6 +79,7 @@ const proyectoColumns = (proyecto: ProyectoValues, has: (key: ProyectoKey) => bo
   if (has("localApiBaseUrl")) data.localApiBaseUrl = proyecto.localApiBaseUrl ?? "";
   if (has("img")) data.img = proyecto.img ?? "";
   if (has("descripcion")) data.descripcion = proyecto.descripcion ?? "";
+  if (has("zonaHoraria")) data.zonaHoraria = proyecto.zonaHoraria ?? DEFAULT_TIME_ZONE;
   if (has("estado")) data.estado = proyecto.estado;
   return data;
 };

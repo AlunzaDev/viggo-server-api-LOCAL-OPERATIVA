@@ -6,6 +6,7 @@ import { buildMobileCommandRepository } from "../../src/presentation/dependencie
 import { buildPensionPassService } from "../../src/presentation/dependencies/pension.dependencies";
 import { MobileCommandService } from "../../src/presentation/services/mobile/mobile-command.service";
 import { SocketServerPlugin } from "../../src/presentation/sockets/socket-server";
+import { localClock } from "../../src/domain/entities/parking/time-zone";
 
 // The app opens a barrier with its Pension Pass through a cloud command (#32).
 const db = () => PostgresDatabase.client;
@@ -90,6 +91,27 @@ describe("Pension Pass access from the app (PENSION_PASS_ACCESS)", () => {
     await expect(execute(randomUUID(), { pensionPassId: passId, moduleToken: "" })).rejects.toMatchObject({ statusCode: 400 });
     expect((await execute(randomUUID(), { pensionPassId: passId, moduleToken: salidaToken })).pensionMove.tipo).toBe("SALIDA");
     expect(await inside()).toBe(false);
+  });
+
+  it("checks the pension schedule in the parking's local time", async () => {
+    vi.spyOn(SocketServerPlugin, "openBarrier").mockResolvedValue();
+    // A window of ±20 min around now in Tijuana: open there, closed for a parking in Tokyo.
+    const tijuana = localClock(Date.now(), "America/Tijuana");
+    await db().pensionHorario.deleteMany({ where: { pensionId } });
+    await db().pensionHorario.create({ data: { pensionId, weekDay: tijuana.weekDay,
+      fromMinutes: Math.max(0, tijuana.minutes - 20), toMinutes: Math.min(1439, tijuana.minutes + 20) } });
+    try {
+      await db().proyecto.update({ where: { id: proyectoId }, data: { zonaHoraria: "Asia/Tokyo" } });
+      await expect(execute(randomUUID(), { pensionPassId: passId, moduleToken: entradaToken })).rejects.toThrow(/horario|rango/);
+
+      await db().proyecto.update({ where: { id: proyectoId }, data: { zonaHoraria: "America/Tijuana" } });
+      expect((await execute(randomUUID(), { pensionPassId: passId, moduleToken: entradaToken })).pensionMove.tipo).toBe("ENTRADA");
+      await execute(randomUUID(), { pensionPassId: passId, moduleToken: salidaToken });
+    } finally {
+      await db().pensionHorario.deleteMany({ where: { pensionId } });
+      await db().pensionHorario.createMany({ data: [0, 1, 2, 3, 4, 5, 6].map((weekDay) => ({ pensionId, weekDay, fromMinutes: 0, toMinutes: 1439 })) });
+      await db().proyecto.update({ where: { id: proyectoId }, data: { zonaHoraria: "America/Mexico_City" } });
+    }
   });
 
   it("refuses an expired pass", async () => {
