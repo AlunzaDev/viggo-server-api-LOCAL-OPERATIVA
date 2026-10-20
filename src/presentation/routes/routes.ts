@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { ParkingRateRoutes } from "./parking/parking-rate.routes";
 import { AuthRoutes } from "./auth/auth.routes";
 import { LocalUserRoutes } from "./auth/local-user.routes";
 import { CashRegisterRoutes } from "./cash-register/cash-register.routes";
@@ -54,6 +55,7 @@ export class AppRoutes {
 
     // Dominio operativo local.
     router.use("/api/tickets", requireLocalProject, TicketRoutes.routes);
+    router.use("/api/tarifa", requireLocalProject, ParkingRateRoutes.routes);
     router.use("/api/pension-moves", requireLocalProject, PensionMoveRoutes.routes);
     router.use("/api/cash-register", requireLocalProject, CashRegisterRoutes.routes);
     router.use("/api/config", ConfigRoutes.routes);

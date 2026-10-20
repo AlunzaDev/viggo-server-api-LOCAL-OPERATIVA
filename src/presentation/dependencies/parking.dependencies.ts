@@ -9,6 +9,7 @@ import { ModuloService } from "../services/parking/modulo.service";
 import { ProyectoService } from "../services/parking/proyecto.service";
 import { TicketService } from "../services/parking/ticket.service";
 import { ParkingFeeService } from "../services/parking/parking-fee.service";
+import { ParkingRateService } from "../services/parking/parking-rate.service";
 import { buildLocalInstallationService } from "./installation.dependencies";
 
 export const buildModuloService = (): ModuloService =>
@@ -53,6 +54,9 @@ export const buildProyectoController = (): ProyectoController => {
 export const buildTicketController = (): TicketController => {
   return new TicketController(buildTicketService());
 };
+
+export const buildParkingRateService = (): ParkingRateService =>
+  new ParkingRateService(buildParkingRateRepository());
 
 export const buildParkingFeeService = (): ParkingFeeService =>
   new ParkingFeeService(buildParkingRateRepository());
