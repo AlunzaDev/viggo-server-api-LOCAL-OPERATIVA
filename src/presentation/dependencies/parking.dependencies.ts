@@ -1,7 +1,5 @@
 import { buildModuloRepository, buildParkingRateRepository, buildProyectoRepository, buildTicketRepository } from "./repositories.dependencies";
-import { RemoteSupportService } from "../../application/services/remote-support/remote-support.service";
-import { CreateRemoteSupportSessionUrlUseCase } from "../../application/use-cases/remote-support/create-remote-support-session-url.usecase";
-import { ResolveRemoteSupportDeviceUseCase } from "../../application/use-cases/remote-support/resolve-remote-support-device.usecase";
+import { RemoteSupportService } from "../services/remote-support/remote-support.service";
 import { ModuloController } from "../routes/parking/modulo.controller";
 import { ProyectoController } from "../routes/parking/proyecto.controller";
 import { TicketController } from "../routes/parking/ticket.controller";
@@ -31,18 +29,8 @@ export const buildModuloController = (): ModuloController => {
     moduloRepository,
     proyectoRepository,
   );
-  const resolveRemoteSupportDeviceUseCase = new ResolveRemoteSupportDeviceUseCase(
-    remoteSupportService,
-  );
-  const createRemoteSupportSessionUrlUseCase = new CreateRemoteSupportSessionUrlUseCase(
-    remoteSupportService,
-  );
 
-  return new ModuloController(
-    service,
-    resolveRemoteSupportDeviceUseCase,
-    createRemoteSupportSessionUrlUseCase,
-  );
+  return new ModuloController(service, remoteSupportService);
 };
 
 export const buildProyectoController = (): ProyectoController => {
