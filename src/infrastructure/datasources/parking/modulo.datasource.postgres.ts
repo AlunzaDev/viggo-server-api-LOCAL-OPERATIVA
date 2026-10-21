@@ -58,9 +58,14 @@ export class ModuloPostgresDatasource extends ModuloDatasource {
 
   getFiltered(filters: ModuloFilters): Promise<ModuloEntity[]> {
     if (filters.proyecto !== undefined && !isUuid(filters.proyecto)) return Promise.resolve([]);
+    const proyectos = filters.proyectos?.filter(isUuid);
+    if (proyectos && !proyectos.length) return Promise.resolve([]);
     return this.findMany({
-      ...(filters.proyecto ? { proyectoId: filters.proyecto } : {}),
-      ...(filters.tipo ? { tipo: filters.tipo as ModuloTipo } : {}),
+      AND: [
+        filters.proyecto ? { proyectoId: filters.proyecto } : {},
+        proyectos ? { proyectoId: { in: proyectos } } : {},
+      ],
+      ...(filters.tipos?.length ? { tipo: { in: filters.tipos as ModuloTipo[] } } : {}),
       ...(typeof filters.estado === "boolean" ? { estado: filters.estado } : {}),
     });
   }

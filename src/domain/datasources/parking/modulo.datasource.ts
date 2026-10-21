@@ -8,7 +8,10 @@ import { ModuloTipo } from "../../entities/parking/module-type.entity";
 
 export interface ModuloFilters {
     proyecto?: string;
-    tipo?: ModuloTipo;
+    /** Only these parkings (the user's scope). */
+    proyectos?: string[];
+    /** Any of these types. */
+    tipos?: ModuloTipo[];
     estado?: boolean;
 }
 

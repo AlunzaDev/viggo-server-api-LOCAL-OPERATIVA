@@ -18,6 +18,7 @@ import {
 } from "../../domain/constants";
 
 import { CustomError } from "../../domain/errors/custom.error";
+import type { ProjectAccess } from "../../domain/entities/auth/project-access";
 
 
 type AuthenticatedUser = {
@@ -119,6 +120,15 @@ export const isSuperAdminRequest = (req: Request): boolean => {
     !authRequest.localProjectId
   );
 };
+
+/**
+ * The parkings the authenticated user may see, for services to apply (no `req` there). With a
+ * linked installation it is only that installation's parking, for every role.
+ */
+export const projectAccessFromRequest = (req: Request): ProjectAccess => ({
+  all: isSuperAdminRequest(req),
+  allowed: getAllowedProjectIdsFromRequest(req),
+});
 
 export const canAccessProjectFromRequest = (
   req: Request,

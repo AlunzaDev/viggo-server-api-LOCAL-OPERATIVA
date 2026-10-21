@@ -20,17 +20,12 @@ export const buildModuloService = (): ModuloService =>
 export const buildModuloController = (): ModuloController => {
   const moduloRepository = buildModuloRepository();
   const proyectoRepository = buildProyectoRepository();
-  const service = new ModuloService(
+  return new ModuloController(new ModuloService(
     moduloRepository,
     proyectoRepository,
     buildLocalInstallationService(),
-  );
-  const remoteSupportService = new RemoteSupportService(
-    moduloRepository,
-    proyectoRepository,
-  );
-
-  return new ModuloController(service, remoteSupportService);
+    new RemoteSupportService(moduloRepository, proyectoRepository),
+  ));
 };
 
 export const buildProyectoController = (): ProyectoController => {

@@ -46,8 +46,4 @@ export interface DeviceRuntimePayload {
   message?: string;
 }
 
-export interface ModuloFilters {
-  proyecto?: string;
-  tipo?: ModuloEntity["tipo"];
-  estado?: boolean;
-}
+export type { ModuloFilters } from "../../../domain/datasources/parking/modulo.datasource";

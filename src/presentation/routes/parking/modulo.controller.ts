@@ -1,174 +1,58 @@
-import { Request, Response } from "express";
-import {
-  canAccessProjectFromRequest,
-  getAllowedProjectIdsFromRequest,
-  isSuperAdminRequest,
-} from "../../middlewares";
+import type { Request, Response } from "express";
+import { ModuloListQueryDto } from "../../../domain/dtos/parking/modulo-list-query.dto";
+import type { ModuloEntity } from "../../../domain/entities/parking/modulo.entity";
+import { projectAccessFromRequest } from "../../middlewares";
 import { ErrorService } from "../../services/error.service";
-import { ModuloService } from "../../services/parking/modulo.service";
-import type { RemoteSupportService } from "../../services/remote-support/remote-support.service";
-import {
-  buildPaginatedResponse,
-  paginateArray,
-  parsePaginationDateQuery,
-} from "../../services/shared/pagination-query";
-import { SocketServerPlugin } from "../../sockets/socket-server";
-import {
-  ModuloTipo,
-  parseModuloTipo,
-} from "../../../domain/entities/parking/module-type.entity";
-import { ModuloEntity } from "../../../domain/entities/parking/modulo.entity";
+import type { DeviceBindingResolution, ModuloService } from "../../services/parking/modulo.service";
+import { buildPaginatedResponse, paginateArray, parsePaginationDateQuery } from "../../services/shared/pagination-query";
 
+const serializeModulo = (modulo: ModuloEntity) => ({
+  id: modulo.id,
+  nombre: modulo.nombre,
+  proyecto: modulo.proyecto,
+  tipo: modulo.tipo,
+  capabilities: modulo.capabilities,
+  estado: modulo.estado,
+  identificador: modulo.identificador,
+  ip: modulo.ip,
+  mac: modulo.mac,
+  ubicacion: modulo.ubicacion,
+  coordinates: modulo.coordinates,
+  descripcion: modulo.descripcion,
+  deviceBinding: modulo.deviceBinding,
+  deviceBindingRequests: modulo.deviceBindingRequests,
+  deviceConnectionAudit: modulo.deviceConnectionAudit,
+  deviceRuntime: modulo.deviceRuntime,
+  remoteSupport: modulo.remoteSupport,
+  submodulos: modulo.submodulos,
+});
+
+/** HTTP for the installation's modules; the rules and the user's scope live in ModuloService. */
 export class ModuloController {
-  constructor(
-    private readonly moduloService: ModuloService,
-    private readonly remoteSupport?: RemoteSupportService,
-  ) {}
+  constructor(private readonly modulos: ModuloService) {}
 
-  private normalizeText(value: string) {
-    return value
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .trim()
-      .toLowerCase();
-  }
+  /** Without `page`/`limit` the whole list; with them, a page. */
+  getModulos = async (req: Request, res: Response) => this.list(req, res, req.query as Record<string, unknown>);
 
-  private parseResolveBody(body: Record<string, unknown>): {
-    fingerprint?: string;
-    notes?: string;
-  } {
-    return {
-      fingerprint:
-        typeof body.fingerprint === "string" ? body.fingerprint.trim() : undefined,
-      notes: typeof body.notes === "string" ? body.notes.trim() : undefined,
-    };
-  }
+  getModulosByProyecto = async (req: Request, res: Response) =>
+    this.list(req, res, { ...(req.query as Record<string, unknown>), proyecto: String(req.params.proyectoId) });
 
-  private parseEstado(value: unknown): boolean | undefined | null {
-    if (value === undefined) return undefined;
-    if (typeof value === "boolean") return value;
-    if (typeof value === "string") {
-      const normalized = value.trim().toLowerCase();
-      if (normalized === "true") return true;
-      if (normalized === "false") return false;
-    }
-    return null;
-  }
-
-  private parseTipo(value: unknown): ModuloTipo | null {
-    return parseModuloTipo(value);
-  }
-
-  private parseTipos(value: unknown): ModuloTipo[] | null {
-    if (value === undefined) return [];
-    const values = Array.isArray(value)
-      ? value
-      : String(value).split(",").map((item) => item.trim()).filter(Boolean);
-    const parsed = values.map((item) => this.parseTipo(item));
-    if (parsed.some((item) => item === null)) {
-      return null;
-    }
-    return parsed.filter((item): item is ModuloTipo => Boolean(item));
-  }
-
-  private sanitizeModulo(modulo: ModuloEntity) {
-    return {
-      id: modulo.id,
-      nombre: modulo.nombre,
-      proyecto: modulo.proyecto,
-      tipo: modulo.tipo,
-      capabilities: modulo.capabilities,
-      estado: modulo.estado,
-      identificador: modulo.identificador,
-      ip: modulo.ip,
-      mac: modulo.mac,
-      ubicacion: modulo.ubicacion,
-      coordinates: modulo.coordinates,
-      descripcion: modulo.descripcion,
-      deviceBinding: modulo.deviceBinding,
-      deviceBindingRequests: modulo.deviceBindingRequests,
-      deviceConnectionAudit: modulo.deviceConnectionAudit,
-      deviceRuntime: modulo.deviceRuntime,
-      remoteSupport: modulo.remoteSupport,
-      submodulos: modulo.submodulos,
-    };
-  }
-
-  getModulos = async (req: Request, res: Response) => {
+  private async list(req: Request, res: Response, rawQuery: Record<string, unknown>) {
     try {
-      const allowed = getAllowedProjectIdsFromRequest(req);
-      const proyecto = typeof req.query.proyecto === "string"
-        ? req.query.proyecto.trim()
-        : "";
-      const tipos = this.parseTipos(req.query.tipos ?? req.query.tipo);
-      const estado = this.parseEstado(req.query.estado);
-      const search =
-        typeof req.query.search === "string" ? req.query.search.trim() : "";
-      const shouldPaginate =
-        req.query.page !== undefined || req.query.limit !== undefined;
+      const [error, query] = ModuloListQueryDto.create(rawQuery);
+      if (error || !query) return res.status(400).json({ error });
       const { page, limit } = parsePaginationDateQuery(req.query);
-
-      if (tipos === null) return res.status(400).json({ error: "'tipo' no es valido" });
-      if (estado === null) return res.status(400).json({ error: "'estado' debe ser boolean" });
-      if (proyecto && !canAccessProjectFromRequest(req, proyecto)) {
-        return res.status(403).json({ error: "Forbidden" });
-      }
-
-      const effectiveProject = proyecto ||
-        (!isSuperAdminRequest(req) && allowed.length === 1 ? allowed[0] : "");
-      let modulos = effectiveProject || tipos.length || estado !== undefined
-        ? await this.moduloService.getModulosFiltered({
-            proyecto: effectiveProject || undefined,
-            tipo: tipos[0],
-            estado,
-          })
-        : await this.moduloService.getModulos();
-
-      if (!isSuperAdminRequest(req)) {
-        modulos = modulos.filter((modulo) => allowed.includes(modulo.proyecto));
-      }
-      if (tipos.length > 1) {
-        modulos = modulos.filter((modulo) => tipos.includes(modulo.tipo));
-      }
-      if (search) {
-        const normalizedSearch = this.normalizeText(search);
-        modulos = modulos.filter((modulo) =>
-          [
-            modulo.nombre,
-            modulo.identificador,
-            modulo.descripcion ?? "",
-            modulo.tipo,
-          ].some((value) => this.normalizeText(String(value ?? "")).includes(normalizedSearch)),
-        );
-      }
-
-      if (!shouldPaginate) {
-        return res.status(200).json({ modulos: modulos.map((modulo) => this.sanitizeModulo(modulo)) });
-      }
-      const sanitized = modulos.map((modulo) => this.sanitizeModulo(modulo));
-
-      return res.status(200).json(
-        buildPaginatedResponse(
-          "modulos",
-          paginateArray(sanitized, page, limit),
-          sanitized.length,
-          page,
-          limit,
-        ),
-      );
+      const modulos = (await this.modulos.listModulos(query, projectAccessFromRequest(req))).map(serializeModulo);
+      if (req.query.page === undefined && req.query.limit === undefined) return res.status(200).json({ modulos });
+      return res.status(200).json(buildPaginatedResponse("modulos", paginateArray(modulos, page, limit), modulos.length, page, limit));
     } catch (error) {
       return ErrorService.handleApiError(error, res);
     }
-  };
+  }
 
   getPendingBindings = async (req: Request, res: Response) => {
     try {
-      const allowed = getAllowedProjectIdsFromRequest(req);
-      let modulos = await this.moduloService.getModulosWithPendingDeviceBindingRequests();
-      if (!isSuperAdminRequest(req)) {
-        modulos = modulos.filter((modulo) => allowed.includes(modulo.proyecto));
-      }
-      return res.status(200).json({ modulos: modulos.map((modulo) => this.sanitizeModulo(modulo)) });
+      return res.status(200).json({ modulos: (await this.modulos.pendingBindings(projectAccessFromRequest(req))).map(serializeModulo) });
     } catch (error) {
       return ErrorService.handleApiError(error, res);
     }
@@ -176,11 +60,7 @@ export class ModuloController {
 
   getModuloById = async (req: Request, res: Response) => {
     try {
-      const modulo = await this.moduloService.getModuloById(String(req.params.id));
-      if (!canAccessProjectFromRequest(req, modulo.proyecto)) {
-        return res.status(403).json({ error: "Forbidden" });
-      }
-      return res.status(200).json({ modulo: this.sanitizeModulo(modulo) });
+      return res.status(200).json({ modulo: serializeModulo(await this.modulos.getAccessibleModulo(String(req.params.id), projectAccessFromRequest(req))) });
     } catch (error) {
       return ErrorService.handleApiError(error, res);
     }
@@ -188,12 +68,7 @@ export class ModuloController {
 
   getSubmodulos = async (req: Request, res: Response) => {
     try {
-      const modulo = await this.moduloService.getModuloById(String(req.params.id));
-      if (!canAccessProjectFromRequest(req, modulo.proyecto)) {
-        return res.status(403).json({ error: "Forbidden" });
-      }
-      const submodulos = await this.moduloService.getSubmodulos(modulo.id);
-      return res.status(200).json({ submodulos });
+      return res.status(200).json({ submodulos: await this.modulos.getAccessibleSubmodulos(String(req.params.id), projectAccessFromRequest(req)) });
     } catch (error) {
       return ErrorService.handleApiError(error, res);
     }
@@ -201,21 +76,11 @@ export class ModuloController {
 
   getModuloByIdentificador = async (req: Request, res: Response) => {
     try {
-      const modulo = await this.moduloService.getModuloByIdentificador(
-        String(req.params.identificador).trim(),
-      );
-      if (!canAccessProjectFromRequest(req, modulo.proyecto)) {
-        return res.status(403).json({ error: "Forbidden" });
-      }
-      return res.status(200).json({ modulo: this.sanitizeModulo(modulo) });
+      const modulo = await this.modulos.getAccessibleByIdentificador(String(req.params.identificador).trim(), projectAccessFromRequest(req));
+      return res.status(200).json({ modulo: serializeModulo(modulo) });
     } catch (error) {
       return ErrorService.handleApiError(error, res);
     }
-  };
-
-  getModulosByProyecto = async (req: Request, res: Response) => {
-    req.query.proyecto = String(req.params.proyectoId);
-    return this.getModulos(req, res);
   };
 
   resetDeviceBinding = this.resolveBinding("RESET");
@@ -225,30 +90,7 @@ export class ModuloController {
 
   resolveRemoteSupportDevice = async (req: Request, res: Response) => {
     try {
-      if (!this.remoteSupport) {
-        return res.status(503).json({ error: "Servicio de soporte remoto no disponible" });
-      }
-
-      const id = String(req.params.id);
-      const current = await this.moduloService.getModuloById(id);
-      if (!canAccessProjectFromRequest(req, current.proyecto)) {
-        return res.status(403).json({ error: "Forbidden" });
-      }
-
-      const result =
-        await this.remoteSupport.resolveModuleDevice(id);
-
-      if (result.resolved && result.modulo?.proyecto) {
-        void this.moduloService
-          .syncHeartbeatSnapshot(result.modulo.proyecto)
-          .catch((error) => {
-            console.warn("[OPERATIVO remote-support] No se pudo sincronizar soporte remoto con ADMIN:", {
-              moduleId: id,
-              reason: error instanceof Error ? error.message : String(error),
-            });
-          });
-      }
-
+      const result = await this.modulos.resolveRemoteSupportDevice(String(req.params.id), projectAccessFromRequest(req));
       return res.status(result.resolved ? 200 : 404).json(result);
     } catch (error) {
       return ErrorService.handleApiError(error, res);
@@ -257,22 +99,8 @@ export class ModuloController {
 
   createRemoteSupportSessionUrl = async (req: Request, res: Response) => {
     try {
-      if (!this.remoteSupport) {
-        return res.status(503).json({ error: "Servicio de soporte remoto no disponible" });
-      }
-
-      const id = String(req.params.id);
-      const current = await this.moduloService.getModuloById(id);
-      if (!canAccessProjectFromRequest(req, current.proyecto)) {
-        return res.status(403).json({ error: "Forbidden" });
-      }
-
-      const session = await this.remoteSupport.createModuleSessionUrl(
-        id,
-        (req.body as Record<string, unknown> | undefined)?.viewMode,
-      );
-
-      return res.status(200).json(session);
+      const viewMode = (req.body as Record<string, unknown> | undefined)?.viewMode;
+      return res.status(200).json(await this.modulos.createRemoteSupportSessionUrl(String(req.params.id), viewMode, projectAccessFromRequest(req)));
     } catch (error) {
       return ErrorService.handleApiError(error, res);
     }
@@ -280,73 +108,23 @@ export class ModuloController {
 
   createProjectRemoteSupportSessionUrl = async (req: Request, res: Response) => {
     try {
-      if (!this.remoteSupport) {
-        return res.status(503).json({ error: "Servicio de soporte remoto no disponible" });
-      }
-
-      const projectId = typeof req.body?.projectId === "string"
-        ? req.body.projectId.trim()
-        : "";
-      if (!projectId) {
-        return res.status(400).json({ error: "projectId es requerido" });
-      }
-      if (!canAccessProjectFromRequest(req, projectId)) {
-        return res.status(403).json({ error: "Forbidden" });
-      }
-
-      const session =
-        await this.remoteSupport.createProjectSessionUrl(projectId);
-
-      return res.status(200).json(session);
+      const projectId = typeof req.body?.projectId === "string" ? req.body.projectId.trim() : "";
+      return res.status(200).json(await this.modulos.createProjectRemoteSupportSessionUrl(projectId, projectAccessFromRequest(req)));
     } catch (error) {
       return ErrorService.handleApiError(error, res);
     }
   };
 
-  private resolveBinding(status: "RESET" | "APPROVED" | "REJECTED" | "PENDING") {
+  private resolveBinding(status: DeviceBindingResolution) {
     return async (req: Request, res: Response) => {
       try {
-        const id = String(req.params.id);
-        const current = await this.moduloService.getModuloById(id);
-        if (!canAccessProjectFromRequest(req, current.proyecto)) {
-          return res.status(403).json({ error: "Forbidden" });
-        }
-
-        const payload = this.parseResolveBody(req.body as Record<string, unknown>);
-        const modulo = status === "RESET"
-          ? await this.moduloService.resetDeviceBinding(id)
-          : status === "APPROVED"
-            ? await this.moduloService.approveDeviceBindingRequest(id, payload)
-            : status === "REJECTED"
-              ? await this.moduloService.rejectDeviceBindingRequest(id, payload)
-              : await this.moduloService.reopenDeviceBindingRequest(id, payload);
-
-        SocketServerPlugin.emitDeviceBindingUpdated({
-          moduleId: modulo.id,
-          fingerprint: payload.fingerprint,
-          status,
-          reason: `${status}_DEVICE_BINDING`,
-            timestamp: new Date().toISOString(),
-        });
-
-        if (status === "APPROVED" && this.remoteSupport) {
-          void this.remoteSupport
-            .resolveModuleDevice(id)
-            .then((result) => {
-              if (result.resolved && result.modulo?.proyecto) {
-                return this.moduloService.syncHeartbeatSnapshot(result.modulo.proyecto);
-              }
-              return undefined;
-            })
-            .catch((error) => {
-              console.warn("[OPERATIVO remote-support] No se pudo resolver el dispositivo remoto:", {
-                moduleId: id,
-                reason: error instanceof Error ? error.message : String(error),
-              });
-            });
-        }
-
-        return res.status(200).json({ modulo: this.sanitizeModulo(modulo) });
+        const body = (req.body ?? {}) as Record<string, unknown>;
+        const payload = {
+          fingerprint: typeof body.fingerprint === "string" ? body.fingerprint.trim() : undefined,
+          notes: typeof body.notes === "string" ? body.notes.trim() : undefined,
+        };
+        const modulo = await this.modulos.resolveDeviceBinding(String(req.params.id), status, payload, projectAccessFromRequest(req));
+        return res.status(200).json({ modulo: serializeModulo(modulo) });
       } catch (error) {
         return ErrorService.handleApiError(error, res);
       }

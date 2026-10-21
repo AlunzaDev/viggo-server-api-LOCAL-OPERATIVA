@@ -1,6 +1,8 @@
 import { randomBytes } from "node:crypto";
 import { JwtPlugin } from "../../../config/plugins/jwt.plugin";
 import { UniqueConstraintError } from "../../../domain/errors/unique-constraint.error";
+import type { TicketListQueryDto } from "../../../domain/dtos/parking/ticket-list-query.dto";
+import { canAccessProject, type ProjectAccess } from "../../../domain/entities/auth/project-access";
 import { TicketEntity } from "../../../domain/entities/parking/ticket.entity";
 import { CustomError } from "../../../domain/errors/custom.error";
 import { ModuloRepository } from "../../../domain/repositories/parking/modulo.repository";
@@ -17,6 +19,10 @@ import { ParkingFeeService } from "./parking-fee.service";
 import { buildOperationalLogsService } from "../../dependencies/operational-logs.dependencies";
 
 const operationalLogsService = buildOperationalLogsService();
+
+/** Lowercase without accents, for the free-text search. */
+const normalizeText = (value: string) =>
+  value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
 
 const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9._:-]{16,128}$/;
 
@@ -360,6 +366,59 @@ export class TicketService {
     }
 
     return ticketDeleted;
+  }
+
+  /** Tickets of the user's parkings matching the filters, newest entry first. */
+  async listTickets(query: TicketListQueryDto, access: ProjectAccess): Promise<TicketEntity[]> {
+    return this.filterTickets(await this.ticketRepository.getAll(), query, access);
+  }
+
+  async listTicketsByUsuario(usuarioId: string, query: TicketListQueryDto, access: ProjectAccess): Promise<TicketEntity[]> {
+    return this.filterTickets(await this.ticketRepository.getByUsuario(usuarioId), query, access);
+  }
+
+  /** A ticket of a parking the user can see (404 if it does not exist, 403 if not theirs). */
+  async getAccessibleTicket(id: string, access: ProjectAccess): Promise<TicketEntity> {
+    const ticket = await this.getTicketById(id);
+    this.ensureAccess(access, ticket.proyecto);
+    return ticket;
+  }
+
+  /** A client's active ticket, with its amount quoted now, if it is in the user's parkings. */
+  async getAccessibleActiveTicket(usuarioId: string, access: ProjectAccess): Promise<TicketEntity | null> {
+    const ticket = await this.ticketRepository.getActiveByUsuario(usuarioId);
+    if (!ticket) return null;
+    this.ensureAccess(access, ticket.proyecto);
+    return this.getActiveTicketByUsuario(usuarioId);
+  }
+
+  async createAccessibleTicket(ticket: Omit<TicketEntity, "id">, access: ProjectAccess): Promise<TicketEntity> {
+    this.ensureAccess(access, ticket.proyecto);
+    return this.createTicket(ticket);
+  }
+
+  /** Edits a ticket of the user's parkings; moving it is allowed only to a parking the user also sees. */
+  async updateAccessibleTicket(id: string, ticket: Partial<Omit<TicketEntity, "id">>, access: ProjectAccess): Promise<TicketEntity> {
+    await this.getAccessibleTicket(id, access);
+    if (ticket.proyecto) this.ensureAccess(access, ticket.proyecto);
+    return this.updateTicket(id, ticket);
+  }
+
+  private filterTickets(tickets: TicketEntity[], query: TicketListQueryDto, access: ProjectAccess) {
+    const search = normalizeText(query.search);
+    return tickets
+      .filter((ticket) => canAccessProject(access, ticket.proyecto))
+      .filter((ticket) => !query.proyecto || ticket.proyecto === query.proyecto)
+      .filter((ticket) => !query.status || String(ticket.status ?? "").toUpperCase() === query.status)
+      .filter((ticket) => query.pagado === undefined || ticket.pagado === query.pagado)
+      .filter((ticket) => (query.from === undefined || ticket.horaInicio >= query.from) && (query.to === undefined || ticket.horaInicio <= query.to))
+      .filter((ticket) => !search || [ticket.idBoleto, ticket.usuario, ticket.entrada, ticket.salida ?? ""]
+        .some((value) => normalizeText(String(value ?? "")).includes(search)))
+      .sort((a, b) => b.horaInicio - a.horaInicio);
+  }
+
+  private ensureAccess(access: ProjectAccess, projectId: string) {
+    if (!canAccessProject(access, projectId)) throw CustomError.forbidden("Forbidden");
   }
 
   async toLegacyTicketResponse(

@@ -88,7 +88,7 @@ describe("parking and pension datasources (Postgres)", () => {
     expect(cleared?.deviceRuntime).toBeNull();
     expect((await modulos.resetDeviceBinding(modulo.id))?.deviceBinding).toBeNull();
 
-    expect(await modulos.getFiltered({ proyecto: proyectoId, tipo: "ENTRADA", estado: true })).toHaveLength(1);
+    expect(await modulos.getFiltered({ proyecto: proyectoId, tipos: ["ENTRADA"], estado: true })).toHaveLength(1);
     expect(await modulos.getFiltered({ proyecto: "not-a-uuid" })).toEqual([]);
     expect(await modulos.findById("not-a-uuid")).toBeNull();
   });
