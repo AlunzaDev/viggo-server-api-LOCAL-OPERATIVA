@@ -64,7 +64,10 @@ export class OutboxPublisherService {
 
     for (const event of await this.outbox.nextBatch(this.batchSize)) {
       result.processed += 1;
-      if (event.nextAttemptAt > now) {
+      // Only a failed event waits: its next attempt was set here, with this clock. A new event's
+      // next_attempt_at is its creation time from the database's clock, which may run ahead of
+      // this one and made fresh events look not yet due.
+      if (event.attempts > 0 && event.nextAttemptAt > now) {
         if (event.lastError.startsWith(REJECTED)) continue;
         return { ...result, stopped: true, reason: "BACKOFF" };
       }

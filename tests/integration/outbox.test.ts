@@ -172,6 +172,13 @@ describe("outbox (Postgres)", () => {
     expect(cloud.inbox.size).toBe(1);
   });
 
+  it("sends a new event even when the database clock runs ahead of this one", async () => {
+    await newTicket();
+    // A new event's next attempt is its creation time, from the database's clock.
+    await db().outboxEvent.updateMany({ where: { sentAt: null }, data: { nextAttemptAt: new Date(Date.now() + 5_000) } });
+    expect(await publisher.publishPending()).toMatchObject({ sent: 1, stopped: false });
+  });
+
   it("does not let an event the cloud refuses block the rest", async () => {
     await newTicket();
     await newTicket();
