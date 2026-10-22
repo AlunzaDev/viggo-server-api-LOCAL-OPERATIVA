@@ -25,4 +25,11 @@ describe("parking time zone", () => {
     expect(ProyectoEntity.fromObject(base).zonaHoraria).toBe(DEFAULT_TIME_ZONE);
     expect(ProyectoEntity.fromObject({ ...base, zonaHoraria: "no-existe" }).zonaHoraria).toBe(DEFAULT_TIME_ZONE);
   });
+
+  it("keeps the capacity that arrives with the project, or none", () => {
+    const base = { _id: "p1", nombre: "Plaza", coordinates: [0, 0], ciudad: "TIJ", identificador: "P-1", estado: true };
+    expect(ProyectoEntity.fromObject({ ...base, capacidad: 120 }).capacidad).toBe(120);
+    expect(ProyectoEntity.fromObject(base).capacidad).toBeNull();
+    for (const capacidad of [0, -3, 2.5, "120", null]) expect(ProyectoEntity.fromObject({ ...base, capacidad }).capacidad).toBeNull();
+  });
 });

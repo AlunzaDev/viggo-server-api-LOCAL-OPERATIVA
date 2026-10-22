@@ -30,6 +30,8 @@ export interface ProyectoEntityOptions {
     descripcion?: string;
     /** IANA zone; schedules are checked in the parking's local time. */
     zonaHoraria?: string;
+    /** Parking spaces; null while not captured. */
+    capacidad?: number | null;
     estado: boolean;
 }
 
@@ -48,10 +50,11 @@ export class ProyectoEntity {
     public img?: string;
     public descripcion?: string;
     public zonaHoraria?: string;
+    public capacidad?: number | null;
     public estado: boolean;
 
     constructor(options: ProyectoEntityOptions) {
-        const { id, nombre, coordinates, ciudad, direccion, identificador, codigoProyecto, serverIp, serverMac, localApiBaseUrl, remoteSupport, img, descripcion, zonaHoraria, estado } =
+        const { id, nombre, coordinates, ciudad, direccion, identificador, codigoProyecto, serverIp, serverMac, localApiBaseUrl, remoteSupport, img, descripcion, zonaHoraria, capacidad, estado } =
             options;
 
         this.id = id;
@@ -68,11 +71,12 @@ export class ProyectoEntity {
         this.img = img;
         this.descripcion = descripcion;
         this.zonaHoraria = zonaHoraria ?? DEFAULT_TIME_ZONE;
+        this.capacidad = capacidad ?? null;
         this.estado = estado;
     }
 
     static fromObject(object: { [key: string]: unknown }): ProyectoEntity {
-        const { _id, id, nombre, coordinates, ciudad, direccion, identificador, codigoProyecto, serverIp, serverMac, localApiBaseUrl, remoteSupport, img, descripcion, zonaHoraria, estado } =
+        const { _id, id, nombre, coordinates, ciudad, direccion, identificador, codigoProyecto, serverIp, serverMac, localApiBaseUrl, remoteSupport, img, descripcion, zonaHoraria, capacidad, estado } =
             object;
 
         const proyectoId = id || (_id ? String(_id) : undefined);
@@ -115,6 +119,8 @@ export class ProyectoEntity {
             remoteSupport: ProyectoEntity.parseRemoteSupport(remoteSupport),
             // An unknown or missing zone (older cloud) keeps the one every parking used.
             zonaHoraria: isValidTimeZone(zonaHoraria) ? zonaHoraria : DEFAULT_TIME_ZONE,
+            // Missing (older cloud) or invalid: not captured.
+            capacidad: typeof capacidad === "number" && Number.isInteger(capacidad) && capacidad > 0 ? capacidad : null,
             img: typeof img === "string" ? img : undefined,
             descripcion: typeof descripcion === "string" ? descripcion : undefined,
             estado: Boolean(estado),

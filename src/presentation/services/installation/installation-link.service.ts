@@ -86,6 +86,7 @@ const normalizeProject = (value: PlainRecord) => ({
   localApiBaseUrl: String(value.localApiBaseUrl ?? ""),
   img: String(value.img ?? ""),
   descripcion: String(value.descripcion ?? ""),
+  capacidad: value.capacidad ?? null,
   estado: value.estado !== false,
 });
 

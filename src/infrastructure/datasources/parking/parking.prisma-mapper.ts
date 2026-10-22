@@ -54,6 +54,7 @@ export const toProyectoEntity = (row: ProyectoRow): ProyectoEntity =>
     img: row.img,
     descripcion: row.descripcion,
     zonaHoraria: row.zonaHoraria,
+    capacidad: row.capacidad,
     estado: row.estado,
   });
 
@@ -63,7 +64,7 @@ export type ProyectoKey = keyof ProyectoValues;
 /** Every key of a project, for writes that store the whole record. */
 export const PROYECTO_KEYS: readonly ProyectoKey[] = [
   "nombre", "coordinates", "ciudad", "direccion", "identificador", "codigoProyecto", "serverIp",
-  "serverMac", "localApiBaseUrl", "remoteSupport", "img", "descripcion", "zonaHoraria", "estado",
+  "serverMac", "localApiBaseUrl", "remoteSupport", "img", "descripcion", "zonaHoraria", "capacidad", "estado",
 ];
 
 const proyectoColumns = (proyecto: ProyectoValues, has: (key: ProyectoKey) => boolean) => {
@@ -80,6 +81,7 @@ const proyectoColumns = (proyecto: ProyectoValues, has: (key: ProyectoKey) => bo
   if (has("img")) data.img = proyecto.img ?? "";
   if (has("descripcion")) data.descripcion = proyecto.descripcion ?? "";
   if (has("zonaHoraria")) data.zonaHoraria = proyecto.zonaHoraria ?? DEFAULT_TIME_ZONE;
+  if (has("capacidad")) data.capacidad = proyecto.capacidad ?? null;
   if (has("estado")) data.estado = proyecto.estado;
   return data;
 };

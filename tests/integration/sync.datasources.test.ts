@@ -155,8 +155,23 @@ describe("sync datasources (Postgres)", () => {
 
     const second = await sync.applyConfigurationSnapshot(configuration(snapshot));
     expect(second.details.modulos).toEqual({ received: 1, created: 0, updated: 0, unchanged: 1 });
+    expect(second.details.proyecto.unchanged).toBe(1);
     expect(second.details.pensiones.unchanged).toBe(1);
     expect(second.details.pensionPasses.unchanged).toBe(1);
+  });
+
+  it("keeps the capacity that ADMINISTRATIVO captures, and clears it", async () => {
+    const snapshot = newSnapshot();
+    await sync.applyConfigurationSnapshot(configuration(snapshot));
+    expect((await db().proyecto.findUniqueOrThrow({ where: { id: snapshot.proyecto._id } })).capacidad).toBeNull();
+
+    Object.assign(snapshot.proyecto, { capacidad: 120 });
+    expect((await sync.applyConfigurationSnapshot(configuration(snapshot))).details.proyecto.updated).toBe(1);
+    expect((await db().proyecto.findUniqueOrThrow({ where: { id: snapshot.proyecto._id } })).capacidad).toBe(120);
+
+    Object.assign(snapshot.proyecto, { capacidad: null });
+    await sync.applyConfigurationSnapshot(configuration(snapshot));
+    expect((await db().proyecto.findUniqueOrThrow({ where: { id: snapshot.proyecto._id } })).capacidad).toBeNull();
   });
 
   it("updates cloud fields without touching local state", async () => {
