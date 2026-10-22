@@ -13,3 +13,4 @@ export * from "./local-reports.dependencies";
 export * from "./operational-logs.dependencies";
 export * from "./monthly-flush.dependencies";
 export * from "./device-setup.dependencies";
+export * from "./occupancy.dependencies";

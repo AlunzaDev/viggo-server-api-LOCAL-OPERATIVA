@@ -56,6 +56,8 @@ import { HealthRepositoryImpl } from "../../infrastructure/repositories/system/h
 import { MonthlyFlushRepositoryImpl } from "../../infrastructure/repositories/system/monthly-flush.repository.impl";
 import { OperationalLogRepositoryImpl } from "../../infrastructure/repositories/system/operational-log.repository.impl";
 import { OutboxRepositoryImpl } from "../../infrastructure/repositories/system/outbox.repository.impl";
+import { OccupancyPostgresDatasource } from "../../infrastructure/datasources/parking/occupancy.datasource.postgres";
+import { OccupancyRepositoryImpl } from "../../infrastructure/repositories/parking/occupancy.repository.impl";
 
 /** Runs a unit of work in one database transaction. */
 export const buildTransactionRunner = () => new PostgresTransactionRunner();
@@ -69,6 +71,7 @@ export const buildPermissionProfileRepository = () =>
 export const buildProyectoRepository = () => new ProyectoRepositoryImpl(new ProyectoPostgresDatasource());
 export const buildModuloRepository = () => new ModuloRepositoryImpl(new ModuloPostgresDatasource());
 export const buildTicketRepository = () => new TicketRepositoryImpl(new TicketPostgresDatasource());
+export const buildOccupancyRepository = () => new OccupancyRepositoryImpl(new OccupancyPostgresDatasource());
 export const buildParkingRateRepository = () => new ParkingRateRepositoryImpl(new ParkingRatePostgresDatasource());
 
 export const buildPensionRepository = () => new PensionRepositoryImpl(new PensionPostgresDatasource());

@@ -699,6 +699,9 @@ model Ticket {
   @@unique([usuarioId], map: "tickets_active_usuario_key", where: raw("hora_salida IS NULL"))
   @@index([usuarioId, horaInicio(sort: Desc)])
   @@index([proyectoId, horaInicio(sort: Desc)])
+  /// Exits of a period and tickets still inside (occupancy screen).
+  @@index([proyectoId, horaSalida])
+  @@index([proyectoId, horaInicio], map: "tickets_open_idx", where: raw("hora_salida IS NULL"))
   @@index([status, horaInicio])
   @@map("tickets")
 }

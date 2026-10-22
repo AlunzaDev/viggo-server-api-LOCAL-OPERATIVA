@@ -21,6 +21,7 @@ import { LocalProjectScopeMiddleware } from "../middlewares";
 import { buildLocalInstallationService } from "../dependencies";
 import { HealthRoutes } from "./health/health.routes";
 import { DeviceSetupRoutes } from "./device-setup/device-setup.routes";
+import { OccupancyRoutes } from "./parking/occupancy.routes";
 
 export class AppRoutes {
   static get routes(): Router {
@@ -56,6 +57,7 @@ export class AppRoutes {
     // Dominio operativo local.
     router.use("/api/tickets", requireLocalProject, TicketRoutes.routes);
     router.use("/api/tarifa", requireLocalProject, ParkingRateRoutes.routes);
+    router.use("/api/ocupacion", requireLocalProject, OccupancyRoutes.routes);
     router.use("/api/pension-moves", requireLocalProject, PensionMoveRoutes.routes);
     router.use("/api/cash-register", requireLocalProject, CashRegisterRoutes.routes);
     router.use("/api/config", ConfigRoutes.routes);
