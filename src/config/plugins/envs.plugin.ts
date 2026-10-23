@@ -292,4 +292,8 @@ export const envs = {
     .get("BARRIER_SOCKET_TIMEOUT_MS")
     .default("5000")
     .asIntPositive(),
+  // Local data retention (docs/retencion.md, LOCAL-OPERATIVA#26): days kept; 0 never purges.
+  RETENTION_LOCAL_OPERATION_DAYS: parseBoundedInteger(env.get("RETENTION_LOCAL_OPERATION_DAYS").asString(), 180, 0, 36500),
+  RETENTION_LOCAL_AUDIT_DAYS: parseBoundedInteger(env.get("RETENTION_LOCAL_AUDIT_DAYS").asString(), 90, 0, 36500),
+  RETENTION_COMMAND_RECEIPTS_DAYS: parseBoundedInteger(env.get("RETENTION_COMMAND_RECEIPTS_DAYS").asString(), 30, 0, 36500),
 };

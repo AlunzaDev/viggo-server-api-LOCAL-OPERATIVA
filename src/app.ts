@@ -5,6 +5,7 @@ import { AppRoutes } from "./presentation/routes/routes";
 import { Server } from "./presentation/server";
 import { buildMobileCommandScheduler } from "./presentation/dependencies/mobile.dependencies";
 import { buildOutboxScheduler } from "./presentation/dependencies/outbox.dependencies";
+import { buildLocalRetentionScheduler } from "./presentation/dependencies/retention.dependencies";
 import { HeartbeatSnapshotPublisher } from "./presentation/services/heartbeat/heartbeat-snapshot.publisher";
 import { InstallationIdentityService } from "./presentation/services/installation/installation-identity.service";
 
@@ -23,6 +24,7 @@ const configSyncScheduler = buildConfigSyncScheduler();
 const monthlyFlushScheduler = buildMonthlyFlushScheduler();
 const mobileCommandScheduler = buildMobileCommandScheduler();
 const outboxScheduler = buildOutboxScheduler();
+const localRetentionScheduler = buildLocalRetentionScheduler();
 const server = new Server({
   host: envs.HOST,
   port: envs.PORT,
@@ -34,6 +36,7 @@ const server = new Server({
     configSyncScheduler.start();
     mobileCommandScheduler.start();
     outboxScheduler.start();
+    localRetentionScheduler.start();
     await monthlyFlushScheduler.start();
     // The linked project's module states reach ADMIN at least once a minute, even with no device activity.
     const credentials = await InstallationIdentityService.getCloudCredentials().catch(() => null);

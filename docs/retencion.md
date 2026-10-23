@@ -17,11 +17,19 @@ Principios:
 | Operación ya confirmada por la nube | `tickets` (con salida), `payments`, `pension_moves`, `cash_payment_sessions` y sus eventos, `cash_register_shifts`, `cash_register_movements`, `cash_register_counts` y sus líneas, `cash_register_cuts` (cerrados) | 6 meses | fecha del registro (entrada del ticket, pago, movimiento, cierre) | `RETENTION_LOCAL_OPERATION_DAYS` (180) |
 | Logs operativos | `operational_logs` | Resumen y borrado mensual | mes | Monthly flush (ya existe; se configura desde la web) |
 | Eventos ya enviados a la nube | `outbox_events` (`sent_at` no nulo) | 30 días | `sent_at` | `OUTBOX_RETENTION_DAYS` (30, ya existe) |
-| Auditorías de sincronización y conexión | `config_sync_audits`, `modulo_connection_audits` | 90 días | fecha del registro | `RETENTION_LOCAL_AUDIT_DAYS` (90) |
+| Auditorías de sincronización | `config_sync_audits` | 90 días | inicio de la sincronización | `RETENTION_LOCAL_AUDIT_DAYS` (90) |
 | Solicitudes de vinculación resueltas | `modulo_device_binding_requests` (aprobadas o rechazadas) | 90 días | fecha de resolución | `RETENTION_LOCAL_AUDIT_DAYS` (90) |
 | Recibos de comandos de la app | `mobile_command_receipts` | 30 días | fecha de recepción | `RETENTION_COMMAND_RECEIPTS_DAYS` (30) |
 
-Lo demás no crece con el uso (catálogos, pensiones, pases, tarifas, usuarios, configuración, resúmenes de logs) o se sobrescribe (`modulo_device_runtimes`) y no se depura.
+Lo demás no crece con el uso (catálogos, pensiones, pases, tarifas, usuarios, configuración, resúmenes de logs) o se sobrescribe (`modulo_device_runtimes`, `modulo_connection_audits`: una fila por módulo) y no se depura.
+
+## Cómo corre
+
+- `LocalRetentionScheduler` (LOCAL-OPERATIVA#26) corre 10 min después de arrancar y luego cada 6 horas, en lotes de 1000 filas y con un tope de 5 min por corrida; lo que falte sigue en la siguiente.
+- Un turno de caja cerrado se borra completo: sus movimientos, sesiones de cobro (con sus eventos), conteos (con sus líneas) y cortes. Si cualquiera de ellos no ha llegado a la nube, el turno entero se conserva.
+- Los turnos y sesiones van antes que los tickets: una sesión de cobro conserva su ticket.
+- Los pagos `pending` nunca se borran.
+- Lo borrado queda en el log `[OPERATIVO data retention]`.
 
 ## Notas
 
