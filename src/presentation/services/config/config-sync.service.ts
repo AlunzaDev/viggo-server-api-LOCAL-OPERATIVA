@@ -1,3 +1,4 @@
+import { SUBMODULE_TYPES } from "@alunzadev/viggo-contracts";
 import { envs } from "../../../config";
 import type { ConfigSyncStatus } from "../../../domain/datasources/config/config-sync.datasource";
 import type {
@@ -275,17 +276,7 @@ export class ConfigSyncService {
   ): Promise<IntegrityResult> {
     const errors: IntegrityIssue[] = [];
     const warnings: IntegrityIssue[] = [];
-    const validSubmoduloTypes = new Set([
-      "QR_SCANNER",
-      "PRINTER",
-      "BARRIER",
-      "CAMERA",
-      "CASH_DRAWER",
-      "CASH_ACCEPTOR",
-      "DISPLAY",
-      "KEYPAD",
-      "OTHER",
-    ]);
+    const validSubmoduloTypes = new Set<string>(SUBMODULE_TYPES);
 
     const { proyectoExists, modulos, pensiones, pensionPasses, usuarios } =
       await this.configSync.getIntegritySnapshot(proyectoId, tx);

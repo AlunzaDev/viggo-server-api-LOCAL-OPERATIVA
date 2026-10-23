@@ -1,4 +1,4 @@
-import { TICKET_MAX_STAY_MS } from "../../../domain/datasources/parking/occupancy.datasource";
+import { occupancyFigures, ticketIsForgotten } from "@alunzadev/viggo-contracts";
 import { DEFAULT_TIME_ZONE } from "../../../domain/entities/parking/time-zone";
 import { CustomError } from "../../../domain/errors/custom.error";
 import type { OccupancyRepository } from "../../../domain/repositories/parking/occupancy.repository";
@@ -21,7 +21,6 @@ export class OccupancyService {
     const proyecto = await this.proyectos.findById(proyectoId);
     if (!proyecto) throw CustomError.notFound("Proyecto no encontrado");
     const zone = proyecto.zonaHoraria ?? DEFAULT_TIME_ZONE;
-    const capacidad = proyecto.capacidad ?? null;
 
     const [inside, hours, open, pensioners] = await Promise.all([
       this.occupancy.insideNow(proyectoId, now),
@@ -29,19 +28,18 @@ export class OccupancyService {
       this.occupancy.openTickets(proyectoId, OPEN_TICKETS_LIMIT),
       this.occupancy.pensionersInside(proyectoId),
     ]);
-    const autosDentro = inside.tickets + inside.pensionados;
-    const forgottenBefore = now - TICKET_MAX_STAY_MS;
+    const figures = occupancyFigures(inside.tickets + inside.pensionados, proyecto.capacidad);
     return {
       generadoEn: now,
       zonaHoraria: zone,
       ahora: {
-        autosDentro,
+        autosDentro: figures.autosDentro,
         tickets: inside.tickets,
         pensionados: inside.pensionados,
-        capacidad,
         // Without a captured capacity there is no percentage, never a made-up one.
-        porcentaje: capacidad ? Math.round((autosDentro / capacidad) * 1000) / 10 : null,
-        lugaresLibres: capacidad ? Math.max(0, capacidad - autosDentro) : null,
+        capacidad: figures.capacidad,
+        porcentaje: figures.porcentaje,
+        lugaresLibres: figures.lugaresLibres,
       },
       hoy: { horas: hours },
       ticketsAbiertos: {
@@ -50,7 +48,7 @@ export class OccupancyService {
           ...ticket,
           minutosDentro: Math.max(0, Math.floor((now - ticket.horaInicio) / 60_000)),
           // More than 7 days without exit: no longer counted as inside, probably never closed.
-          olvidado: ticket.horaInicio <= forgottenBefore,
+          olvidado: ticketIsForgotten(ticket.horaInicio, now),
         })),
       },
       pensionadosDentro: { total: pensioners.length, items: pensioners },

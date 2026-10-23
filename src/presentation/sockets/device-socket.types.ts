@@ -75,6 +75,6 @@ export interface DeviceRegistrationEventPayload {
   deviceSecret?: string;
 }
 
-export const DEVICE_HEARTBEAT_INTERVAL_MS = 20000;
-export const DEVICE_HEARTBEAT_TIMEOUT_MS = 45000;
+// Shared with ADMINISTRATIVO, which reads the same heartbeats from the cloud mirror.
+export { DEVICE_HEARTBEAT_INTERVAL_MS, DEVICE_HEARTBEAT_TIMEOUT_MS } from "@alunzadev/viggo-contracts";
 export const STALE_SESSION_SCAN_INTERVAL_MS = 15000;

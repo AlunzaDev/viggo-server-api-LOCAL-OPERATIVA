@@ -1,12 +1,15 @@
+import {
+  DEVICE_HEARTBEAT_TIMEOUT_MS,
+  resolveBindingStatus,
+  resolveHeartbeatStatus,
+  summarizeHeartbeat,
+} from "@alunzadev/viggo-contracts";
 import { envs } from "../../../config";
 import { ModuloRepository } from "../../../domain/repositories/parking/modulo.repository";
 import { ProyectoRepository } from "../../../domain/repositories/parking/proyecto.repository";
-import { DEVICE_HEARTBEAT_TIMEOUT_MS } from "../../sockets/device-socket.types";
 import { InstallationIdentityService } from "../installation/installation-identity.service";
 import { InstallationTokenCryptoService } from "../installation/installation-token-crypto.service";
 import { LocalInstallationService } from "../installation/local-installation.service";
-
-type HeartbeatStatus = "online" | "offline" | "pending";
 
 const buildCloudUrl = (path: string) =>
   `${envs.ADMINISTRATIVO_API_URL.replace(/\/+$/, "")}${path}`;
@@ -31,15 +34,7 @@ export class HeartbeatSnapshotService {
         (request) => request.status === "PENDING",
       );
       const lastHeartbeatAt = runtime?.lastHeartbeatAt?.getTime() ?? 0;
-      const heartbeatIsFresh =
-        lastHeartbeatAt > 0 && now - lastHeartbeatAt <= DEVICE_HEARTBEAT_TIMEOUT_MS;
-      const heartbeatStatus: HeartbeatStatus = !runtime
-        ? "pending"
-        : runtime.isConnected && runtime.isAuthorized && heartbeatIsFresh
-          ? "online"
-          : runtime.connectionStatus === "PENDING"
-            ? "pending"
-            : "offline";
+      const heartbeatStatus = resolveHeartbeatStatus(runtime, now);
 
       return {
         id: modulo.id,
@@ -47,11 +42,7 @@ export class HeartbeatSnapshotService {
         identificador: modulo.identificador,
         tipo: modulo.tipo,
         estado: modulo.estado,
-        bindingStatus: modulo.deviceBinding
-          ? "BOUND"
-          : hasPendingBinding
-            ? "PENDING"
-            : "FREE",
+        bindingStatus: resolveBindingStatus(Boolean(modulo.deviceBinding), hasPendingBinding),
         heartbeatStatus,
         message: runtime?.message ?? "",
         connectionStatus: runtime?.connectionStatus ?? "PENDING",
@@ -125,6 +116,7 @@ export class HeartbeatSnapshotService {
       };
     });
 
+    const statuses = summarizeHeartbeat(modules.map((modulo) => modulo.heartbeatStatus));
     const lastHeartbeatAt = modules.reduce<number | null>((latest, modulo) => {
       if (!modulo.lastHeartbeatAt) return latest;
       if (!latest || modulo.lastHeartbeatAt > latest) return modulo.lastHeartbeatAt;
@@ -144,9 +136,9 @@ export class HeartbeatSnapshotService {
         summary: {
           totalModules: modules.length,
           activeModules: modules.filter((modulo) => modulo.estado).length,
-          onlineModules: modules.filter((modulo) => modulo.heartbeatStatus === "online").length,
-          offlineModules: modules.filter((modulo) => modulo.heartbeatStatus === "offline").length,
-          pendingModules: modules.filter((modulo) => modulo.heartbeatStatus === "pending").length,
+          onlineModules: statuses.online,
+          offlineModules: statuses.offline,
+          pendingModules: statuses.pending,
           submodules: modules.reduce((total, modulo) => total + modulo.submodules.length, 0),
           staleThresholdMs: DEVICE_HEARTBEAT_TIMEOUT_MS,
           lastHeartbeatAt,
@@ -161,14 +153,13 @@ export class HeartbeatSnapshotService {
     };
   }
 
-  async syncSnapshot(proyectoId: string) {
+  /** Sends the project's snapshot to ADMINISTRATIVO; true when accepted or when there is nowhere to send it. */
+  async syncSnapshot(proyectoId: string): Promise<boolean> {
     try {
       const credentials = await InstallationIdentityService.getCloudCredentials();
 
-      if (!credentials) {
-        console.warn("[OPERATIVO heartbeat] Snapshot omitido: la instalacion no esta vinculada");
-        return;
-      }
+      // Not linked yet: nothing to send, and nothing to retry.
+      if (!credentials) return true;
 
       const { snapshot } = await this.buildSnapshot(proyectoId);
       const response = await fetch(buildCloudUrl("/api/sync/heartbeat-snapshot"), {
@@ -185,11 +176,13 @@ export class HeartbeatSnapshotService {
           statusText: response.statusText,
         });
       }
+      return response.ok;
     } catch (error) {
       console.warn("[OPERATIVO heartbeat] Error al sincronizar snapshot:", {
         proyectoId,
         reason: error instanceof Error ? error.message : String(error),
       });
+      return false;
     }
   }
 }

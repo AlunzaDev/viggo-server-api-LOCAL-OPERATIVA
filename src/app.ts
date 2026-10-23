@@ -5,6 +5,8 @@ import { AppRoutes } from "./presentation/routes/routes";
 import { Server } from "./presentation/server";
 import { buildMobileCommandScheduler } from "./presentation/dependencies/mobile.dependencies";
 import { buildOutboxScheduler } from "./presentation/dependencies/outbox.dependencies";
+import { HeartbeatSnapshotPublisher } from "./presentation/services/heartbeat/heartbeat-snapshot.publisher";
+import { InstallationIdentityService } from "./presentation/services/installation/installation-identity.service";
 
 process.on("unhandledRejection", (reason) => {
     console.error("[UNHANDLED REJECTION]", reason);
@@ -33,6 +35,10 @@ const server = new Server({
     mobileCommandScheduler.start();
     outboxScheduler.start();
     await monthlyFlushScheduler.start();
+    // The linked project's module states reach ADMIN at least once a minute, even with no device activity.
+    const credentials = await InstallationIdentityService.getCloudCredentials().catch(() => null);
+    if (credentials) HeartbeatSnapshotPublisher.shared.watch(credentials.proyectoId);
+    HeartbeatSnapshotPublisher.shared.start();
 };
 
 bootstrap().catch((error) => {

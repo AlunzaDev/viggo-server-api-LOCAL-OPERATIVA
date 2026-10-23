@@ -1,10 +1,11 @@
+import { PENSION_MAX_STAY_MS } from "@alunzadev/viggo-contracts";
 import { PostgresDatabase } from "../../../data/postgres";
 import { Prisma } from "../../../generated/prisma/client";
 import { OccupancyDatasource, TICKET_MAX_STAY_MS } from "../../../domain/datasources/parking/occupancy.datasource";
 import { isUuid } from "../postgres/prisma-errors";
 
 /** Longest a pensioner without moves counts as inside, for the hours of today (as in ADMINISTRATIVO). */
-const PENSION_MAX_STAY = Prisma.sql`interval '30 days'`;
+const PENSION_MAX_STAY = Prisma.sql`(${PENSION_MAX_STAY_MS} * interval '1 millisecond')`;
 const ticketMaxStay = Prisma.sql`(${TICKET_MAX_STAY_MS} * interval '1 millisecond')`;
 
 export class OccupancyPostgresDatasource extends OccupancyDatasource {

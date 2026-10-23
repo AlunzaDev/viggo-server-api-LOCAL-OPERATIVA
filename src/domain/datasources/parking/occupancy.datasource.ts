@@ -7,8 +7,8 @@
  * when its pass is marked in_parking (the anti-passback flag).
  */
 
-/** Longest a ticket without exit counts as inside. */
-export const TICKET_MAX_STAY_MS = 7 * 24 * 60 * 60 * 1000;
+/** Longest a ticket without exit counts as inside (shared rule, @alunzadev/viggo-contracts). */
+export { TICKET_MAX_STAY_MS } from "@alunzadev/viggo-contracts";
 
 export interface InsideNow {
   tickets: number;

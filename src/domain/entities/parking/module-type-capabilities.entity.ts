@@ -1,42 +1,19 @@
-import { MODULO_TIPOS, ModuloTipo } from "./module-type.entity";
+import {
+    MODULE_TYPE_CAPABILITIES,
+    MODULE_TYPES,
+    type ModuleTypeCapabilities,
+} from "@alunzadev/viggo-contracts";
+import type { ModuloTipo } from "./module-type.entity";
 
-export type ModuloTypeCapabilities = {
-    canIssueTickets: boolean;
-    canValidateExit: boolean;
-    canChargePayments: boolean;
-    requiresDeviceBinding: boolean;
-    supportsRemoteSupport: boolean;
-};
+export type ModuloTypeCapabilities = ModuleTypeCapabilities;
 
-export const MODULO_TYPE_CAPABILITIES: Record<ModuloTipo, ModuloTypeCapabilities> = {
-    ENTRADA: {
-        canIssueTickets: true,
-        canValidateExit: false,
-        canChargePayments: false,
-        requiresDeviceBinding: true,
-        supportsRemoteSupport: true,
-    },
-    SALIDA: {
-        canIssueTickets: false,
-        canValidateExit: true,
-        canChargePayments: false,
-        requiresDeviceBinding: true,
-        supportsRemoteSupport: true,
-    },
-    POS: {
-        canIssueTickets: false,
-        canValidateExit: false,
-        canChargePayments: true,
-        requiresDeviceBinding: false,
-        supportsRemoteSupport: true,
-    },
-};
+export const MODULO_TYPE_CAPABILITIES = MODULE_TYPE_CAPABILITIES;
 
 export const getModuloTypeCapabilities = (
     tipo: ModuloTipo,
 ): ModuloTypeCapabilities => MODULO_TYPE_CAPABILITIES[tipo];
 
 export const getModuloTypesRequiringDeviceBinding = (): ModuloTipo[] =>
-    MODULO_TIPOS.filter(
+    MODULE_TYPES.filter(
         (tipo) => MODULO_TYPE_CAPABILITIES[tipo].requiresDeviceBinding,
     );

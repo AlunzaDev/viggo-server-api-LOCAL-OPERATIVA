@@ -12,6 +12,7 @@ import {
   ResolveDeviceBindingRequestPayload,
 } from "./modulo-device-binding.types";
 import { HeartbeatSnapshotService } from "../heartbeat/heartbeat-snapshot.service";
+import { HeartbeatSnapshotPublisher } from "../heartbeat/heartbeat-snapshot.publisher";
 import { LocalInstallationService } from "../installation/local-installation.service";
 import { ModuloCrudService } from "./modulo-crud.service";
 import { ModuloDeviceLifecycleService } from "./modulo-device-lifecycle.service";
@@ -33,6 +34,7 @@ export class ModuloService {
     proyectoRepository: ProyectoRepository,
     installations: LocalInstallationService,
     private readonly remoteSupport?: RemoteSupportService,
+    private readonly snapshots: HeartbeatSnapshotPublisher = HeartbeatSnapshotPublisher.shared,
   ) {
     this.queryService = new ModuloCrudService(
       moduloRepository,
@@ -46,6 +48,7 @@ export class ModuloService {
       proyectoRepository,
       installations,
     );
+    this.snapshots.useSender((proyectoId) => this.heartbeatSnapshotService.syncSnapshot(proyectoId));
   }
 
   getModulos(): Promise<ModuloEntity[]> {
@@ -85,6 +88,7 @@ export class ModuloService {
   ): Promise<ModuloEntity> {
     return this.withHeartbeatSync(
       this.deviceLifecycleService.approveDeviceBindingRequest(id, payload),
+      true,
     );
   }
 
@@ -94,6 +98,7 @@ export class ModuloService {
   ): Promise<ModuloEntity> {
     return this.withHeartbeatSync(
       this.deviceLifecycleService.rejectDeviceBindingRequest(id, payload),
+      true,
     );
   }
 
@@ -103,6 +108,7 @@ export class ModuloService {
   ): Promise<ModuloEntity> {
     return this.withHeartbeatSync(
       this.deviceLifecycleService.reopenDeviceBindingRequest(id, payload),
+      true,
     );
   }
 
@@ -132,15 +138,11 @@ export class ModuloService {
   }
 
   resetDeviceBinding(id: string): Promise<ModuloEntity> {
-    return this.withHeartbeatSync(this.deviceLifecycleService.resetDeviceBinding(id));
+    return this.withHeartbeatSync(this.deviceLifecycleService.resetDeviceBinding(id), true);
   }
 
   getHeartbeatSnapshot(proyectoId: string) {
     return this.heartbeatSnapshotService.buildSnapshot(proyectoId);
-  }
-
-  syncHeartbeatSnapshot(proyectoId: string) {
-    return this.heartbeatSnapshotService.syncSnapshot(proyectoId);
   }
 
   /** Modules of the user's parkings matching the filters and the free text. */
@@ -205,7 +207,9 @@ export class ModuloService {
     if (status === "APPROVED" && this.remoteSupport) {
       void this.remoteSupport
         .resolveModuleDevice(id)
-        .then((result) => (result.resolved && result.modulo?.proyecto ? this.syncHeartbeatSnapshot(result.modulo.proyecto) : undefined))
+        .then((result) => {
+          if (result.resolved && result.modulo) this.snapshots.moduleUpdated(result.modulo, true);
+        })
         .catch((error) => {
           console.warn("[OPERATIVO remote-support] No se pudo resolver el dispositivo remoto:", {
             moduleId: id,
@@ -221,14 +225,7 @@ export class ModuloService {
     const remoteSupport = this.requireRemoteSupport();
     await this.getAccessibleModulo(id, access);
     const result = await remoteSupport.resolveModuleDevice(id);
-    if (result.resolved && result.modulo?.proyecto) {
-      void this.syncHeartbeatSnapshot(result.modulo.proyecto).catch((error) => {
-        console.warn("[OPERATIVO remote-support] No se pudo sincronizar soporte remoto con ADMIN:", {
-          moduleId: id,
-          reason: error instanceof Error ? error.message : String(error),
-        });
-      });
-    }
+    if (result.resolved && result.modulo) this.snapshots.moduleUpdated(result.modulo, true);
     return result;
   }
 
@@ -254,9 +251,10 @@ export class ModuloService {
     if (!canAccessProject(access, projectId)) throw CustomError.forbidden("Forbidden");
   }
 
-  private async withHeartbeatSync(promise: Promise<ModuloEntity>) {
+  /** Tells the snapshot publisher; it decides when ADMINISTRATIVO hears about it (LOCAL-OPERATIVA#27). */
+  private async withHeartbeatSync(promise: Promise<ModuloEntity>, force = false) {
     const modulo = await promise;
-    void this.heartbeatSnapshotService.syncSnapshot(modulo.proyecto);
+    this.snapshots.moduleUpdated(modulo, force);
     return modulo;
   }
 }
