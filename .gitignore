@@ -28,3 +28,6 @@ mongo-init.js
 
 # Prisma generated client (built by `prisma generate`)
 src/generated/
+
+# Local registry credentials; only passed as a BuildKit secret.
+.npmrc.auth*

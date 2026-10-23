@@ -16,3 +16,6 @@ pnpm-debug.log*
 src/generated
 postgres-data
 backups
+
+# Local registry credentials; only passed as a BuildKit secret.
+.npmrc.auth*
